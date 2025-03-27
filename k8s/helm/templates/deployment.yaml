@@ -28,6 +28,10 @@ spec:
         env:
         - name: KUBERNETES_CLUSTER_DOMAIN
           value: {{ quote .Values.kubernetesClusterDomain }}
+        - name: STAGE
+          value: {{ quote .Values.controllerManager.env.stage | default "production"}}
+        - name: LOG_LEVEL
+          value: {{ quote .Values.controllerManager.env.logLevel | default "info" }}
         image: {{ .Values.controllerManager.manager.image.repository }}:{{ .Values.controllerManager.manager.image.tag
           | default .Chart.AppVersion }}
         livenessProbe:
