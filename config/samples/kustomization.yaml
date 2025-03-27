@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- k8s.cloudogu.com_v1_supportarchive.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
