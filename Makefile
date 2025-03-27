@@ -1,3 +1,14 @@
+# Set these to the desired values
+ARTIFACT_ID=k8s-support-archive-operator
+VERSION=0.0.1
+
+IMAGE=cloudogu/${ARTIFACT_ID}:${VERSION}
+GOTAG=1.24.1
+MAKEFILES_VERSION=9.8.0
+
+MOCKERY_VERSION=v2.46.2
+
+
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 
