@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/reconciler"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -17,6 +18,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	k8scloudogucomv1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
+	"github.com/cloudogu/k8s-support-archive-lib/client"
+	k8scloudoguclient "github.com/cloudogu/k8s-support-archive-lib/client"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -43,6 +46,11 @@ func init() {
 
 	utilruntime.Must(k8scloudogucomv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
+}
+
+type ecosystemClientSet struct {
+	kubernetes.Interface
+	client.SupportArchiveEcosystemInterface
 }
 
 // nolint:gocyclo
@@ -74,14 +82,22 @@ func startOperator(
 		return fmt.Errorf("unable to start manager: %w", err)
 	}
 
-	// TODO
-	//var recorder eventRecorder = k8sManager.GetEventRecorderFor("k8s-blueprint-operator")
-	// bootstrap, err := pkg.Bootstrap(restConfig, recorder, operatorConfig.Namespace)
-	// if err != nil {
-	//	return fmt.Errorf("unable to bootstrap application context: %w", err)
-	//}
+	supportArchiveClient, err := createSupportArchiveClientSet(restConfig)
+	if err != nil {
+		return fmt.Errorf("unable to create client set: %w", err)
+	}
 
-	r := reconciler.NewSupportArchiveReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
+	k8sClientSet, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("unable to create kubernetes client set: %w", err)
+	}
+
+	ecoClientSet := ecosystemClientSet{
+		k8sClientSet,
+		supportArchiveClient,
+	}
+
+	r := reconciler.NewSupportArchiveReconciler(ecoClientSet, k8sManager.GetScheme())
 	err = configureManager(k8sManager, r)
 	if err != nil {
 		return fmt.Errorf("unable to configure manager: %w", err)
@@ -103,8 +119,8 @@ func NewK8sManager(
 	return ctrl.NewManager(restConfig, options)
 }
 
-func configureManager(k8sManager controllerManager, blueprintReconciler *reconciler.SupportArchiveReconciler) error {
-	err := blueprintReconciler.SetupWithManager(k8sManager)
+func configureManager(k8sManager controllerManager, supportArchiveReconciler *reconciler.SupportArchiveReconciler) error {
+	err := supportArchiveReconciler.SetupWithManager(k8sManager)
 	if err != nil {
 		return fmt.Errorf("unable to configure reconciler: %w", err)
 	}
@@ -168,4 +184,12 @@ func startK8sManager(ctx context.Context, k8sManager controllerManager) error {
 	}
 
 	return nil
+}
+
+func createSupportArchiveClientSet(restConfig *rest.Config) (k8scloudoguclient.SupportArchiveEcosystemInterface, error) {
+	supportArchiveClientSet, err := k8scloudoguclient.NewSupportArchiveClientSet(restConfig)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create ecosystem clientset: %w", err)
+	}
+	return supportArchiveClientSet, nil
 }

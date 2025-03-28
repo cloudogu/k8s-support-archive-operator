@@ -6,7 +6,6 @@ import (
 	k8sv1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -14,18 +13,18 @@ import (
 )
 
 type SupportArchiveReconciler struct {
-	client.Client
+	Client EcosystemClientSet
 	Scheme *runtime.Scheme
 }
 
-func NewSupportArchiveReconciler(client client.Client, scheme *runtime.Scheme) *SupportArchiveReconciler {
+func NewSupportArchiveReconciler(client EcosystemClientSet, scheme *runtime.Scheme) *SupportArchiveReconciler {
 	return &SupportArchiveReconciler{
 		Client: client,
 		Scheme: scheme,
 	}
 }
 
-func (s SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
 	logger.Info("Reconciler is triggered")
