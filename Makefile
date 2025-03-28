@@ -4,7 +4,9 @@ VERSION=0.0.1
 IMAGE=cloudogu/${ARTIFACT_ID}:${VERSION}
 GOTAG=1.24.1
 MAKEFILES_VERSION=9.8.0
-MOCKERY_VERSION=v2.46.2
+LINT_VERSION=v1.64.8
+ADDITIONAL_CLEAN=dist-clean
+MOCKERY_VERSION=v2.53.3
 
 include build/make/variables.mk
 include build/make/self-update.mk
@@ -16,8 +18,14 @@ include build/make/static-analysis.mk
 include build/make/clean.mk
 include build/make/digital-signature.mk
 include build/make/mocks.mk
+
 include build/make/k8s-controller.mk
-include build/make/k8s-component.mk
+
+IMAGE_IMPORT_TARGET=image-import
+HELM_PRE_GENERATE_TARGETS = helm-values-update-image-version
+HELM_POST_GENERATE_TARGETS = helm-values-replace-image-repo template-stage template-log-level template-image-pull-policy
+K8S_COMPONENT_SOURCE_VALUES = ${HELM_SOURCE_DIR}/values.yaml
+K8S_COMPONENT_TARGET_VALUES = ${HELM_TARGET_DIR}/values.yaml
 
 ##@ Debug
 
