@@ -10,8 +10,9 @@ controllerManager:
         drop:
         - ALL
     image:
-      repository: controller
-      tag: latest
+      registry: docker.io
+      repository: cloudogu/k8s-support-archive-operator
+      tag: 0.1.0
     resources:
       limits:
         cpu: 500m
