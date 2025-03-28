@@ -30,3 +30,4 @@ go.work
 .env
 /target
 /.bin
+/vendor
