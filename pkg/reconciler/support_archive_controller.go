@@ -3,6 +3,7 @@ package reconciler
 import (
 	"context"
 	"errors"
+	"fmt"
 	k8sv1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -27,7 +28,7 @@ func NewSupportArchiveReconciler(client EcosystemClientSet, scheme *runtime.Sche
 func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	logger.Info("Reconciler is triggered")
+	logger.Info(fmt.Sprintf("Reconciler is triggered by resource %q", req.NamespacedName))
 
 	return ctrl.Result{}, nil
 }
