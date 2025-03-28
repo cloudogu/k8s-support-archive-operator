@@ -1,6 +1,6 @@
 #!groovy
 
-@Library('github.com/cloudogu/ces-build-lib@3.1.0')
+@Library('github.com/cloudogu/ces-build-lib@4.1.1')
 import com.cloudogu.ces.cesbuildlib.*
 
 // Creating necessary git objects
@@ -12,8 +12,9 @@ github = new GitHub(this, git)
 changelog = new Changelog(this)
 Docker docker = new Docker(this)
 gpg = new Gpg(this, docker)
-goVersion = "1.23.4"
+goVersion = "1.24.1"
 makefile = new Makefile(this)
+supportArchiveCrdVersion="0.0.1"
 
 // Configuration of repository
 repositoryOwner = "cloudogu"
@@ -89,6 +90,13 @@ node('docker') {
 
             stage('Set up k3d cluster') {
                 k3d.startK3d()
+            }
+
+            stage('Deploy crd') {
+                    withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harborhelmchartpush', usernameVariable: 'HARBOR_USERNAME', passwordVariable: 'HARBOR_PASSWORD']]) {
+                        k3d.helm("registry login ${registryUrl} --username '${HARBOR_USERNAME}' --password '${HARBOR_PASSWORD}'")
+                        k3d.helm("install k8s-support-archive-lib-crd oci://${registryUrl}/${registryNamespace}/k8s-support-archive-lib-crd --version ${supportArchiveCrdVersion}")
+                }
             }
 
             def imageName = ""
@@ -223,7 +231,6 @@ void stageAutomaticRelease() {
                             // Push charts
                             withCredentials([usernamePassword(credentialsId: 'harborhelmchartpush', usernameVariable: 'HARBOR_USERNAME', passwordVariable: 'HARBOR_PASSWORD')]) {
                                 sh ".bin/helm registry login ${registry} --username '${HARBOR_USERNAME}' --password '${HARBOR_PASSWORD}'"
-
                                 sh ".bin/helm push ${helmChartDir}/${repositoryName}-${controllerVersion}.tgz oci://${registry}/${registry_namespace}/"
                             }
                         }
