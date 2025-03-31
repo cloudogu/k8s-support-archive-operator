@@ -21,7 +21,7 @@ repositoryOwner = "cloudogu"
 repositoryName = "k8s-support-archive-operator"
 project = "github.com/${repositoryOwner}/${repositoryName}"
 registry = "registry.cloudogu.com"
-registry_namespace = "k8s"
+registryNamespace = "k8s"
 registryUrl = "registry.cloudogu.com"
 
 // Configuration of branches
