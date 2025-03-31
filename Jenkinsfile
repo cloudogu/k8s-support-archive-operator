@@ -208,10 +208,6 @@ void stageAutomaticRelease() {
             }
         }
 
-        stage('Finish Release') {
-            gitflow.finishRelease(releaseVersion, productionReleaseBranch)
-        }
-
         stage('Sign after Release') {
             gpg.createSignature()
         }
@@ -228,13 +224,17 @@ void stageAutomaticRelease() {
                             // Push charts
                             withCredentials([usernamePassword(credentialsId: 'harborhelmchartpush', usernameVariable: 'HARBOR_USERNAME', passwordVariable: 'HARBOR_PASSWORD')]) {
                                 sh ".bin/helm registry login ${registry} --username '${HARBOR_USERNAME}' --password '${HARBOR_PASSWORD}'"
-                                sh ".bin/helm push ${helmChartDir}/${repositoryName}-${controllerVersion}.tgz oci://${registry}/${registry_namespace}/"
+                                sh ".bin/helm push ${helmChartDir}/${repositoryName}-${controllerVersion}.tgz oci://${registry}/${registryNamespace}/"
                             }
                         }
         }
 
         stage('Add Github-Release') {
             releaseId = github.createReleaseWithChangelog(releaseVersion, changelog, productionReleaseBranch)
+        }
+
+        stage('Finish Release') {
+            gitflow.finishRelease(releaseVersion, productionReleaseBranch)
         }
     }
 }
