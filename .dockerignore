@@ -1,0 +1,8 @@
+# Deny all
+*/**
+
+# Allow only the following files
+!main.go
+!interfaces.go
+!go.*
+!pkg/**/*
