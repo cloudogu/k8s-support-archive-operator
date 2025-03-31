@@ -1,0 +1,37 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "helm.fullname" . }}-manager-role
+  labels:
+  {{- include "helm.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+      - k8s.cloudogu.com
+    resources:
+      - supportarchives
+    verbs:
+      - get
+      - list
+      - update
+      - watch
+  - apiGroups:
+      - k8s.cloudogu.com
+    resources:
+      - supportarchives/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "helm.fullname" . }}-manager-rolebinding
+  labels:
+  {{- include "helm.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: '{{ include "helm.fullname" . }}-manager-role'
+subjects:
+- kind: ServiceAccount
+  name: '{{ include "helm.fullname" . }}-controller-manager'
+  namespace: '{{ .Release.Namespace }}'
