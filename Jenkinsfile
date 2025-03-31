@@ -14,7 +14,7 @@ Docker docker = new Docker(this)
 gpg = new Gpg(this, docker)
 goVersion = "1.24.1"
 makefile = new Makefile(this)
-supportArchiveCrdVersion="0.1.0"
+supportArchiveCrdVersion="0.1.1"
 
 // Configuration of repository
 repositoryOwner = "cloudogu"
@@ -95,7 +95,7 @@ node('docker') {
             stage('Deploy crd') {
                     withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harborhelmchartpush', usernameVariable: 'HARBOR_USERNAME', passwordVariable: 'HARBOR_PASSWORD']]) {
                         k3d.helm("registry login ${registryUrl} --username '${HARBOR_USERNAME}' --password '${HARBOR_PASSWORD}'")
-                        k3d.helm("install k8s-support-archive-lib-crd oci://${registryUrl}/${registryNamespace}/k8s-support-archive-lib-crd --version ${supportArchiveCrdVersion}")
+                        k3d.helm("install k8s-support-archive-operator-crd oci://${registryUrl}/${registryNamespace}/k8s-support-archive-operator-crd --version ${supportArchiveCrdVersion}")
                 }
             }
 
