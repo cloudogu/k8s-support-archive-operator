@@ -11,7 +11,7 @@ controllerManager:
     image:
       registry: docker.io
       repository: cloudogu/k8s-support-archive-operator
-      tag: 0.1.0
+      tag: 0.1.2
     resources:
       limits:
         memory: 105M
