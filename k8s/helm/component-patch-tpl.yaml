@@ -1,7 +1,7 @@
 apiVersion: v1
 values:
   images:
-    supportArchiveOperator: cloudogu/k8s-support-archive-operator:0.1.0
+    supportArchiveOperator: cloudogu/k8s-support-archive-operator:0.1.2
 patches:
   values.yaml:
     controllerManager:
