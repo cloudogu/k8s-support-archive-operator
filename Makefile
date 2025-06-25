@@ -46,6 +46,7 @@ template-image-pull-policy: $(BINARY_YQ)
 	@if [[ ${STAGE} == "development" ]]; then \
   		echo "Setting PULL POLICY to always!" ;\
 		$(BINARY_YQ) -i e ".controllerManager.imagePullPolicy=\"Always\"" ${K8S_COMPONENT_TARGET_VALUES} ;\
+		$(BINARY_YQ) -i e ".webserver.imagePullPolicy=\"Always\"" ${K8S_COMPONENT_TARGET_VALUES} ;\
 	fi
 
 

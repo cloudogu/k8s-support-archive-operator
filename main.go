@@ -150,7 +150,7 @@ func getK8sManagerOptions(flags *flag.FlagSet, args []string, operatorConfig *co
 func parseManagerFlags(flags *flag.FlagSet, args []string, ctrlOpts ctrl.Options) (ctrl.Options, zap.Options) {
 	var metricsAddr string
 	var probeAddr string
-	flags.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flags.StringVar(&metricsAddr, "metrics-bind-address", ":8082", "The address the metric endpoint binds to.")
 	flags.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	zapOpts := zap.Options{
 		Development: config.IsStageDevelopment(),
