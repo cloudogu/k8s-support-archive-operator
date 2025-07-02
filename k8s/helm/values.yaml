@@ -4,7 +4,7 @@ controllerManager:
       - --metrics-bind-address=:8082
       - --health-probe-bind-address=:8081
     containerSecurityContext:
-      runAsGroup: 101
+      runAsGroup: 65532
       allowPrivilegeEscalation: false
       capabilities:
         drop:
@@ -24,7 +24,7 @@ controllerManager:
     stage: development
   imagePullPolicy: IfNotPresent
   podSecurityContext:
-    fsGroup: 101
+    fsGroup: 65532
     runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
@@ -42,7 +42,7 @@ metricsService:
 webserver:
   containerSecurityContext:
     allowPrivilegeEscalation: false
-    runAsGroup: 101
+    runAsGroup: 65532
     capabilities:
       drop:
         - ALL
