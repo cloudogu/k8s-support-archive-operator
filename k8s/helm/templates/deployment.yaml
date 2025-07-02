@@ -36,6 +36,7 @@ spec:
           - mountPath: /usr/share/nginx/html
             name: archive-storage
             readOnly: true
+            subPath: support-archives
       - args: {{ toYaml .Values.controllerManager.manager.args | nindent 8 }}
         env:
         - name: KUBERNETES_CLUSTER_DOMAIN
@@ -66,7 +67,7 @@ spec:
         resources: {{ toYaml .Values.controllerManager.manager.resources | nindent 10 }}
         securityContext: {{ toYaml .Values.controllerManager.manager.containerSecurityContext | nindent 10 }}
         volumeMounts:
-          - mountPath: /data/support-archives
+          - mountPath: /data
             name: archive-storage
       securityContext: {{ toYaml .Values.controllerManager.podSecurityContext | nindent 8 }}
       serviceAccountName: {{ include "helm.fullname" . }}-controller-manager
