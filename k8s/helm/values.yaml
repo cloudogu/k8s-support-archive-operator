@@ -62,6 +62,7 @@ webserver:
       - ReadWriteOnce
     requests:
       storage: 1Gi
+    keepOnDelete: true
   service:
     type: ClusterIP
     ports:
