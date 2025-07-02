@@ -3,6 +3,6 @@ kind: SupportArchive
 metadata:
   labels:
     app.kubernetes.io/name: k8s-support-archive-operator
-  name: supportarchive-sample
+  generateName: supportarchive-sample-
 spec:
 # TODO(user): Add fields here
