@@ -20,12 +20,12 @@ const (
 )
 
 type SupportArchiveReconciler struct {
-	client         EcosystemClientSet
+	client         supportArchiveV1Interface
 	archiveHandler archiveHandler
 	cleaner        archiveCleaner
 }
 
-func NewSupportArchiveReconciler(client EcosystemClientSet, archiveHandler archiveHandler, cleaner archiveCleaner) *SupportArchiveReconciler {
+func NewSupportArchiveReconciler(client supportArchiveV1Interface, archiveHandler archiveHandler, cleaner archiveCleaner) *SupportArchiveReconciler {
 	return &SupportArchiveReconciler{
 		client:         client,
 		archiveHandler: archiveHandler,
@@ -38,7 +38,7 @@ func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	logger.Info(fmt.Sprintf("Reconciler is triggered by resource %q", req.NamespacedName))
 
-	archiveInterface := s.client.SupportArchiveV1().SupportArchives(req.Namespace)
+	archiveInterface := s.client.SupportArchives(req.Namespace)
 	cr, err := archiveInterface.Get(ctx, req.Name, metav1.GetOptions{})
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)

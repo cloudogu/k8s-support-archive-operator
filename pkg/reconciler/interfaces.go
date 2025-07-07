@@ -3,13 +3,24 @@ package reconciler
 import (
 	"context"
 	libv1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
-	"github.com/cloudogu/k8s-support-archive-lib/client"
-	"k8s.io/client-go/kubernetes"
+	libclient "github.com/cloudogu/k8s-support-archive-lib/client/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-type EcosystemClientSet interface {
-	kubernetes.Interface
-	client.SupportArchiveEcosystemInterface
+//nolint:unused
+//goland:noinspection GoUnusedType
+type controllerManager interface {
+	ctrl.Manager
+}
+
+//nolint:unused
+//goland:noinspection GoUnusedType
+type supportArchiveInterface interface {
+	libclient.SupportArchiveInterface
+}
+
+type supportArchiveV1Interface interface {
+	libclient.SupportArchiveV1Interface
 }
 
 type archiveHandler interface {

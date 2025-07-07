@@ -1,11 +1,11 @@
 package state
 
 import (
-	"archive/zip"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
 	"io"
 	"os"
 	"path/filepath"
@@ -31,21 +31,28 @@ func (s *State) Add(collector string) {
 	s.ExecutedCollectors = append(s.ExecutedCollectors, collector)
 }
 
-type ZipArchiver struct{}
-
-func NewArchiver() *ZipArchiver {
-	return &ZipArchiver{}
+type ZipArchiver struct {
+	filesystem volumeFs
+	zipCreator zipCreator
 }
+
+func NewArchiver(filesystem volumeFs, zipCreator zipCreator) *ZipArchiver {
+	return &ZipArchiver{
+		filesystem: filesystem,
+		zipCreator: zipCreator,
+	}
+}
+
 func (a *ZipArchiver) Write(ctx context.Context, collectorName, name, namespace, zipFilePath string, writer func(w io.Writer) error) error {
 	logger := log.FromContext(ctx).WithName("ZipArchiver")
 
 	destinationPath := fmt.Sprintf("%s/%s/%s.zip", archivePath, namespace, name)
-	zipFile, err := openFile(destinationPath)
+	zipFile, err := a.openFile(destinationPath)
 	if err != nil {
 		return err
 	}
 
-	zipWriter := zip.NewWriter(zipFile)
+	zipWriter := a.zipCreator.NewWriter(zipFile)
 	defer func() {
 		if closeErr := zipWriter.Close(); closeErr != nil {
 			logger.Error(closeErr, "failed to close zip writer")
@@ -65,12 +72,12 @@ func (a *ZipArchiver) Write(ctx context.Context, collectorName, name, namespace,
 		return fmt.Errorf("failed to write file %s: %w", zipFilePath, err)
 	}
 
-	state, err := parseState(name, namespace)
+	state, err := a.parseState(name, namespace)
 	if err != nil {
 		return err
 	}
 	state.Add(collectorName)
-	err = writeState(name, namespace, state)
+	err = a.writeState(name, namespace, state)
 	if err != nil {
 		return err
 	}
@@ -78,8 +85,8 @@ func (a *ZipArchiver) Write(ctx context.Context, collectorName, name, namespace,
 	return nil
 }
 
-func (a *ZipArchiver) Read(name, namespace string) ([]string, error) {
-	state, err := parseState(name, namespace)
+func (a *ZipArchiver) Read(_ context.Context, name, namespace string) ([]string, error) {
+	state, err := a.parseState(name, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -87,13 +94,13 @@ func (a *ZipArchiver) Read(name, namespace string) ([]string, error) {
 	return state.ExecutedCollectors, nil
 }
 
-func (a *ZipArchiver) GetDownloadURL(name, namespace string) string {
-	return fmt.Sprintf("k8s-support-operator-webserver.%s.svc.cluster.local/%s/%s.zip", namespace, namespace, name)
+func (a *ZipArchiver) GetDownloadURL(_ context.Context, name, namespace string) string {
+	return fmt.Sprintf("https://k8s-support-operator-webserver.%s.svc.cluster.local/%s/%s.zip", namespace, namespace, name)
 }
 
-func parseState(name, namespace string) (State, error) {
+func (a *ZipArchiver) parseState(name, namespace string) (State, error) {
 	path := fmt.Sprintf(stateFileFmt, statePath, namespace, name)
-	_, err := os.Stat(path)
+	_, err := a.filesystem.Stat(path)
 	if os.IsNotExist(err) {
 		return State{}, nil
 	}
@@ -102,12 +109,12 @@ func parseState(name, namespace string) (State, error) {
 		return State{}, fmt.Errorf("failed to stat state file %s: %w", path, err)
 	}
 
-	file, err := openFile(path)
+	file, err := a.openFile(path)
 	if err != nil {
 		return State{}, err
 	}
 
-	data, err := io.ReadAll(file)
+	data, err := a.filesystem.ReadAll(file)
 	if err != nil {
 		return State{}, fmt.Errorf("failed to read state file %s: %w", path, err)
 	}
@@ -121,7 +128,7 @@ func parseState(name, namespace string) (State, error) {
 	return *state, nil
 }
 
-func writeState(name, namespace string, state State) error {
+func (a *ZipArchiver) writeState(name, namespace string, state State) error {
 	path := fmt.Sprintf(stateFileFmt, statePath, namespace, name)
 
 	marshal, err := json.Marshal(state)
@@ -129,12 +136,12 @@ func writeState(name, namespace string, state State) error {
 		return fmt.Errorf("failed to marshal state: %w", err)
 	}
 
-	err = createFileIfNotExists(path)
+	err = a.createFileIfNotExists(path)
 	if err != nil {
 		return fmt.Errorf("failed to create state file %s: %w", path, err)
 	}
 
-	err = os.WriteFile(path, marshal, 0644)
+	err = a.filesystem.WriteFile(path, marshal, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write state file %s: %w", path, err)
 	}
@@ -142,13 +149,13 @@ func writeState(name, namespace string, state State) error {
 	return nil
 }
 
-func openFile(path string) (*os.File, error) {
-	err := createFileIfNotExists(path)
+func (a *ZipArchiver) openFile(path string) (filesystem.ClosableRWFile, error) {
+	err := a.createFileIfNotExists(path)
 	if err != nil {
 		return nil, err
 	}
 
-	file, openErr := os.OpenFile(path, os.O_RDWR|os.O_APPEND, 0644)
+	file, openErr := a.filesystem.OpenFile(path, os.O_RDWR|os.O_APPEND, 0644)
 	if openErr != nil {
 		return nil, fmt.Errorf("failed to open file %s: %w", path, err)
 	}
@@ -156,16 +163,16 @@ func openFile(path string) (*os.File, error) {
 	return file, nil
 }
 
-func createFileIfNotExists(path string) error {
-	_, err := os.Stat(path)
+func (a *ZipArchiver) createFileIfNotExists(path string) error {
+	_, err := a.filesystem.Stat(path)
 	if os.IsNotExist(err) {
 		dir := filepath.Dir(path)
-		dirErr := os.MkdirAll(dir, 0775)
+		dirErr := a.filesystem.MkdirAll(dir, os.FileMode(0755))
 		if dirErr != nil {
 			return fmt.Errorf("failed to create directory %s: %w", dir, dirErr)
 		}
 
-		_, createErr := os.Create(path)
+		_, createErr := a.filesystem.Create(path)
 		if createErr != nil {
 			return fmt.Errorf("failed to create file: %w", createErr)
 		}
@@ -188,28 +195,28 @@ func (a *ZipArchiver) Clean(ctx context.Context, name, namespace string) error {
 	archiveFile := fmt.Sprintf("%s/%s.zip", archiveNamespaceDir, name)
 
 	var multiErr []error
-	if err := os.Remove(archiveFile); err != nil {
-		multiErr = append(multiErr, err)
+	if err := a.filesystem.Remove(archiveFile); err != nil {
+		multiErr = append(multiErr, fmt.Errorf("failed to remove archive %s: %w", archiveFile, err))
 	}
 
-	if err := removeDirIfEmpty(archiveNamespaceDir); err != nil {
+	if err := a.removeDirIfEmpty(archiveNamespaceDir); err != nil {
 		multiErr = append(multiErr, err)
 	}
 
 	stateNamespaceDir := fmt.Sprintf("%s/%s", statePath, namespace)
 	stateFile := fmt.Sprintf("%s/%s.json", stateNamespaceDir, name)
-	if err := os.Remove(stateFile); err != nil {
-		multiErr = append(multiErr, err)
+	if err := a.filesystem.Remove(stateFile); err != nil {
+		multiErr = append(multiErr, fmt.Errorf("failed to remove state file %s: %w", stateFile, err))
 	}
-	if err := removeDirIfEmpty(stateNamespaceDir); err != nil {
+	if err := a.removeDirIfEmpty(stateNamespaceDir); err != nil {
 		multiErr = append(multiErr, err)
 	}
 
 	return errors.Join(multiErr...)
 }
 
-func removeDirIfEmpty(path string) error {
-	dirEntries, err := os.ReadDir(path)
+func (a *ZipArchiver) removeDirIfEmpty(path string) error {
+	dirEntries, err := a.filesystem.ReadDir(path)
 	if err != nil {
 		return fmt.Errorf("error reading dir %q: %w", path, err)
 	}
@@ -218,7 +225,7 @@ func removeDirIfEmpty(path string) error {
 		return nil
 	}
 
-	err = os.Remove(path)
+	err = a.filesystem.Remove(path)
 	if err != nil {
 		return fmt.Errorf("error removing empty dir %q: %w", path, err)
 	}

@@ -13,32 +13,32 @@ import (
 )
 
 type CreateArchiveUseCase struct {
-	supportArchivesInterface supportArchiveInterface
+	supportArchivesInterface supportArchiveV1Interface
 	stateHandler             stateHandler
+	targetCollectors         []archiveDataCollector
 }
 
-func NewCreateArchiveUseCase(supportArchivesInterface supportArchiveInterface, stateHandler stateHandler) *CreateArchiveUseCase {
+func NewCreateArchiveUseCase(supportArchivesInterface supportArchiveV1Interface, stateHandler stateHandler) *CreateArchiveUseCase {
 	return &CreateArchiveUseCase{
 		supportArchivesInterface: supportArchivesInterface,
 		stateHandler:             stateHandler,
+		targetCollectors:         []archiveDataCollector{col.NewLogCollector()},
 	}
 }
 
 func (c CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *libapi.SupportArchive) (bool, error) {
 	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase")
 
-	targetCollectors := []collector{col.NewLogCollector()}
-
 	// get actualState
-	currentCollectors, err := c.stateHandler.Read(cr.Name, cr.Namespace)
+	currentCollectors, err := c.stateHandler.Read(ctx, cr.Name, cr.Namespace)
 	if err != nil {
 		return true, fmt.Errorf("failed to read state: %w", err)
 	}
 	logger.Info("Got actual state", "currentCollectors", currentCollectors)
 
 	// get diff
-	var requiredCollectors []collector
-	for _, tc := range targetCollectors {
+	var requiredCollectors []archiveDataCollector
+	for _, tc := range c.targetCollectors {
 		if !slices.Contains(currentCollectors, tc.Name()) {
 			requiredCollectors = append(requiredCollectors, tc)
 		}
@@ -53,19 +53,19 @@ func (c CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *liba
 	// apply the next step - we could execute all remaining collectors, but this could block other archives in multitenant environments.
 	nextCollect := requiredCollectors[0]
 	name := nextCollect.Name()
-	logger.Info("Determined next collector", "collector", name)
+	logger.Info("Determined next archiveDataCollector", "archiveDataCollector", name)
 	err = nextCollect.Collect(ctx, cr.Name, cr.Namespace, c.stateHandler)
 	if err != nil {
-		return true, fmt.Errorf("failed to execute collector %s: %w", name, err)
+		return true, fmt.Errorf("failed to execute archiveDataCollector %s: %w", name, err)
 	}
-	logger.Info("Successfully executed collector", "collector", name)
+	logger.Info("Successfully executed archiveDataCollector", "archiveDataCollector", name)
 
 	// TODO Set condition CollectorXYDone
 
 	return true, nil
 }
 
-func getCollectorStringSlice(collector []collector) []string {
+func getCollectorStringSlice(collector []archiveDataCollector) []string {
 	result := make([]string, len(collector))
 	for i := range collector {
 		result[i] = collector[i].Name()
@@ -78,7 +78,7 @@ func (c CreateArchiveUseCase) finalize(ctx context.Context, cr *libapi.SupportAr
 	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase")
 	client := c.supportArchivesInterface.SupportArchives(cr.Namespace)
 
-	downloadURL := c.stateHandler.GetDownloadURL(cr.Name, cr.Namespace)
+	downloadURL := c.stateHandler.GetDownloadURL(ctx, cr.Name, cr.Namespace)
 	_, err := client.UpdateStatusWithRetry(ctx, cr, func(status libapi.SupportArchiveStatus) libapi.SupportArchiveStatus {
 		meta.SetStatusCondition(&status.Conditions, getSuccessfulArchiveCreatedCondition(downloadURL))
 		status.DownloadPath = downloadURL

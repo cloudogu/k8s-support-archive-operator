@@ -8,15 +8,21 @@ import (
 
 type stateHandler interface {
 	col.StateWriter
-	Read(name, namespace string) ([]string, error)
-	GetDownloadURL(name, namespace string) string
+	Read(ctx context.Context, name, namespace string) ([]string, error)
+	GetDownloadURL(ctx context.Context, name, namespace string) string
 }
 
-type collector interface {
+type archiveDataCollector interface {
 	Collect(ctx context.Context, name, namespace string, stateWriter col.StateWriter) error
 	Name() string
 }
 
-type supportArchiveInterface interface {
+type supportArchiveV1Interface interface {
 	libclient.SupportArchiveV1Interface
+}
+
+//nolint:unused
+//goland:noinspection GoUnusedType
+type supportArchiveInterface interface {
+	libclient.SupportArchiveInterface
 }

@@ -4,7 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/state"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/zip"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/reconciler"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
@@ -99,9 +101,10 @@ func startOperator(
 		supportArchiveClient,
 	}
 
-	newArchiver := state.NewArchiver()
-	useCase := usecase.NewCreateArchiveUseCase(ecoClientSet.SupportArchiveV1(), newArchiver)
-	r := reconciler.NewSupportArchiveReconciler(ecoClientSet, useCase, newArchiver)
+	newArchiver := state.NewArchiver(filesystem.FileSystem{}, zip.NewCreator())
+	v1SupportArchive := ecoClientSet.SupportArchiveV1()
+	useCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, newArchiver)
+	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, useCase, newArchiver)
 	err = configureManager(k8sManager, r)
 	if err != nil {
 		return fmt.Errorf("unable to configure manager: %w", err)
