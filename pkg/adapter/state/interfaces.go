@@ -13,6 +13,8 @@ type closableRWFile interface {
 	filesystem.ClosableRWFile
 }
 
+//nolint:unused
+//goland:noinspection GoUnusedType
 type zipper interface {
 	zip.Zipper
 }

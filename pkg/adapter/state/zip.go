@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
 	"io"
 	"os"
 	"path/filepath"
@@ -149,7 +148,7 @@ func (a *ZipArchiver) writeState(name, namespace string, state State) error {
 	return nil
 }
 
-func (a *ZipArchiver) openFile(path string) (filesystem.ClosableRWFile, error) {
+func (a *ZipArchiver) openFile(path string) (closableRWFile, error) {
 	err := a.createFileIfNotExists(path)
 	if err != nil {
 		return nil, err

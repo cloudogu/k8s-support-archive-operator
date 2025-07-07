@@ -16,6 +16,7 @@ controllerManager:
     resources:
       limits:
         memory: 105M
+        ephemeral-storage: 100Mi # avoid resource exhaustion (sonar finding)
       requests:
         cpu: 15m
         memory: 105M
