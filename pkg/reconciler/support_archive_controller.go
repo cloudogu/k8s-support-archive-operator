@@ -46,7 +46,7 @@ func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if !slices.Contains(cr.GetFinalizers(), finalizerName) {
 		logger.Info(fmt.Sprintf("Adding finalizer to support archive %q", cr.Name))
-		cr.ObjectMeta.Finalizers = append(cr.ObjectMeta.Finalizers, finalizerName)
+		cr.Finalizers = append(cr.Finalizers, finalizerName)
 		_, updateErr := archiveInterface.Update(ctx, cr, metav1.UpdateOptions{})
 		return ctrl.Result{Requeue: true}, updateErr
 	}
