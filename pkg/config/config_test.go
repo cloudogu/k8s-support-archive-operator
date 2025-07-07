@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"os"
 	"testing"
 )
 
@@ -45,9 +46,10 @@ func TestNewOperatorConfig(t *testing.T) {
 		require.Nil(t, operatorConfig)
 		assert.ErrorContains(t, err, "failed to parse version: Invalid Semantic Version")
 	})
-	t.Run("fail to read namespace", func(t *testing.T) {
+	t.Run("fail to read namespace because of non existent env var", func(t *testing.T) {
 		// given
 		version := "0.0.0"
+		require.NoError(t, os.Unsetenv("NAMESPACE"))
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
