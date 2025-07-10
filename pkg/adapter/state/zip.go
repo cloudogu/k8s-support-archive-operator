@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	stateFileFmt = "%s/%s/%s.json"
+	stateFileFmt = "%s.json"
 	statePath    = "/data/work"
 	archivePath  = "/data/support-archives"
 )
@@ -45,7 +45,7 @@ func NewArchiver(filesystem volumeFs, zipCreator zipCreator) *ZipArchiver {
 func (a *ZipArchiver) Write(ctx context.Context, collectorName, name, namespace, zipFilePath string, writer func(w io.Writer) error) error {
 	logger := log.FromContext(ctx).WithName("ZipArchiver")
 
-	destinationPath := fmt.Sprintf("%s/%s/%s.zip", archivePath, namespace, name)
+	destinationPath := fmt.Sprintf("%s.zip", filepath.Join(archivePath, namespace, name))
 	zipFile, err := a.openFile(destinationPath)
 	if err != nil {
 		return err
@@ -98,7 +98,7 @@ func (a *ZipArchiver) GetDownloadURL(_ context.Context, name, namespace string) 
 }
 
 func (a *ZipArchiver) parseState(name, namespace string) (State, error) {
-	path := fmt.Sprintf(stateFileFmt, statePath, namespace, name)
+	path := fmt.Sprintf(stateFileFmt, filepath.Join(statePath, namespace, name))
 	_, err := a.filesystem.Stat(path)
 	if os.IsNotExist(err) {
 		return State{}, nil
@@ -128,7 +128,7 @@ func (a *ZipArchiver) parseState(name, namespace string) (State, error) {
 }
 
 func (a *ZipArchiver) writeState(name, namespace string, state State) error {
-	path := fmt.Sprintf(stateFileFmt, statePath, namespace, name)
+	path := fmt.Sprintf(stateFileFmt, filepath.Join(statePath, namespace, name))
 
 	marshal, err := json.Marshal(state)
 	if err != nil {
@@ -190,8 +190,8 @@ func (a *ZipArchiver) Clean(ctx context.Context, name, namespace string) error {
 	logger := log.FromContext(ctx).WithName("FileCleaner").WithValues("SupportArchiveName", name)
 	logger.Info("Remove support archive")
 
-	archiveNamespaceDir := fmt.Sprintf("%s/%s", archivePath, namespace)
-	archiveFile := fmt.Sprintf("%s/%s.zip", archiveNamespaceDir, name)
+	archiveNamespaceDir := filepath.Join(archivePath, namespace)
+	archiveFile := fmt.Sprintf("%s.zip", filepath.Join(archiveNamespaceDir, name))
 
 	var multiErr []error
 	if err := a.filesystem.Remove(archiveFile); err != nil {
