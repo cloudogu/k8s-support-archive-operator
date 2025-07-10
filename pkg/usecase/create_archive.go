@@ -22,10 +22,16 @@ func NewCreateArchiveUseCase(supportArchivesInterface supportArchiveV1Interface,
 	return &CreateArchiveUseCase{
 		supportArchivesInterface: supportArchivesInterface,
 		stateHandler:             stateHandler,
-		targetCollectors:         []archiveDataCollector{col.NewLogCollector()},
+		// TargetCollectors should be defined by the custom resource. This is a fake implementation.
+		// With working collectors, targetCollectors should be created in HandleArchiveRequest.
+		targetCollectors: []archiveDataCollector{col.NewLogCollector()},
 	}
 }
 
+// HandleArchiveRequest processes the support archive custom resource.
+// It reads the actual state and executes the next data collector.
+// If there are remaining collectors after execution, the method returns true, nil to indicate a necessary requeue.
+// If there are no remaining collectors, the method returns false, nil.
 func (c CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *libapi.SupportArchive) (bool, error) {
 	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase")
 
