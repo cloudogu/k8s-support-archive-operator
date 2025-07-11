@@ -101,7 +101,7 @@ func startOperator(
 		supportArchiveClient,
 	}
 
-	newArchiver := state.NewArchiver(filesystem.FileSystem{}, zip.NewCreator())
+	newArchiver := state.NewArchiver(filesystem.FileSystem{}, zip.NewCreator(), *operatorConfig)
 	v1SupportArchive := ecoClientSet.SupportArchiveV1()
 	useCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, newArchiver)
 	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, useCase, newArchiver)

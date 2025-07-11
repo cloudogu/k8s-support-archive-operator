@@ -45,6 +45,12 @@ spec:
           value: {{ quote .Values.controllerManager.env.stage | default "production"}}
         - name: LOG_LEVEL
           value: {{ quote .Values.controllerManager.env.logLevel | default "info" }}
+        - name: ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME
+          value: {{ printf "%s-webserver" (include "helm.fullname" .) | quote }}
+        - name: ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL
+          value: {{ quote .Values.webserver.env.downloadService.protocol | default "http" }}
+        - name: ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT
+          value: {{ quote .Values.webserver.env.downloadService.port | default "8080" }}
         - name: NAMESPACE
           valueFrom:
             fieldRef:

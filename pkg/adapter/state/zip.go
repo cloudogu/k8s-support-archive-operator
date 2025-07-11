@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"io"
 	"os"
 	"path/filepath"
@@ -31,14 +32,20 @@ func (s *State) Add(collector string) {
 }
 
 type ZipArchiver struct {
-	filesystem volumeFs
-	zipCreator zipCreator
+	filesystem                           volumeFs
+	zipCreator                           zipCreator
+	archiveVolumeDownloadServiceName     string
+	archiveVolumeDownloadServiceProtocol string
+	archiveVolumeDownloadServicePort     string
 }
 
-func NewArchiver(filesystem volumeFs, zipCreator zipCreator) *ZipArchiver {
+func NewArchiver(filesystem volumeFs, zipCreator zipCreator, config config.OperatorConfig) *ZipArchiver {
 	return &ZipArchiver{
-		filesystem: filesystem,
-		zipCreator: zipCreator,
+		filesystem:                           filesystem,
+		zipCreator:                           zipCreator,
+		archiveVolumeDownloadServiceName:     config.ArchiveVolumeDownloadServiceName,
+		archiveVolumeDownloadServiceProtocol: config.ArchiveVolumeDownloadServiceProtocol,
+		archiveVolumeDownloadServicePort:     config.ArchiveVolumeDownloadServicePort,
 	}
 }
 
@@ -94,7 +101,7 @@ func (a *ZipArchiver) Read(_ context.Context, name, namespace string) ([]string,
 }
 
 func (a *ZipArchiver) GetDownloadURL(_ context.Context, name, namespace string) string {
-	return fmt.Sprintf("https://k8s-support-operator-webserver.%s.svc.cluster.local/%s/%s.zip", namespace, namespace, name)
+	return fmt.Sprintf("%s://%s.%s.svc.cluster.local:%s/%s/%s.zip", a.archiveVolumeDownloadServiceProtocol, a.archiveVolumeDownloadServiceName, namespace, a.archiveVolumeDownloadServicePort, namespace, name)
 }
 
 func (a *ZipArchiver) parseState(name, namespace string) (State, error) {

@@ -41,6 +41,10 @@ metricsService:
       targetPort: 8082
   type: ClusterIP
 webserver:
+  env:
+    downloadService:
+      protocol: http
+      port: 8080
   containerSecurityContext:
     allowPrivilegeEscalation: false
     runAsGroup: 65532
