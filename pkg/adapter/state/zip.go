@@ -1,6 +1,7 @@
 package state
 
 import (
+	"archive/zip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -31,6 +32,12 @@ func (s *State) Add(collector string) {
 	}
 
 	s.ExecutedCollectors = append(s.ExecutedCollectors, collector)
+}
+
+type zipCreator func(w io.Writer) Zipper
+
+func NewZipWriter(w io.Writer) Zipper {
+	return zip.NewWriter(w)
 }
 
 type ZipArchiver struct {
@@ -94,7 +101,7 @@ func (a *ZipArchiver) Finalize(ctx context.Context, name string, namespace strin
 		return err
 	}
 
-	zipWriter := a.zipCreator.NewWriter(zipFile)
+	zipWriter := a.zipCreator(zipFile)
 	defer func() {
 		if closeErr := zipWriter.Close(); closeErr != nil {
 			logger.Error(closeErr, "failed to close zip writer")

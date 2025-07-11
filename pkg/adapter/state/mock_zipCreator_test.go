@@ -5,7 +5,6 @@ package state
 import (
 	io "io"
 
-	zip "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/zip"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -22,50 +21,50 @@ func (_m *mockZipCreator) EXPECT() *mockZipCreator_Expecter {
 	return &mockZipCreator_Expecter{mock: &_m.Mock}
 }
 
-// NewWriter provides a mock function with given fields: w
-func (_m *mockZipCreator) NewWriter(w io.Writer) zip.Zipper {
+// Execute provides a mock function with given fields: w
+func (_m *mockZipCreator) Execute(w io.Writer) Zipper {
 	ret := _m.Called(w)
 
 	if len(ret) == 0 {
-		panic("no return value specified for NewWriter")
+		panic("no return value specified for Execute")
 	}
 
-	var r0 zip.Zipper
-	if rf, ok := ret.Get(0).(func(io.Writer) zip.Zipper); ok {
+	var r0 Zipper
+	if rf, ok := ret.Get(0).(func(io.Writer) Zipper); ok {
 		r0 = rf(w)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(zip.Zipper)
+			r0 = ret.Get(0).(Zipper)
 		}
 	}
 
 	return r0
 }
 
-// mockZipCreator_NewWriter_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NewWriter'
-type mockZipCreator_NewWriter_Call struct {
+// mockZipCreator_Execute_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Execute'
+type mockZipCreator_Execute_Call struct {
 	*mock.Call
 }
 
-// NewWriter is a helper method to define mock.On call
+// Execute is a helper method to define mock.On call
 //   - w io.Writer
-func (_e *mockZipCreator_Expecter) NewWriter(w interface{}) *mockZipCreator_NewWriter_Call {
-	return &mockZipCreator_NewWriter_Call{Call: _e.mock.On("NewWriter", w)}
+func (_e *mockZipCreator_Expecter) Execute(w interface{}) *mockZipCreator_Execute_Call {
+	return &mockZipCreator_Execute_Call{Call: _e.mock.On("Execute", w)}
 }
 
-func (_c *mockZipCreator_NewWriter_Call) Run(run func(w io.Writer)) *mockZipCreator_NewWriter_Call {
+func (_c *mockZipCreator_Execute_Call) Run(run func(w io.Writer)) *mockZipCreator_Execute_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(io.Writer))
 	})
 	return _c
 }
 
-func (_c *mockZipCreator_NewWriter_Call) Return(_a0 zip.Zipper) *mockZipCreator_NewWriter_Call {
+func (_c *mockZipCreator_Execute_Call) Return(_a0 Zipper) *mockZipCreator_Execute_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *mockZipCreator_NewWriter_Call) RunAndReturn(run func(io.Writer) zip.Zipper) *mockZipCreator_NewWriter_Call {
+func (_c *mockZipCreator_Execute_Call) RunAndReturn(run func(io.Writer) Zipper) *mockZipCreator_Execute_Call {
 	_c.Call.Return(run)
 	return _c
 }

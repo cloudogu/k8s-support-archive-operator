@@ -2,7 +2,7 @@ package state
 
 import (
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/zip"
+	"io"
 )
 
 type volumeFs interface {
@@ -13,12 +13,7 @@ type closableRWFile interface {
 	filesystem.ClosableRWFile
 }
 
-//nolint:unused
-//goland:noinspection GoUnusedType
-type zipper interface {
-	zip.Zipper
-}
-
-type zipCreator interface {
-	zip.ZipCreator
+type Zipper interface {
+	Close() error
+	Create(name string) (io.Writer, error)
 }

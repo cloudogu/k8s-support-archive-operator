@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/state"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/zip"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/reconciler"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
@@ -101,7 +100,7 @@ func startOperator(
 		supportArchiveClient,
 	}
 
-	newArchiver := state.NewArchiver(filesystem.FileSystem{}, zip.NewCreator(), *operatorConfig)
+	newArchiver := state.NewArchiver(filesystem.FileSystem{}, state.NewZipWriter, *operatorConfig)
 	v1SupportArchive := ecoClientSet.SupportArchiveV1()
 	useCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, newArchiver)
 	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, useCase, newArchiver)
