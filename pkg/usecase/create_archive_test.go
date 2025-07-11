@@ -47,7 +47,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			fields: fields{
 				stateHandler: func(t *testing.T) stateHandler {
 					stateHandlerMock := newMockStateHandler(t)
-					stateHandlerMock.EXPECT().Read(testCtx, testArchiveName, testArchiveNamespace).Return(nil, assert.AnError)
+					stateHandlerMock.EXPECT().Read(testCtx, testArchiveName, testArchiveNamespace).Return(nil, false, assert.AnError)
 					return stateHandlerMock
 				},
 				supportArchivesInterface: func(t *testing.T) supportArchiveV1Interface {
@@ -66,6 +66,31 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 				require.Error(t, err)
 				assert.ErrorIs(t, err, assert.AnError)
 				assert.ErrorContains(t, err, "failed to read state")
+			},
+		},
+		{
+			name: "should not requeue if state is done",
+			fields: fields{
+				stateHandler: func(t *testing.T) stateHandler {
+					stateHandlerMock := newMockStateHandler(t)
+					stateHandlerMock.EXPECT().Read(testCtx, testArchiveName, testArchiveNamespace).Return([]string{"Logs"}, true, nil)
+
+					return stateHandlerMock
+				},
+				supportArchivesInterface: func(t *testing.T) supportArchiveV1Interface {
+					return nil
+				},
+				targetCollectors: func(t *testing.T) []archiveDataCollector {
+					return nil
+				},
+			},
+			args: args{
+				ctx: testCtx,
+				cr:  supportArchiveCr,
+			},
+			want: false,
+			wantErr: func(t *testing.T, err error) {
+				require.NoError(t, err)
 			},
 		},
 		{
@@ -93,8 +118,9 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 				},
 				stateHandler: func(t *testing.T) stateHandler {
 					stateHandlerMock := newMockStateHandler(t)
-					stateHandlerMock.EXPECT().Read(testCtx, testArchiveName, testArchiveNamespace).Return([]string{"Logs"}, nil)
+					stateHandlerMock.EXPECT().Read(testCtx, testArchiveName, testArchiveNamespace).Return([]string{"Logs"}, false, nil)
 					stateHandlerMock.EXPECT().GetDownloadURL(testCtx, testArchiveName, testArchiveNamespace).Return("ns/name.zip")
+					stateHandlerMock.EXPECT().Finalize(testCtx, testArchiveName, testArchiveNamespace).Return(nil)
 					return stateHandlerMock
 				},
 				targetCollectors: func(t *testing.T) []archiveDataCollector {
@@ -113,6 +139,35 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 		},
 		{
+			name: "should requeue and return error on error finalize",
+			fields: fields{
+				supportArchivesInterface: func(t *testing.T) supportArchiveV1Interface {
+					return nil
+				},
+				stateHandler: func(t *testing.T) stateHandler {
+					stateHandlerMock := newMockStateHandler(t)
+					stateHandlerMock.EXPECT().Read(testCtx, testArchiveName, testArchiveNamespace).Return([]string{"Logs"}, false, nil)
+					stateHandlerMock.EXPECT().Finalize(testCtx, testArchiveName, testArchiveNamespace).Return(assert.AnError)
+					return stateHandlerMock
+				},
+				targetCollectors: func(t *testing.T) []archiveDataCollector {
+					collectorMock := newMockArchiveDataCollector(t)
+					collectorMock.EXPECT().Name().Return("Logs")
+					return []archiveDataCollector{collectorMock}
+				},
+			},
+			args: args{
+				ctx: testCtx,
+				cr:  supportArchiveCr,
+			},
+			want: true,
+			wantErr: func(t *testing.T, err error) {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, assert.AnError)
+				assert.ErrorContains(t, err, "failed to finalize state")
+			},
+		},
+		{
 			name: "should run next collector",
 			fields: fields{
 				supportArchivesInterface: func(t *testing.T) supportArchiveV1Interface {
@@ -120,7 +175,8 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 				},
 				stateHandler: func(t *testing.T) stateHandler {
 					stateHandlerMock := newMockStateHandler(t)
-					stateHandlerMock.EXPECT().Read(testCtx, testArchiveName, testArchiveNamespace).Return([]string{}, nil)
+					stateHandlerMock.EXPECT().Read(testCtx, testArchiveName, testArchiveNamespace).Return([]string{}, false, nil)
+					stateHandlerMock.EXPECT().WriteState(testCtx, testArchiveName, testArchiveNamespace, "Logs").Return(nil)
 					return stateHandlerMock
 				},
 				targetCollectors: func(t *testing.T) []archiveDataCollector {
@@ -140,6 +196,36 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 		},
 		{
+			name: "should return true and error on error writing state",
+			fields: fields{
+				supportArchivesInterface: func(t *testing.T) supportArchiveV1Interface {
+					return nil
+				},
+				stateHandler: func(t *testing.T) stateHandler {
+					stateHandlerMock := newMockStateHandler(t)
+					stateHandlerMock.EXPECT().Read(testCtx, testArchiveName, testArchiveNamespace).Return([]string{}, false, nil)
+					stateHandlerMock.EXPECT().WriteState(testCtx, testArchiveName, testArchiveNamespace, "Logs").Return(assert.AnError)
+					return stateHandlerMock
+				},
+				targetCollectors: func(t *testing.T) []archiveDataCollector {
+					collectorMock := newMockArchiveDataCollector(t)
+					collectorMock.EXPECT().Name().Return("Logs")
+					collectorMock.EXPECT().Collect(testCtx, testArchiveName, testArchiveNamespace, mock.Anything).Return(nil)
+					return []archiveDataCollector{collectorMock}
+				},
+			},
+			args: args{
+				ctx: testCtx,
+				cr:  supportArchiveCr,
+			},
+			want: true,
+			wantErr: func(t *testing.T, err error) {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, assert.AnError)
+				assert.ErrorContains(t, err, "failed to write state Logs for test-namespace/test-archive")
+			},
+		},
+		{
 			name: "should return error and requeue on error execute collector",
 			fields: fields{
 				supportArchivesInterface: func(t *testing.T) supportArchiveV1Interface {
@@ -147,7 +233,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 				},
 				stateHandler: func(t *testing.T) stateHandler {
 					stateHandlerMock := newMockStateHandler(t)
-					stateHandlerMock.EXPECT().Read(testCtx, testArchiveName, testArchiveNamespace).Return([]string{}, nil)
+					stateHandlerMock.EXPECT().Read(testCtx, testArchiveName, testArchiveNamespace).Return([]string{}, false, nil)
 					return stateHandlerMock
 				},
 				targetCollectors: func(t *testing.T) []archiveDataCollector {

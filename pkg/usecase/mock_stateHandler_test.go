@@ -22,6 +22,54 @@ func (_m *mockStateHandler) EXPECT() *mockStateHandler_Expecter {
 	return &mockStateHandler_Expecter{mock: &_m.Mock}
 }
 
+// Finalize provides a mock function with given fields: ctx, name, namespace
+func (_m *mockStateHandler) Finalize(ctx context.Context, name string, namespace string) error {
+	ret := _m.Called(ctx, name, namespace)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Finalize")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, name, namespace)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// mockStateHandler_Finalize_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Finalize'
+type mockStateHandler_Finalize_Call struct {
+	*mock.Call
+}
+
+// Finalize is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+//   - namespace string
+func (_e *mockStateHandler_Expecter) Finalize(ctx interface{}, name interface{}, namespace interface{}) *mockStateHandler_Finalize_Call {
+	return &mockStateHandler_Finalize_Call{Call: _e.mock.On("Finalize", ctx, name, namespace)}
+}
+
+func (_c *mockStateHandler_Finalize_Call) Run(run func(ctx context.Context, name string, namespace string)) *mockStateHandler_Finalize_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *mockStateHandler_Finalize_Call) Return(_a0 error) *mockStateHandler_Finalize_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *mockStateHandler_Finalize_Call) RunAndReturn(run func(context.Context, string, string) error) *mockStateHandler_Finalize_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetDownloadURL provides a mock function with given fields: ctx, name, namespace
 func (_m *mockStateHandler) GetDownloadURL(ctx context.Context, name string, namespace string) string {
 	ret := _m.Called(ctx, name, namespace)
@@ -71,7 +119,7 @@ func (_c *mockStateHandler_GetDownloadURL_Call) RunAndReturn(run func(context.Co
 }
 
 // Read provides a mock function with given fields: ctx, name, namespace
-func (_m *mockStateHandler) Read(ctx context.Context, name string, namespace string) ([]string, error) {
+func (_m *mockStateHandler) Read(ctx context.Context, name string, namespace string) ([]string, bool, error) {
 	ret := _m.Called(ctx, name, namespace)
 
 	if len(ret) == 0 {
@@ -79,8 +127,9 @@ func (_m *mockStateHandler) Read(ctx context.Context, name string, namespace str
 	}
 
 	var r0 []string
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]string, error)); ok {
+	var r1 bool
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]string, bool, error)); ok {
 		return rf(ctx, name, namespace)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string, string) []string); ok {
@@ -91,13 +140,19 @@ func (_m *mockStateHandler) Read(ctx context.Context, name string, namespace str
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) bool); ok {
 		r1 = rf(ctx, name, namespace)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(bool)
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, string, string) error); ok {
+		r2 = rf(ctx, name, namespace)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // mockStateHandler_Read_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Read'
@@ -120,12 +175,12 @@ func (_c *mockStateHandler_Read_Call) Run(run func(ctx context.Context, name str
 	return _c
 }
 
-func (_c *mockStateHandler_Read_Call) Return(_a0 []string, _a1 error) *mockStateHandler_Read_Call {
-	_c.Call.Return(_a0, _a1)
+func (_c *mockStateHandler_Read_Call) Return(_a0 []string, _a1 bool, _a2 error) *mockStateHandler_Read_Call {
+	_c.Call.Return(_a0, _a1, _a2)
 	return _c
 }
 
-func (_c *mockStateHandler_Read_Call) RunAndReturn(run func(context.Context, string, string) ([]string, error)) *mockStateHandler_Read_Call {
+func (_c *mockStateHandler_Read_Call) RunAndReturn(run func(context.Context, string, string) ([]string, bool, error)) *mockStateHandler_Read_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -177,6 +232,55 @@ func (_c *mockStateHandler_Write_Call) Return(_a0 error) *mockStateHandler_Write
 }
 
 func (_c *mockStateHandler_Write_Call) RunAndReturn(run func(context.Context, string, string, string, string, func(io.Writer) error) error) *mockStateHandler_Write_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// WriteState provides a mock function with given fields: ctx, name, namespace, stateName
+func (_m *mockStateHandler) WriteState(ctx context.Context, name string, namespace string, stateName string) error {
+	ret := _m.Called(ctx, name, namespace, stateName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for WriteState")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
+		r0 = rf(ctx, name, namespace, stateName)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// mockStateHandler_WriteState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WriteState'
+type mockStateHandler_WriteState_Call struct {
+	*mock.Call
+}
+
+// WriteState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+//   - namespace string
+//   - stateName string
+func (_e *mockStateHandler_Expecter) WriteState(ctx interface{}, name interface{}, namespace interface{}, stateName interface{}) *mockStateHandler_WriteState_Call {
+	return &mockStateHandler_WriteState_Call{Call: _e.mock.On("WriteState", ctx, name, namespace, stateName)}
+}
+
+func (_c *mockStateHandler_WriteState_Call) Run(run func(ctx context.Context, name string, namespace string, stateName string)) *mockStateHandler_WriteState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *mockStateHandler_WriteState_Call) Return(_a0 error) *mockStateHandler_WriteState_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *mockStateHandler_WriteState_Call) RunAndReturn(run func(context.Context, string, string, string) error) *mockStateHandler_WriteState_Call {
 	_c.Call.Return(run)
 	return _c
 }
