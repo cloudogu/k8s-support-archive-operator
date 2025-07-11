@@ -25,6 +25,63 @@ func (_m *mockVolumeFs) EXPECT() *mockVolumeFs_Expecter {
 	return &mockVolumeFs_Expecter{mock: &_m.Mock}
 }
 
+// Copy provides a mock function with given fields: dst, src
+func (_m *mockVolumeFs) Copy(dst io.Writer, src io.Reader) (int64, error) {
+	ret := _m.Called(dst, src)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Copy")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(io.Writer, io.Reader) (int64, error)); ok {
+		return rf(dst, src)
+	}
+	if rf, ok := ret.Get(0).(func(io.Writer, io.Reader) int64); ok {
+		r0 = rf(dst, src)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(io.Writer, io.Reader) error); ok {
+		r1 = rf(dst, src)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// mockVolumeFs_Copy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Copy'
+type mockVolumeFs_Copy_Call struct {
+	*mock.Call
+}
+
+// Copy is a helper method to define mock.On call
+//   - dst io.Writer
+//   - src io.Reader
+func (_e *mockVolumeFs_Expecter) Copy(dst interface{}, src interface{}) *mockVolumeFs_Copy_Call {
+	return &mockVolumeFs_Copy_Call{Call: _e.mock.On("Copy", dst, src)}
+}
+
+func (_c *mockVolumeFs_Copy_Call) Run(run func(dst io.Writer, src io.Reader)) *mockVolumeFs_Copy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(io.Writer), args[1].(io.Reader))
+	})
+	return _c
+}
+
+func (_c *mockVolumeFs_Copy_Call) Return(written int64, err error) *mockVolumeFs_Copy_Call {
+	_c.Call.Return(written, err)
+	return _c
+}
+
+func (_c *mockVolumeFs_Copy_Call) RunAndReturn(run func(io.Writer, io.Reader) (int64, error)) *mockVolumeFs_Copy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Create provides a mock function with given fields: name
 func (_m *mockVolumeFs) Create(name string) (filesystem.ClosableRWFile, error) {
 	ret := _m.Called(name)
@@ -126,6 +183,64 @@ func (_c *mockVolumeFs_MkdirAll_Call) Return(_a0 error) *mockVolumeFs_MkdirAll_C
 }
 
 func (_c *mockVolumeFs_MkdirAll_Call) RunAndReturn(run func(string, fs.FileMode) error) *mockVolumeFs_MkdirAll_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Open provides a mock function with given fields: path
+func (_m *mockVolumeFs) Open(path string) (filesystem.ClosableRWFile, error) {
+	ret := _m.Called(path)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Open")
+	}
+
+	var r0 filesystem.ClosableRWFile
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (filesystem.ClosableRWFile, error)); ok {
+		return rf(path)
+	}
+	if rf, ok := ret.Get(0).(func(string) filesystem.ClosableRWFile); ok {
+		r0 = rf(path)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(filesystem.ClosableRWFile)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(path)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// mockVolumeFs_Open_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Open'
+type mockVolumeFs_Open_Call struct {
+	*mock.Call
+}
+
+// Open is a helper method to define mock.On call
+//   - path string
+func (_e *mockVolumeFs_Expecter) Open(path interface{}) *mockVolumeFs_Open_Call {
+	return &mockVolumeFs_Open_Call{Call: _e.mock.On("Open", path)}
+}
+
+func (_c *mockVolumeFs_Open_Call) Run(run func(path string)) *mockVolumeFs_Open_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *mockVolumeFs_Open_Call) Return(_a0 filesystem.ClosableRWFile, _a1 error) *mockVolumeFs_Open_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *mockVolumeFs_Open_Call) RunAndReturn(run func(string) (filesystem.ClosableRWFile, error)) *mockVolumeFs_Open_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -352,6 +467,52 @@ func (_c *mockVolumeFs_Remove_Call) RunAndReturn(run func(string) error) *mockVo
 	return _c
 }
 
+// RemoveAll provides a mock function with given fields: path
+func (_m *mockVolumeFs) RemoveAll(path string) error {
+	ret := _m.Called(path)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveAll")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(path)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// mockVolumeFs_RemoveAll_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveAll'
+type mockVolumeFs_RemoveAll_Call struct {
+	*mock.Call
+}
+
+// RemoveAll is a helper method to define mock.On call
+//   - path string
+func (_e *mockVolumeFs_Expecter) RemoveAll(path interface{}) *mockVolumeFs_RemoveAll_Call {
+	return &mockVolumeFs_RemoveAll_Call{Call: _e.mock.On("RemoveAll", path)}
+}
+
+func (_c *mockVolumeFs_RemoveAll_Call) Run(run func(path string)) *mockVolumeFs_RemoveAll_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *mockVolumeFs_RemoveAll_Call) Return(_a0 error) *mockVolumeFs_RemoveAll_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *mockVolumeFs_RemoveAll_Call) RunAndReturn(run func(string) error) *mockVolumeFs_RemoveAll_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Stat provides a mock function with given fields: name
 func (_m *mockVolumeFs) Stat(name string) (fs.FileInfo, error) {
 	ret := _m.Called(name)
@@ -406,6 +567,53 @@ func (_c *mockVolumeFs_Stat_Call) Return(_a0 fs.FileInfo, _a1 error) *mockVolume
 }
 
 func (_c *mockVolumeFs_Stat_Call) RunAndReturn(run func(string) (fs.FileInfo, error)) *mockVolumeFs_Stat_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// WalkDir provides a mock function with given fields: root, fn
+func (_m *mockVolumeFs) WalkDir(root string, fn fs.WalkDirFunc) error {
+	ret := _m.Called(root, fn)
+
+	if len(ret) == 0 {
+		panic("no return value specified for WalkDir")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, fs.WalkDirFunc) error); ok {
+		r0 = rf(root, fn)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// mockVolumeFs_WalkDir_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WalkDir'
+type mockVolumeFs_WalkDir_Call struct {
+	*mock.Call
+}
+
+// WalkDir is a helper method to define mock.On call
+//   - root string
+//   - fn fs.WalkDirFunc
+func (_e *mockVolumeFs_Expecter) WalkDir(root interface{}, fn interface{}) *mockVolumeFs_WalkDir_Call {
+	return &mockVolumeFs_WalkDir_Call{Call: _e.mock.On("WalkDir", root, fn)}
+}
+
+func (_c *mockVolumeFs_WalkDir_Call) Run(run func(root string, fn fs.WalkDirFunc)) *mockVolumeFs_WalkDir_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(fs.WalkDirFunc))
+	})
+	return _c
+}
+
+func (_c *mockVolumeFs_WalkDir_Call) Return(_a0 error) *mockVolumeFs_WalkDir_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *mockVolumeFs_WalkDir_Call) RunAndReturn(run func(string, fs.WalkDirFunc) error) *mockVolumeFs_WalkDir_Call {
 	_c.Call.Return(run)
 	return _c
 }

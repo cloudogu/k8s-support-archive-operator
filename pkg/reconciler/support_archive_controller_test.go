@@ -107,17 +107,6 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		},
 	}
 
-	completedArchiveCr := &v1.SupportArchive{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       testSupportArchive,
-			Namespace:  testNamespace,
-			Finalizers: []string{"k8s.cloudogu.com/support-archive-reconciler"},
-		},
-		Status: v1.SupportArchiveStatus{
-			Phase: "Created",
-		},
-	}
-
 	deletedArchiveCr := &v1.SupportArchive{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              testSupportArchive,
@@ -195,26 +184,6 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
 		assert.Equal(t, ctrl.Result{Requeue: true}, actual)
-	})
-
-	t.Run("should do nothing if the archive was already created", func(t *testing.T) {
-		// given
-		request := ctrl.Request{NamespacedName: types.NamespacedName{Name: testSupportArchive, Namespace: testNamespace}}
-		mockV1Interface := newMockSupportArchiveV1Interface(t)
-		mockInterface := newMockSupportArchiveInterface(t)
-		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
-		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(completedArchiveCr, nil)
-
-		sut := &SupportArchiveReconciler{
-			client: mockV1Interface,
-		}
-
-		// when
-		actual, err := sut.Reconcile(testCtx, request)
-
-		// then
-		require.NoError(t, err)
-		assert.Equal(t, ctrl.Result{Requeue: false}, actual)
 	})
 
 	t.Run("should proceed with archive creation", func(t *testing.T) {

@@ -41,32 +41,33 @@ func NewZipWriter(w io.Writer) Zipper {
 }
 
 type ZipArchiver struct {
-	filesystem                           volumeFs
-	zipCreator                           zipCreator
-	archiveVolumeDownloadServiceName     string
-	archiveVolumeDownloadServiceProtocol string
-	archiveVolumeDownloadServicePort     string
+	filesystem                    volumeFs
+	zipCreator                    zipCreator
+	volumeDownloadServiceName     string
+	volumeDownloadServiceProtocol string
+	volumeDownloadServicePort     string
 }
 
 func NewArchiver(filesystem volumeFs, zipCreator zipCreator, config config.OperatorConfig) *ZipArchiver {
 	return &ZipArchiver{
-		filesystem:                           filesystem,
-		zipCreator:                           zipCreator,
-		archiveVolumeDownloadServiceName:     config.ArchiveVolumeDownloadServiceName,
-		archiveVolumeDownloadServiceProtocol: config.ArchiveVolumeDownloadServiceProtocol,
-		archiveVolumeDownloadServicePort:     config.ArchiveVolumeDownloadServicePort,
+		filesystem:                    filesystem,
+		zipCreator:                    zipCreator,
+		volumeDownloadServiceName:     config.ArchiveVolumeDownloadServiceName,
+		volumeDownloadServiceProtocol: config.ArchiveVolumeDownloadServiceProtocol,
+		volumeDownloadServicePort:     config.ArchiveVolumeDownloadServicePort,
 	}
 }
 
 func (a *ZipArchiver) Write(_ context.Context, _, name, namespace, zipFilePath string, writer func(w io.Writer) error) error {
 	stateArchiveFilePath := filepath.Join(statePath, namespace, name, zipFilePath)
-	err := os.MkdirAll(filepath.Dir(stateArchiveFilePath), 0755)
+	err := a.filesystem.MkdirAll(filepath.Dir(stateArchiveFilePath), 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(stateArchiveFilePath), err)
 	}
-	open, err := os.Create(stateArchiveFilePath)
+
+	open, err := a.filesystem.Create(stateArchiveFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to create state file %s: %w", stateArchiveFilePath, err)
+		return fmt.Errorf("failed to create file %s: %w", stateArchiveFilePath, err)
 	}
 
 	err = writer(open)
@@ -112,41 +113,15 @@ func (a *ZipArchiver) Finalize(ctx context.Context, name string, namespace strin
 	}()
 
 	stateArchiveDir := filepath.Join(statePath, namespace, name)
-	err = filepath.WalkDir(stateArchiveDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-
-		relativePath, err := filepath.Rel(stateArchiveDir, path)
-		if err != nil {
-			return fmt.Errorf("failed to get relative path for file %s: %w", path, err)
-		}
-
-		zipFileWriter, err := zipWriter.Create(relativePath)
-		if err != nil {
-			return fmt.Errorf("failed to create zip writer for file %s: %w", path, err)
-		}
-
-		open, err := os.Open(path)
-		if err != nil {
-			return fmt.Errorf("failed to open file %s: %w", path, err)
-		}
-		_, err = io.Copy(zipFileWriter, open)
-		if err != nil {
-			return fmt.Errorf("failed to copy file %s: %w", path, err)
-		}
-
-		return nil
+	err = a.filesystem.WalkDir(stateArchiveDir, func(path string, d fs.DirEntry, err error) error {
+		return a.CopyFileToArchive(zipWriter, stateArchiveDir, path, d, err)
 	})
 
 	if err != nil {
-		return fmt.Errorf("failed to finalize zip: %w", err)
+		return fmt.Errorf("failed to copy files to zip archive: %w", err)
 	}
 
-	err = os.RemoveAll(stateArchiveDir)
+	err = a.filesystem.RemoveAll(stateArchiveDir)
 	if err != nil {
 		return fmt.Errorf("failed to remove state files %s: %w", stateArchiveDir, err)
 	}
@@ -165,6 +140,37 @@ func (a *ZipArchiver) Finalize(ctx context.Context, name string, namespace strin
 	return nil
 }
 
+func (a *ZipArchiver) CopyFileToArchive(zipper Zipper, stateArchiveDir, path string, d fs.DirEntry, err error) error {
+	if err != nil {
+		return err
+	}
+	if d.IsDir() {
+		return nil
+	}
+
+	relativePath, err := filepath.Rel(stateArchiveDir, path)
+	if err != nil {
+		return fmt.Errorf("failed to get relative path for file %s: %w", path, err)
+	}
+
+	zipFileWriter, err := zipper.Create(relativePath)
+	if err != nil {
+		return fmt.Errorf("failed to create zip writer for file %s: %w", path, err)
+	}
+
+	open, err := a.filesystem.Open(path)
+	if err != nil {
+		return fmt.Errorf("failed to open file %s: %w", path, err)
+	}
+
+	_, err = a.filesystem.Copy(zipFileWriter, open)
+	if err != nil {
+		return fmt.Errorf("failed to copy file %s: %w", path, err)
+	}
+
+	return nil
+}
+
 // Read reads the actual state for the given support archive and returns the executed collectors and true if alle collectors are done.
 func (a *ZipArchiver) Read(_ context.Context, name, namespace string) ([]string, bool, error) {
 	state, err := a.parseState(name, namespace)
@@ -176,7 +182,7 @@ func (a *ZipArchiver) Read(_ context.Context, name, namespace string) ([]string,
 }
 
 func (a *ZipArchiver) GetDownloadURL(_ context.Context, name, namespace string) string {
-	return fmt.Sprintf("%s://%s.%s.svc.cluster.local:%s/%s/%s.zip", a.archiveVolumeDownloadServiceProtocol, a.archiveVolumeDownloadServiceName, namespace, a.archiveVolumeDownloadServicePort, namespace, name)
+	return fmt.Sprintf("%s://%s.%s.svc.cluster.local:%s/%s/%s.zip", a.volumeDownloadServiceProtocol, a.volumeDownloadServiceName, namespace, a.volumeDownloadServicePort, namespace, name)
 }
 
 func (a *ZipArchiver) parseState(name, namespace string) (State, error) {
@@ -236,8 +242,8 @@ func (a *ZipArchiver) openFile(path string) (closableRWFile, error) {
 		return nil, err
 	}
 
-	file, openErr := a.filesystem.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
-	if openErr != nil {
+	file, err := a.filesystem.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
 		return nil, fmt.Errorf("failed to open file %s: %w", path, err)
 	}
 

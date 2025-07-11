@@ -12,6 +12,9 @@ func TestNewOperatorConfig(t *testing.T) {
 		// given
 		version := "0.0.0"
 		t.Setenv("NAMESPACE", "ecosystem")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -20,11 +23,14 @@ func TestNewOperatorConfig(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, operatorConfig)
 	})
-	t.Run("should succeed with namespace set", func(t *testing.T) {
+	t.Run("should succeed with stage set", func(t *testing.T) {
 		// given
 		version := "0.0.0"
 		t.Setenv("NAMESPACE", "ecosystem")
 		t.Setenv("STAGE", "development")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
