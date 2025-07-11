@@ -4,6 +4,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 )
 
 type ClosableRWFile interface {
@@ -54,7 +55,7 @@ func (f FileSystem) Copy(dst io.Writer, src io.Reader) (written int64, err error
 }
 
 func (f FileSystem) WalkDir(root string, fn fs.WalkDirFunc) error {
-	return f.WalkDir(root, fn)
+	return filepath.WalkDir(root, fn)
 }
 
 func (f FileSystem) ReadAll(r io.Reader) ([]byte, error) {
