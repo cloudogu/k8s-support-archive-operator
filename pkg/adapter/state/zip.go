@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -20,6 +21,7 @@ const (
 )
 
 type State struct {
+	Done               bool     `json:"done"`
 	ExecutedCollectors []string `json:"executedCollectors"`
 }
 
@@ -49,9 +51,43 @@ func NewArchiver(filesystem volumeFs, zipCreator zipCreator, config config.Opera
 	}
 }
 
-func (a *ZipArchiver) Write(ctx context.Context, collectorName, name, namespace, zipFilePath string, writer func(w io.Writer) error) error {
-	logger := log.FromContext(ctx).WithName("ZipArchiver")
+func (a *ZipArchiver) Write(_ context.Context, _, name, namespace, zipFilePath string, writer func(w io.Writer) error) error {
+	stateArchiveFilePath := filepath.Join(statePath, namespace, name, zipFilePath)
+	err := os.MkdirAll(filepath.Dir(stateArchiveFilePath), 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(stateArchiveFilePath), err)
+	}
+	open, err := os.Create(stateArchiveFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to create state file %s: %w", stateArchiveFilePath, err)
+	}
 
+	err = writer(open)
+	if err != nil {
+		return fmt.Errorf("failed to write file %s: %w", zipFilePath, err)
+	}
+
+	return nil
+}
+
+func (a *ZipArchiver) WriteState(_ context.Context, name string, namespace string, stateName string) error {
+	state, err := a.parseState(name, namespace)
+	if err != nil {
+		return err
+	}
+
+	state.Add(stateName)
+	err = a.writeState(name, namespace, state)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Finalize creates the final archive.
+func (a *ZipArchiver) Finalize(ctx context.Context, name string, namespace string) error {
+	logger := log.FromContext(ctx).WithName("ZipArchiver.Finalize")
 	destinationPath := fmt.Sprintf("%s.zip", filepath.Join(archivePath, namespace, name))
 	zipFile, err := a.openFile(destinationPath)
 	if err != nil {
@@ -68,21 +104,52 @@ func (a *ZipArchiver) Write(ctx context.Context, collectorName, name, namespace,
 		}
 	}()
 
-	zipFileWriter, err := zipWriter.Create(zipFilePath)
+	stateArchiveDir := filepath.Join(statePath, namespace, name)
+	err = filepath.WalkDir(stateArchiveDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+
+		relativePath, err := filepath.Rel(stateArchiveDir, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path for file %s: %w", path, err)
+		}
+
+		zipFileWriter, err := zipWriter.Create(relativePath)
+		if err != nil {
+			return fmt.Errorf("failed to create zip writer for file %s: %w", path, err)
+		}
+
+		open, err := os.Open(path)
+		if err != nil {
+			return fmt.Errorf("failed to open file %s: %w", path, err)
+		}
+		_, err = io.Copy(zipFileWriter, open)
+		if err != nil {
+			return fmt.Errorf("failed to copy file %s: %w", path, err)
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return fmt.Errorf("failed to create zip writer for file %s: %w", zipFilePath, err)
+		return fmt.Errorf("failed to finalize zip: %w", err)
 	}
 
-	err = writer(zipFileWriter)
+	err = os.RemoveAll(stateArchiveDir)
 	if err != nil {
-		return fmt.Errorf("failed to write file %s: %w", zipFilePath, err)
+		return fmt.Errorf("failed to remove state files %s: %w", stateArchiveDir, err)
 	}
 
 	state, err := a.parseState(name, namespace)
 	if err != nil {
 		return err
 	}
-	state.Add(collectorName)
+
+	state.Done = true
 	err = a.writeState(name, namespace, state)
 	if err != nil {
 		return err
@@ -91,13 +158,14 @@ func (a *ZipArchiver) Write(ctx context.Context, collectorName, name, namespace,
 	return nil
 }
 
-func (a *ZipArchiver) Read(_ context.Context, name, namespace string) ([]string, error) {
+// Read reads the actual state for the given support archive and returns the executed collectors and true if alle collectors are done.
+func (a *ZipArchiver) Read(_ context.Context, name, namespace string) ([]string, bool, error) {
 	state, err := a.parseState(name, namespace)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	return state.ExecutedCollectors, nil
+	return state.ExecutedCollectors, state.Done, nil
 }
 
 func (a *ZipArchiver) GetDownloadURL(_ context.Context, name, namespace string) string {
@@ -161,7 +229,7 @@ func (a *ZipArchiver) openFile(path string) (closableRWFile, error) {
 		return nil, err
 	}
 
-	file, openErr := a.filesystem.OpenFile(path, os.O_RDWR|os.O_APPEND, 0644)
+	file, openErr := a.filesystem.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
 	if openErr != nil {
 		return nil, fmt.Errorf("failed to open file %s: %w", path, err)
 	}

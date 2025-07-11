@@ -36,11 +36,16 @@ func (c CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *liba
 	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase")
 
 	// get actualState
-	currentCollectors, err := c.stateHandler.Read(ctx, cr.Name, cr.Namespace)
+	currentCollectors, done, err := c.stateHandler.Read(ctx, cr.Name, cr.Namespace)
 	if err != nil {
 		return true, fmt.Errorf("failed to read state: %w", err)
 	}
 	logger.Info("Got actual state", "currentCollectors", currentCollectors)
+
+	if done {
+		logger.Info("All collectors have been executed")
+		return false, nil
+	}
 
 	// get diff
 	var requiredCollectors []archiveDataCollector
@@ -65,6 +70,10 @@ func (c CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *liba
 		return true, fmt.Errorf("failed to execute archiveDataCollector %s: %w", name, err)
 	}
 	logger.Info("Successfully executed archiveDataCollector", "archiveDataCollector", name)
+	err = c.stateHandler.WriteState(ctx, cr.Name, cr.Namespace, name)
+	if err != nil {
+		return true, fmt.Errorf("failed to write state %s for %s/%s: %w", name, cr.Namespace, cr.Name, err)
+	}
 
 	// TODO Set condition CollectorXYDone
 
@@ -82,10 +91,16 @@ func getCollectorStringSlice(collector []archiveDataCollector) []string {
 
 func (c CreateArchiveUseCase) finalize(ctx context.Context, cr *libapi.SupportArchive) (bool, error) {
 	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase")
+
+	err := c.stateHandler.Finalize(ctx, cr.Name, cr.Namespace)
+	if err != nil {
+		return true, fmt.Errorf("failed to finalize state: %w", err)
+	}
+
 	client := c.supportArchivesInterface.SupportArchives(cr.Namespace)
 
 	downloadURL := c.stateHandler.GetDownloadURL(ctx, cr.Name, cr.Namespace)
-	_, err := client.UpdateStatusWithRetry(ctx, cr, func(status libapi.SupportArchiveStatus) libapi.SupportArchiveStatus {
+	_, err = client.UpdateStatusWithRetry(ctx, cr, func(status libapi.SupportArchiveStatus) libapi.SupportArchiveStatus {
 		meta.SetStatusCondition(&status.Conditions, getSuccessfulArchiveCreatedCondition(downloadURL))
 		status.DownloadPath = downloadURL
 		status.Phase = libapi.StatusPhaseCreated

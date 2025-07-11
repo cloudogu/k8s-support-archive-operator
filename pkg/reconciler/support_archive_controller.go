@@ -67,11 +67,6 @@ func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{Requeue: false}, nil
 	}
 
-	// Do not recreate archives
-	if cr.Status.Phase == libv1.StatusPhaseCreated {
-		return ctrl.Result{}, nil
-	}
-
 	requeue, err := s.archiveHandler.HandleArchiveRequest(ctx, cr)
 	return ctrl.Result{Requeue: requeue}, err
 }

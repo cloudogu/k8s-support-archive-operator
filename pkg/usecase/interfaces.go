@@ -8,8 +8,10 @@ import (
 
 type stateHandler interface {
 	col.StateWriter
-	Read(ctx context.Context, name, namespace string) ([]string, error)
+	Read(ctx context.Context, name, namespace string) ([]string, bool, error)
 	GetDownloadURL(ctx context.Context, name, namespace string) string
+	Finalize(ctx context.Context, name string, namespace string) error
+	WriteState(ctx context.Context, name string, namespace string, stateName string) error
 }
 
 type archiveDataCollector interface {
