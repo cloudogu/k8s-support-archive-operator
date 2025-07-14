@@ -984,7 +984,7 @@ func TestZipArchiver_CopyFileToArchive(t *testing.T) {
 			a := &ZipArchiver{
 				filesystem: tt.fields.filesystem(t),
 			}
-			tt.wantErr(t, a.CopyFileToArchive(tt.args.zipper(t), tt.args.stateArchiveDir, tt.args.path, tt.args.d, tt.args.err))
+			tt.wantErr(t, a.copyFileToArchive(tt.args.zipper(t), tt.args.stateArchiveDir, tt.args.path, tt.args.d, tt.args.err))
 		})
 	}
 }

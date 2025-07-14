@@ -114,7 +114,7 @@ func (a *ZipArchiver) Finalize(ctx context.Context, name string, namespace strin
 
 	stateArchiveDir := filepath.Join(statePath, namespace, name)
 	err = a.filesystem.WalkDir(stateArchiveDir, func(path string, d fs.DirEntry, err error) error {
-		return a.CopyFileToArchive(zipWriter, stateArchiveDir, path, d, err)
+		return a.copyFileToArchive(zipWriter, stateArchiveDir, path, d, err)
 	})
 
 	if err != nil {
@@ -140,7 +140,7 @@ func (a *ZipArchiver) Finalize(ctx context.Context, name string, namespace strin
 	return nil
 }
 
-func (a *ZipArchiver) CopyFileToArchive(zipper Zipper, stateArchiveDir, path string, d fs.DirEntry, err error) error {
+func (a *ZipArchiver) copyFileToArchive(zipper Zipper, stateArchiveDir, path string, d fs.DirEntry, err error) error {
 	if err != nil {
 		return err
 	}
