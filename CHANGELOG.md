@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [#5] Adds initial logic for the operator
+  - Archive creation
+  - Finalizer for cleanup
+  - Collector to fetch data
+  - Metadata for state recognition
+  - Nginx sidecar to expose create archives
+
 ## [v0.1.2] - 2025-05-06
 
 ### Changed

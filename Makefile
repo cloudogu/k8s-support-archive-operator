@@ -3,8 +3,7 @@ ARTIFACT_ID=k8s-support-archive-operator
 VERSION=0.1.2
 IMAGE=cloudogu/${ARTIFACT_ID}:${VERSION}
 GOTAG=1.24.1
-MAKEFILES_VERSION=9.9.1
-LINT_VERSION=v1.64.8
+MAKEFILES_VERSION=10.1.1
 ADDITIONAL_CLEAN=dist-clean
 MOCKERY_VERSION=v2.53.3
 
@@ -46,6 +45,7 @@ template-image-pull-policy: $(BINARY_YQ)
 	@if [[ ${STAGE} == "development" ]]; then \
   		echo "Setting PULL POLICY to always!" ;\
 		$(BINARY_YQ) -i e ".controllerManager.imagePullPolicy=\"Always\"" ${K8S_COMPONENT_TARGET_VALUES} ;\
+		$(BINARY_YQ) -i e ".webserver.imagePullPolicy=\"Always\"" ${K8S_COMPONENT_TARGET_VALUES} ;\
 	fi
 
 

@@ -4,8 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/state"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/reconciler"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"os"
@@ -97,7 +100,10 @@ func startOperator(
 		supportArchiveClient,
 	}
 
-	r := reconciler.NewSupportArchiveReconciler(ecoClientSet, k8sManager.GetScheme())
+	newArchiver := state.NewArchiver(filesystem.FileSystem{}, state.NewZipWriter, *operatorConfig)
+	v1SupportArchive := ecoClientSet.SupportArchiveV1()
+	useCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, newArchiver)
+	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, useCase, newArchiver)
 	err = configureManager(k8sManager, r)
 	if err != nil {
 		return fmt.Errorf("unable to configure manager: %w", err)
@@ -150,7 +156,7 @@ func getK8sManagerOptions(flags *flag.FlagSet, args []string, operatorConfig *co
 func parseManagerFlags(flags *flag.FlagSet, args []string, ctrlOpts ctrl.Options) (ctrl.Options, zap.Options) {
 	var metricsAddr string
 	var probeAddr string
-	flags.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flags.StringVar(&metricsAddr, "metrics-bind-address", ":8082", "The address the metric endpoint binds to.")
 	flags.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	zapOpts := zap.Options{
 		Development: config.IsStageDevelopment(),
