@@ -15,16 +15,18 @@ import (
 type CreateArchiveUseCase struct {
 	supportArchivesInterface supportArchiveV1Interface
 	stateHandler             stateHandler
-	targetCollectors         []archiveDataCollector
+	allCollectors            []ArchiveDataCollector
+	targetCollectors         []ArchiveDataCollector
 }
 
-func NewCreateArchiveUseCase(supportArchivesInterface supportArchiveV1Interface, stateHandler stateHandler) *CreateArchiveUseCase {
+func NewCreateArchiveUseCase(supportArchivesInterface supportArchiveV1Interface, stateHandler stateHandler, allCollectors []ArchiveDataCollector) *CreateArchiveUseCase {
 	return &CreateArchiveUseCase{
 		supportArchivesInterface: supportArchivesInterface,
 		stateHandler:             stateHandler,
+		allCollectors:            allCollectors,
 		// TargetCollectors should be defined by the custom resource. This is a fake implementation.
 		// With working collectors, targetCollectors should be created in HandleArchiveRequest.
-		targetCollectors: []archiveDataCollector{col.NewLogCollector()},
+		targetCollectors: []ArchiveDataCollector{col.NewLogCollector()},
 	}
 }
 
@@ -48,8 +50,8 @@ func (c CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *liba
 	}
 
 	// get diff
-	var requiredCollectors []archiveDataCollector
-	for _, tc := range c.targetCollectors {
+	var requiredCollectors []ArchiveDataCollector
+	for _, tc := range c.allCollectors {
 		if !slices.Contains(currentCollectors, tc.Name()) {
 			requiredCollectors = append(requiredCollectors, tc)
 		}
@@ -80,7 +82,7 @@ func (c CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *liba
 	return true, nil
 }
 
-func getCollectorStringSlice(collector []archiveDataCollector) []string {
+func getCollectorStringSlice(collector []ArchiveDataCollector) []string {
 	result := make([]string, len(collector))
 	for i := range collector {
 		result[i] = collector[i].Name()

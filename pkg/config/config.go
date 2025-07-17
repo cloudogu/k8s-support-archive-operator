@@ -16,6 +16,9 @@ const (
 	archiveVolumeDownloadServiceNameEnvVar     = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME"
 	archiveVolumeDownloadServiceProtocolEnvVar = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL"
 	archiveVolumeDownloadServicePortEnvVar     = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT"
+	metricsServiceNameEnvVar                   = "METRICS_SERVICE_NAME"
+	metricsServicePortEnvVar                   = "METRICS_SERVICE_PORT"
+	metricsServiceProtocolEnvVar               = "METRICS_SERVICE_PROTOCOL"
 )
 
 var log = ctrl.Log.WithName("config")
@@ -33,6 +36,12 @@ type OperatorConfig struct {
 	ArchiveVolumeDownloadServiceProtocol string
 	// ArchiveVolumeDownloadServicePort defines the used port for the download service.
 	ArchiveVolumeDownloadServicePort string
+	// MetricsServiceName defines the service name for metrics service.
+	MetricsServiceName string
+	// MetricsServicePort defines the service port for metrics service.
+	MetricsServicePort string
+	// MetricsServiceProtocol defines the service protocol for metrics service.
+	MetricsServiceProtocol string
 }
 
 func IsStageDevelopment() bool {
@@ -73,12 +82,34 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	}
 	log.Info(fmt.Sprintf("Archive volume download service port: %s", archiveVolumeDownloadServicePort))
 
+	metricsServiceName, err := getEnvVar(metricsServiceNameEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("Metrics service name: %s", metricsServiceName))
+
+	metricsServicePort, err := getEnvVar(metricsServicePortEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("Metrics service port: %s", metricsServicePort))
+
+	metricsServiceProtocol, err := getEnvVar(metricsServiceProtocolEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("Metrics service protocol: %s", metricsServiceProtocol))
+
 	return &OperatorConfig{
 		Version:                              parsedVersion,
 		Namespace:                            namespace,
 		ArchiveVolumeDownloadServiceName:     archiveVolumeDownloadServiceName,
 		ArchiveVolumeDownloadServiceProtocol: archiveVolumeDownloadServiceProtocol,
 		ArchiveVolumeDownloadServicePort:     archiveVolumeDownloadServicePort,
+		// prometheus is optional?
+		MetricsServiceName:     metricsServiceName,
+		MetricsServicePort:     metricsServicePort,
+		MetricsServiceProtocol: metricsServiceProtocol,
 	}, nil
 }
 

@@ -29,7 +29,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 	type fields struct {
 		supportArchivesInterface func(t *testing.T) supportArchiveV1Interface
 		stateHandler             func(t *testing.T) stateHandler
-		targetCollectors         func(t *testing.T) []archiveDataCollector
+		targetCollectors         func(t *testing.T) []ArchiveDataCollector
 	}
 	type args struct {
 		ctx context.Context
@@ -53,7 +53,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 				supportArchivesInterface: func(t *testing.T) supportArchiveV1Interface {
 					return nil
 				},
-				targetCollectors: func(t *testing.T) []archiveDataCollector {
+				targetCollectors: func(t *testing.T) []ArchiveDataCollector {
 					return nil
 				},
 			},
@@ -80,7 +80,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 				supportArchivesInterface: func(t *testing.T) supportArchiveV1Interface {
 					return nil
 				},
-				targetCollectors: func(t *testing.T) []archiveDataCollector {
+				targetCollectors: func(t *testing.T) []ArchiveDataCollector {
 					return nil
 				},
 			},
@@ -123,10 +123,10 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					stateHandlerMock.EXPECT().Finalize(testCtx, testArchiveName, testArchiveNamespace).Return(nil)
 					return stateHandlerMock
 				},
-				targetCollectors: func(t *testing.T) []archiveDataCollector {
+				targetCollectors: func(t *testing.T) []ArchiveDataCollector {
 					collectorMock := newMockArchiveDataCollector(t)
 					collectorMock.EXPECT().Name().Return("Logs")
-					return []archiveDataCollector{collectorMock}
+					return []ArchiveDataCollector{collectorMock}
 				},
 			},
 			args: args{
@@ -150,10 +150,10 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					stateHandlerMock.EXPECT().Finalize(testCtx, testArchiveName, testArchiveNamespace).Return(assert.AnError)
 					return stateHandlerMock
 				},
-				targetCollectors: func(t *testing.T) []archiveDataCollector {
+				targetCollectors: func(t *testing.T) []ArchiveDataCollector {
 					collectorMock := newMockArchiveDataCollector(t)
 					collectorMock.EXPECT().Name().Return("Logs")
-					return []archiveDataCollector{collectorMock}
+					return []ArchiveDataCollector{collectorMock}
 				},
 			},
 			args: args{
@@ -179,11 +179,11 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					stateHandlerMock.EXPECT().WriteState(testCtx, testArchiveName, testArchiveNamespace, "Logs").Return(nil)
 					return stateHandlerMock
 				},
-				targetCollectors: func(t *testing.T) []archiveDataCollector {
+				targetCollectors: func(t *testing.T) []ArchiveDataCollector {
 					collectorMock := newMockArchiveDataCollector(t)
 					collectorMock.EXPECT().Name().Return("Logs")
 					collectorMock.EXPECT().Collect(testCtx, testArchiveName, testArchiveNamespace, mock.Anything).Return(nil)
-					return []archiveDataCollector{collectorMock}
+					return []ArchiveDataCollector{collectorMock}
 				},
 			},
 			args: args{
@@ -207,11 +207,11 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					stateHandlerMock.EXPECT().WriteState(testCtx, testArchiveName, testArchiveNamespace, "Logs").Return(assert.AnError)
 					return stateHandlerMock
 				},
-				targetCollectors: func(t *testing.T) []archiveDataCollector {
+				targetCollectors: func(t *testing.T) []ArchiveDataCollector {
 					collectorMock := newMockArchiveDataCollector(t)
 					collectorMock.EXPECT().Name().Return("Logs")
 					collectorMock.EXPECT().Collect(testCtx, testArchiveName, testArchiveNamespace, mock.Anything).Return(nil)
-					return []archiveDataCollector{collectorMock}
+					return []ArchiveDataCollector{collectorMock}
 				},
 			},
 			args: args{
@@ -236,11 +236,11 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					stateHandlerMock.EXPECT().Read(testCtx, testArchiveName, testArchiveNamespace).Return([]string{}, false, nil)
 					return stateHandlerMock
 				},
-				targetCollectors: func(t *testing.T) []archiveDataCollector {
+				targetCollectors: func(t *testing.T) []ArchiveDataCollector {
 					collectorMock := newMockArchiveDataCollector(t)
 					collectorMock.EXPECT().Name().Return("Logs")
 					collectorMock.EXPECT().Collect(testCtx, testArchiveName, testArchiveNamespace, mock.Anything).Return(assert.AnError)
-					return []archiveDataCollector{collectorMock}
+					return []ArchiveDataCollector{collectorMock}
 				},
 			},
 			args: args{
@@ -251,7 +251,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
 				assert.ErrorIs(t, err, assert.AnError)
-				assert.ErrorContains(t, err, "failed to execute archiveDataCollector Logs")
+				assert.ErrorContains(t, err, "failed to execute ArchiveDataCollector Logs")
 			},
 		},
 	}

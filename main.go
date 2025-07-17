@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
+	v1 "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/state"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/collector"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/reconciler"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
@@ -100,9 +102,17 @@ func startOperator(
 		supportArchiveClient,
 	}
 
+	address := fmt.Sprintf("%s://%s.%s.svc.cluster.local:%s", operatorConfig.MetricsServiceProtocol, operatorConfig.MetricsServiceName, operatorConfig.Namespace, operatorConfig.MetricsServicePort)
+	metricsCollector, err := v1.NewPrometheusMetricsV1API(address, "")
+	if err != nil {
+		return fmt.Errorf("unable to create prometheus api: %w", err)
+	}
+
+	volumesCollector := collector.NewVolumesCollector(ecoClientSet.CoreV1(), metricsCollector)
+
 	newArchiver := state.NewArchiver(filesystem.FileSystem{}, state.NewZipWriter, *operatorConfig)
 	v1SupportArchive := ecoClientSet.SupportArchiveV1()
-	useCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, newArchiver)
+	useCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, newArchiver, []usecase.ArchiveDataCollector{volumesCollector})
 	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, useCase, newArchiver)
 	err = configureManager(k8sManager, r)
 	if err != nil {

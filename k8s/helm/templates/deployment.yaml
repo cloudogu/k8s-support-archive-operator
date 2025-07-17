@@ -39,6 +39,12 @@ spec:
             subPath: support-archives
       - args: {{ toYaml .Values.controllerManager.manager.args | nindent 8 }}
         env:
+        - name: METRICS_SERVICE_NAME
+          value: {{ .Values.metrics.service.name }}
+        - name: METRICS_SERVICE_PORT
+          value: "{{ .Values.metrics.service.port }}"
+        - name: METRICS_SERVICE_PROTOCOL
+          value: {{ .Values.metrics.service.protocol }}
         - name: KUBERNETES_CLUSTER_DOMAIN
           value: {{ quote .Values.kubernetesClusterDomain }}
         - name: STAGE

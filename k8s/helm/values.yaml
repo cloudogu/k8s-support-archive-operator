@@ -74,3 +74,8 @@ webserver:
       - protocol: TCP
         port: 8080
         targetPort: 8080
+metrics:
+  service:
+    name: k8s-prometheus-prometheus
+    port: 9090
+    protocol: http

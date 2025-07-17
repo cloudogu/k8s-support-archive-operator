@@ -14,7 +14,7 @@ type stateHandler interface {
 	WriteState(ctx context.Context, name string, namespace string, stateName string) error
 }
 
-type archiveDataCollector interface {
+type ArchiveDataCollector interface {
 	Collect(ctx context.Context, name, namespace string, stateWriter col.StateWriter) error
 	Name() string
 }
