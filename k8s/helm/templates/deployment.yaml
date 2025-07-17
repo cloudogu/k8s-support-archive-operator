@@ -21,6 +21,10 @@ spec:
       annotations:
         kubectl.kubernetes.io/default-container: manager
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
       - args: {{- toYaml .Values.controllerManager.manager.args | nindent 8 }}
         env:
@@ -53,6 +57,7 @@ spec:
           }}
         securityContext: {{- toYaml .Values.controllerManager.manager.containerSecurityContext
           | nindent 10 }}
+        imagePullPolicy: {{ .Values.controllerManager.imagePullPolicy }}
       securityContext: {{- toYaml .Values.controllerManager.podSecurityContext | nindent
         8 }}
       serviceAccountName: {{ include "helm.fullname" . }}-controller-manager
