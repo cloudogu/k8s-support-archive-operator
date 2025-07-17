@@ -26,7 +26,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	config2 "sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	// +kubebuilder:scaffold:imports
 )
@@ -56,6 +55,8 @@ type ecosystemClientSet struct {
 // nolint:gocyclo
 func main() {
 	ctx := ctrl.SetupSignalHandler()
+
+	config.ConfigureLogger()
 
 	restConfig := config2.GetConfigOrDie()
 	operatorConfig, err := config.NewOperatorConfig(Version)
@@ -140,29 +141,24 @@ func getK8sManagerOptions(flags *flag.FlagSet, args []string, operatorConfig *co
 			operatorConfig.Namespace: {},
 		}},
 	}
-	controllerOpts, zapOpts := parseManagerFlags(flags, args, controllerOpts)
-
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zapOpts)))
+	controllerOpts = parseManagerFlags(flags, args, controllerOpts)
 
 	return controllerOpts
 }
 
-func parseManagerFlags(flags *flag.FlagSet, args []string, ctrlOpts ctrl.Options) (ctrl.Options, zap.Options) {
+func parseManagerFlags(flags *flag.FlagSet, args []string, ctrlOpts ctrl.Options) ctrl.Options {
 	var metricsAddr string
 	var probeAddr string
 	flags.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flags.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	zapOpts := zap.Options{
-		Development: config.IsStageDevelopment(),
-	}
-	zapOpts.BindFlags(flags)
+
 	// Ignore errors; flags is set to exit on errors
 	_ = flags.Parse(args)
 
 	ctrlOpts.Metrics = metricsserver.Options{BindAddress: metricsAddr}
 	ctrlOpts.HealthProbeBindAddress = probeAddr
 
-	return ctrlOpts, zapOpts
+	return ctrlOpts
 }
 
 func addChecks(k8sManager controllerManager) error {

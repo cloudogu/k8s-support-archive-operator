@@ -12,6 +12,7 @@ const (
 	StageProduction  = "production"
 	StageEnvVar      = "STAGE"
 	namespaceEnvVar  = "NAMESPACE"
+	logLevelEnvVar   = "LOG_LEVEL"
 )
 
 var log = ctrl.Log.WithName("config")
@@ -61,6 +62,15 @@ func configureStage() {
 	if IsStageDevelopment() {
 		log.Info("Starting in development mode! This is not recommended for production!")
 	}
+}
+
+func GetLogLevel() (string, error) {
+	logLevel, err := getEnvVar(logLevelEnvVar)
+	if err != nil {
+		return "", fmt.Errorf("failed to get env var [%s]: %w", logLevelEnvVar, err)
+	}
+
+	return logLevel, nil
 }
 
 func GetNamespace() (string, error) {
