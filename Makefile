@@ -1,6 +1,6 @@
 # Set these to the desired values
 ARTIFACT_ID=k8s-support-archive-operator
-VERSION=0.1.2
+VERSION=0.2.0
 IMAGE=cloudogu/${ARTIFACT_ID}:${VERSION}
 GOTAG=1.24.1
 MAKEFILES_VERSION=10.2.0
