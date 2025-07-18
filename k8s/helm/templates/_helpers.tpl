@@ -46,6 +46,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 Selector labels
 */}}
 {{- define "helm.selectorLabels" -}}
+app: ces
 app.kubernetes.io/name: {{ include "helm.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
