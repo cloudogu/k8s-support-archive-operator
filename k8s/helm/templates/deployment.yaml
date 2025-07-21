@@ -8,16 +8,14 @@ metadata:
 spec:
   replicas: {{ .Values.controllerManager.replicas }}
   selector:
-    matchLabels:
+    matchLabels: {{ include "helm.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/name: k8s-support-archive-operator
       control-plane: controller-manager
-    {{- include "helm.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      labels:
+      labels: {{ include "helm.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/name: k8s-support-archive-operator
         control-plane: controller-manager
-      {{- include "helm.selectorLabels" . | nindent 8 }}
       annotations:
         kubectl.kubernetes.io/default-container: manager
     spec:
@@ -26,20 +24,43 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-      - args: {{- toYaml .Values.controllerManager.manager.args | nindent 8 }}
+      - name: archive-webserver
+        image: "{{ .Values.webserver.image.registry }}/{{ .Values.webserver.image.repository }}:{{ .Values.webserver.image.tag }}"
+        imagePullPolicy: {{ .Values.webserver.imagePullPolicy }}
+        livenessProbe:
+          failureThreshold: 60
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 8080
+          timeoutSeconds: 1
+        resources: {{ toYaml .Values.webserver.resources | nindent 10 }}
+        securityContext: {{ toYaml .Values.webserver.containerSecurityContext | nindent 10 }}
+        volumeMounts:
+          - mountPath: /usr/share/nginx/html
+            name: archive-storage
+            readOnly: true
+            subPath: support-archives
+      - args: {{ toYaml .Values.controllerManager.manager.args | nindent 8 }}
         env:
         - name: KUBERNETES_CLUSTER_DOMAIN
           value: {{ quote .Values.kubernetesClusterDomain }}
         - name: STAGE
-          value: {{ quote .Values.controllerManager.env.stage | default "production"}}
+          value: {{ quote .Values.controllerManager.env.stage | default "production" }}
         - name: LOG_LEVEL
           value: {{ quote .Values.controllerManager.env.logLevel | default "info" }}
+        - name: ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME
+          value: {{ printf "%s-webserver" (include "helm.fullname" .) | quote }}
+        - name: ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL
+          value: {{ quote .Values.webserver.env.downloadService.protocol | default "http" }}
+        - name: ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT
+          value: {{ quote .Values.webserver.env.downloadService.port | default "8080" }}
         - name: NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: "{{ .Values.controllerManager.manager.image.registry }}/{{ .Values.controllerManager.manager.image.repository }}:{{ .Values.controllerManager.manager.image.tag
-          | default .Chart.AppVersion }}"
+        image: "{{ .Values.controllerManager.manager.image.registry }}/{{ .Values.controllerManager.manager.image.repository }}:{{ .Values.controllerManager.manager.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.controllerManager.imagePullPolicy }}
         livenessProbe:
           httpGet:
             path: /healthz
@@ -57,8 +78,17 @@ spec:
           }}
         securityContext: {{- toYaml .Values.controllerManager.manager.containerSecurityContext
           | nindent 10 }}
+        volumeMounts:
+          - mountPath: /data
+            name: archive-storage
         imagePullPolicy: {{ .Values.controllerManager.imagePullPolicy }}
       securityContext: {{- toYaml .Values.controllerManager.podSecurityContext | nindent
         8 }}
       serviceAccountName: {{ include "helm.fullname" . }}-controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+        - name: archive-storage
+          persistentVolumeClaim:
+            claimName: {{ include "helm.fullname" . }}-storage
+
+
