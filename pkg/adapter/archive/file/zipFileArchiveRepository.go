@@ -23,7 +23,7 @@ func NewZipWriter(w io.Writer) Zipper {
 
 type ZipFileArchiveRepository struct {
 	filesystem                           volumeFs
-	archivePath                          string
+	archivesPath                         string
 	workPath                             string
 	zipCreator                           zipCreator
 	archiveVolumeDownloadServiceName     string
@@ -34,7 +34,7 @@ type ZipFileArchiveRepository struct {
 func NewZipFileArchiveRepository(archivePath, workPath string, zipCreator zipCreator, config *config.OperatorConfig) *ZipFileArchiveRepository {
 	return &ZipFileArchiveRepository{
 		filesystem:                           filesystem.FileSystem{},
-		archivePath:                          archivePath,
+		archivesPath:                         archivePath,
 		workPath:                             workPath,
 		zipCreator:                           zipCreator,
 		archiveVolumeDownloadServiceName:     config.ArchiveVolumeDownloadServiceName,
@@ -86,10 +86,14 @@ func (z *ZipFileArchiveRepository) rangeOverStream(ctx context.Context, collecto
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case data := <-stream.Data:
-			dataErr := z.copyDataFromStreamToArchive(zipWriter, collector, data.ID, data.BufferedReader)
-			if dataErr != nil {
-				return fmt.Errorf("error streaming data: %w", dataErr)
+		case data, ok := <-stream.Data:
+			if ok {
+				dataErr := z.copyDataFromStreamToArchive(zipWriter, collector, data.ID, data.BufferedReader)
+				if dataErr != nil {
+					return fmt.Errorf("error streaming data: %w", dataErr)
+				}
+			} else {
+				return nil
 			}
 		}
 	}
@@ -113,7 +117,7 @@ func (z *ZipFileArchiveRepository) Delete(ctx context.Context, id domain.Support
 	logger := log.FromContext(ctx).WithName("FileCleaner").WithValues("SupportArchiveName", id.Name)
 	logger.Info("Remove support archive")
 
-	archiveNamespaceDir := filepath.Join(z.archivePath, id.Namespace)
+	archiveNamespaceDir := filepath.Join(z.archivesPath, id.Namespace)
 	archiveFile := fmt.Sprintf("%s.zip", filepath.Join(archiveNamespaceDir, id.Name))
 
 	var multiErr []error
@@ -160,5 +164,5 @@ func (z *ZipFileArchiveRepository) Exists(_ context.Context, id domain.SupportAr
 }
 
 func (z *ZipFileArchiveRepository) getArchivePath(id domain.SupportArchiveID) string {
-	return fmt.Sprintf("%s.zip", filepath.Join(z.archivePath, id.Namespace, id.Name))
+	return fmt.Sprintf("%s.zip", filepath.Join(z.archivesPath, id.Namespace, id.Name))
 }

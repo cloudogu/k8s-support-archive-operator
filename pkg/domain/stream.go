@@ -3,7 +3,7 @@ package domain
 import "bufio"
 
 type Stream struct {
-	Data <-chan StreamData
+	Data chan StreamData
 }
 
 type StreamData struct {

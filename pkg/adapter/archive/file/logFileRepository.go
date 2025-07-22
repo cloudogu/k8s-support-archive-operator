@@ -73,51 +73,40 @@ func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportA
 	return nil
 }
 
-func (l *LogFileRepository) Stream(_ context.Context, id domain.SupportArchiveID) domain.Stream {
-	resultChan := make(chan domain.StreamData)
-	errChan := make(chan error)
-	doneChan := make(chan struct{})
-	stream := domain.Stream{
-		Data: resultChan,
+func (l *LogFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream domain.Stream) error {
+	logger := log.FromContext(ctx).WithName("LogFileRepository.Stream")
+
+	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveDirName)
+	dir, err := l.filesystem.ReadDir(dirPath)
+	if err != nil {
+		return fmt.Errorf("failed to read directory %s: %w", dirPath, err)
 	}
 
-	go func() {
-		dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveDirName)
-		dir, err := l.filesystem.ReadDir(dirPath)
-		if err != nil {
-			errChan <- fmt.Errorf("failed to read directory %s: %w", dirPath, err)
-			return
-		}
-
-		var filesToClose []closableRWFile
-		defer func() {
-			for _, file := range filesToClose {
-				closeErr := file.Close()
-				if closeErr != nil {
-					errChan <- fmt.Errorf("failed to close file: %w", closeErr)
-				}
-			}
-		}()
-
-		for _, file := range dir {
-			filePath := filepath.Join(dirPath, file.Name())
-			open, openErr := l.filesystem.Open(filePath)
-			if openErr != nil {
-				errChan <- fmt.Errorf("failed to open file %s: %w", filePath, openErr)
-				return
-			}
-			filesToClose = append(filesToClose, open)
-
-			resultChan <- domain.StreamData{
-				ID:             file.Name(),
-				BufferedReader: bufio.NewReader(open),
+	var filesToClose []closableRWFile
+	defer func() {
+		for _, file := range filesToClose {
+			closeErr := file.Close()
+			if closeErr != nil {
+				logger.Error(closeErr, "failed to close file")
 			}
 		}
-
-		doneChan <- struct{}{}
 	}()
 
-	return stream
+	for _, file := range dir {
+		filePath := filepath.Join(dirPath, file.Name())
+		open, openErr := l.filesystem.Open(filePath)
+		if openErr != nil {
+			return fmt.Errorf("failed to open file %s: %w", filePath, openErr)
+		}
+		filesToClose = append(filesToClose, open)
+
+		stream.Data <- domain.StreamData{
+			ID:             file.Name(),
+			BufferedReader: bufio.NewReader(open),
+		}
+	}
+
+	return nil
 }
 
 func (l *LogFileRepository) Delete(_ context.Context, id domain.SupportArchiveID) error {

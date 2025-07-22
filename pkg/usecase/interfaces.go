@@ -21,7 +21,7 @@ type baseCollectorRepository interface {
 type collectorRepository[DATATYPE any] interface {
 	baseCollectorRepository
 	Create(ctx context.Context, id domain.SupportArchiveID, data <-chan *DATATYPE) error
-	Stream(ctx context.Context, id domain.SupportArchiveID) domain.Stream
+	Stream(ctx context.Context, id domain.SupportArchiveID, stream domain.Stream) error
 }
 
 type supportArchiveRepository interface {
