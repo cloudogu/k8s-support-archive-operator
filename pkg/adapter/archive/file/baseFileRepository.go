@@ -26,7 +26,7 @@ func NewBaseFileRepository(workPath string, filesystem volumeFs) *baseFileReposi
 }
 
 func (l *baseFileRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID) error {
-	logger := log.FromContext(ctx).WithName("LogFileRepository.FinishCollection")
+	logger := log.FromContext(ctx).WithName("baseFileRepository.FinishCollection")
 	stateFilePath := getStateFilePath(l.workPath, id)
 
 	err := l.filesystem.MkdirAll(filepath.Dir(stateFilePath), os.ModePerm)
@@ -65,5 +65,5 @@ func (l *baseFileRepository) IsCollected(_ context.Context, id domain.SupportArc
 }
 
 func getStateFilePath(workPath string, id domain.SupportArchiveID) string {
-	return filepath.Join(workPath, id.Namespace, id.Name, stateFileName)
+	return filepath.Join(workPath, id.Namespace, id.Name, archiveDirName, stateFileName)
 }

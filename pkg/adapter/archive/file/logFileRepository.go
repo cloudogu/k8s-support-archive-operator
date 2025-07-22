@@ -51,7 +51,7 @@ func (l *LogFileRepository) Create(ctx context.Context, id domain.SupportArchive
 
 func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportArchiveID, data *domain.PodLog) error {
 	logger := log.FromContext(ctx).WithName("LogFileRepository.createPodLog")
-	filePath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveDirName, data.PodName)
+	filePath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveDirName, fmt.Sprintf("%s%s", data.PodName, ".log"))
 	err := l.filesystem.MkdirAll(filepath.Dir(filePath), 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(filePath), err)
@@ -61,6 +61,12 @@ func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportA
 	if err != nil {
 		return fmt.Errorf("failed to create file %s: %w", filePath, err)
 	}
+	defer func() {
+		closeErr := open.Close()
+		if closeErr != nil {
+			logger.Error(closeErr, "failed to close file")
+		}
+	}()
 
 	for _, logLine := range data.Entries {
 		_, writeErr := open.Write([]byte(logLine))
@@ -100,13 +106,23 @@ func (l *LogFileRepository) Stream(ctx context.Context, id domain.SupportArchive
 		}
 		filesToClose = append(filesToClose, open)
 
-		stream.Data <- domain.StreamData{
-			ID:             file.Name(),
-			BufferedReader: bufio.NewReader(open),
-		}
+		writeSaveToChannel(ctx, domain.StreamData{
+			ID:     file.Name(),
+			Reader: bufio.NewReader(open),
+		}, stream.Data)
 	}
+	close(stream.Data)
 
 	return nil
+}
+
+func writeSaveToChannel[T any](ctx context.Context, data T, dataChannel chan<- T) {
+	select {
+	case <-ctx.Done():
+		return
+	case dataChannel <- data:
+		return
+	}
 }
 
 func (l *LogFileRepository) Delete(_ context.Context, id domain.SupportArchiveID) error {

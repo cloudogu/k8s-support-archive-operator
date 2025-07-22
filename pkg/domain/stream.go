@@ -1,12 +1,14 @@
 package domain
 
-import "bufio"
+import (
+	"io"
+)
 
 type Stream struct {
 	Data chan StreamData
 }
 
 type StreamData struct {
-	ID             string
-	BufferedReader *bufio.Reader
+	ID     string
+	Reader io.Reader
 }

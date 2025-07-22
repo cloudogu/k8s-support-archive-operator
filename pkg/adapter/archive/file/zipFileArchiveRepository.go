@@ -2,7 +2,6 @@ package file
 
 import (
 	"archive/zip"
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -23,19 +22,17 @@ func NewZipWriter(w io.Writer) Zipper {
 
 type ZipFileArchiveRepository struct {
 	filesystem                           volumeFs
-	archivesPath                         string
-	workPath                             string
 	zipCreator                           zipCreator
+	archivesPath                         string
 	archiveVolumeDownloadServiceName     string
 	archiveVolumeDownloadServicePort     string
 	archiveVolumeDownloadServiceProtocol string
 }
 
-func NewZipFileArchiveRepository(archivePath, workPath string, zipCreator zipCreator, config *config.OperatorConfig) *ZipFileArchiveRepository {
+func NewZipFileArchiveRepository(archivesPath string, zipCreator zipCreator, config *config.OperatorConfig) *ZipFileArchiveRepository {
 	return &ZipFileArchiveRepository{
 		filesystem:                           filesystem.FileSystem{},
-		archivesPath:                         archivePath,
-		workPath:                             workPath,
+		archivesPath:                         archivesPath,
 		zipCreator:                           zipCreator,
 		archiveVolumeDownloadServiceName:     config.ArchiveVolumeDownloadServiceName,
 		archiveVolumeDownloadServicePort:     config.ArchiveVolumeDownloadServicePort,
@@ -88,7 +85,7 @@ func (z *ZipFileArchiveRepository) rangeOverStream(ctx context.Context, collecto
 			return ctx.Err()
 		case data, ok := <-stream.Data:
 			if ok {
-				dataErr := z.copyDataFromStreamToArchive(zipWriter, collector, data.ID, data.BufferedReader)
+				dataErr := z.copyDataFromStreamToArchive(zipWriter, collector, data.ID, data.Reader)
 				if dataErr != nil {
 					return fmt.Errorf("error streaming data: %w", dataErr)
 				}
@@ -99,7 +96,7 @@ func (z *ZipFileArchiveRepository) rangeOverStream(ctx context.Context, collecto
 	}
 }
 
-func (z *ZipFileArchiveRepository) copyDataFromStreamToArchive(zipper Zipper, collector domain.CollectorType, path string, dataReader *bufio.Reader) error {
+func (z *ZipFileArchiveRepository) copyDataFromStreamToArchive(zipper Zipper, collector domain.CollectorType, path string, dataReader io.Reader) error {
 	zipFileWriter, err := zipper.Create(filepath.Join(string(collector), path))
 	if err != nil {
 		return fmt.Errorf("failed to create zip writer for file %s: %w", path, err)

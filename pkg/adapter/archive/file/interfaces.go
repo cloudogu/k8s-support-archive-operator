@@ -17,3 +17,9 @@ type Zipper interface {
 	Close() error
 	Create(name string) (io.Writer, error)
 }
+
+//nolint:unused
+//goland:noinspection GoUnusedType
+type Reader interface {
+	io.Reader
+}
