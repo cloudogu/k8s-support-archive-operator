@@ -4,9 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/archive/file"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/state"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/reconciler"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
 	"k8s.io/client-go/kubernetes"
@@ -100,10 +102,24 @@ func startOperator(
 		supportArchiveClient,
 	}
 
-	newArchiver := state.NewArchiver(filesystem.FileSystem{}, state.NewZipWriter, *operatorConfig)
 	v1SupportArchive := ecoClientSet.SupportArchiveV1()
-	useCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, newArchiver)
-	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, useCase, newArchiver)
+
+	archivePath := "/data/support-archives"
+	workPath := "/data/work"
+	supportArchiveRepository := file.NewZipFileArchiveRepository(archivePath, workPath, file.NewZipWriter, operatorConfig)
+
+	fs := filesystem.FileSystem{}
+	baseFileRepository := file.NewBaseFileRepository(workPath, fs)
+
+	logCollector := collector.NewLogCollector()
+	logRepository := file.NewLogFileRepository(workPath, fs, baseFileRepository)
+
+	mapping := make(map[domain.CollectorType]usecase.CollectorAndRepository)
+	mapping[domain.CollectorTypeLog] = usecase.CollectorAndRepository{Collector: logCollector, Repository: logRepository}
+
+	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
+	deleteUseCase := usecase.NewDeleteArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
+	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, createUseCase, deleteUseCase)
 	err = configureManager(k8sManager, r)
 	if err != nil {
 		return fmt.Errorf("unable to configure manager: %w", err)

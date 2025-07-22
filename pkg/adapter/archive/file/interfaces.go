@@ -1,4 +1,4 @@
-package state
+package file
 
 import (
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
