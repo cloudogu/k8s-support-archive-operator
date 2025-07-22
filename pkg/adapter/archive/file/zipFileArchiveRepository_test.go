@@ -310,7 +310,7 @@ func TestZipFileArchiveRepository_Create(t *testing.T) {
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
 					fsMock.EXPECT().MkdirAll(testNamespacePath, os.FileMode(0755)).Return(nil)
-					fsMock.EXPECT().OpenFile(testArchivePath, os.O_RDWR|os.O_CREATE, os.FileMode(0644)).Return(nil, assert.AnError)
+					fsMock.EXPECT().OpenFile(testArchivePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0644)).Return(nil, assert.AnError)
 					return fsMock
 				},
 				archivesPath: testArchivesPath,
@@ -333,7 +333,7 @@ func TestZipFileArchiveRepository_Create(t *testing.T) {
 
 					fsMock := newMockVolumeFs(t)
 					fsMock.EXPECT().MkdirAll(testNamespacePath, os.FileMode(0755)).Return(nil)
-					fsMock.EXPECT().OpenFile(testArchivePath, os.O_RDWR|os.O_CREATE, os.FileMode(0644)).Return(fileMock, nil)
+					fsMock.EXPECT().OpenFile(testArchivePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0644)).Return(fileMock, nil)
 
 					fsMock.EXPECT().Copy(casWriter, casReader).Return(0, nil)
 					fsMock.EXPECT().Copy(ldapWriter, ldapReader).Return(0, nil)
@@ -374,7 +374,9 @@ func TestZipFileArchiveRepository_Create(t *testing.T) {
 
 					fsMock := newMockVolumeFs(t)
 					fsMock.EXPECT().MkdirAll(testNamespacePath, os.FileMode(0755)).Return(nil)
-					fsMock.EXPECT().OpenFile(testArchivePath, os.O_RDWR|os.O_CREATE, os.FileMode(0644)).Return(fileMock, nil)
+					fsMock.EXPECT().OpenFile(testArchivePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0644)).Return(fileMock, nil)
+
+					fsMock.EXPECT().Remove(testArchivePath).Return(nil)
 
 					return fsMock
 				},
@@ -413,9 +415,11 @@ func TestZipFileArchiveRepository_Create(t *testing.T) {
 
 					fsMock := newMockVolumeFs(t)
 					fsMock.EXPECT().MkdirAll(testNamespacePath, os.FileMode(0755)).Return(nil)
-					fsMock.EXPECT().OpenFile(testArchivePath, os.O_RDWR|os.O_CREATE, os.FileMode(0644)).Return(fileMock, nil)
+					fsMock.EXPECT().OpenFile(testArchivePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0644)).Return(fileMock, nil)
 
 					fsMock.EXPECT().Copy(casWriter, casReader).Return(0, assert.AnError)
+
+					fsMock.EXPECT().Remove(testArchivePath).Return(nil)
 
 					return fsMock
 				},
@@ -455,7 +459,9 @@ func TestZipFileArchiveRepository_Create(t *testing.T) {
 
 					fsMock := newMockVolumeFs(t)
 					fsMock.EXPECT().MkdirAll(testNamespacePath, os.FileMode(0755)).Return(nil)
-					fsMock.EXPECT().OpenFile(testArchivePath, os.O_RDWR|os.O_CREATE, os.FileMode(0644)).Return(fileMock, nil)
+					fsMock.EXPECT().OpenFile(testArchivePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0644)).Return(fileMock, nil)
+
+					fsMock.EXPECT().Remove(testArchivePath).Return(nil)
 
 					return fsMock
 				},

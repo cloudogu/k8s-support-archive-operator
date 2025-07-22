@@ -6,6 +6,7 @@ import (
 	"fmt"
 	libapi "github.com/cloudogu/k8s-support-archive-lib/api/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -114,6 +115,11 @@ func (c *CreateArchiveUseCase) deleteUnusedRepositoryData(ctx context.Context, i
 func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.SupportArchiveID, requiredCollectors CollectorMapping) (string, error) {
 	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase.createArchive")
 	streamMap := make(map[domain.CollectorType]domain.Stream)
+	streamFinalizers := make([]func() error, len(requiredCollectors))
+	defer func() {
+		finalizeStreams(streamFinalizers, logger)
+	}()
+
 	errGroup, errCtx := errgroup.WithContext(ctx)
 
 	for col := range requiredCollectors {
@@ -131,7 +137,8 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 			}
 
 			errGroup.Go(func() error {
-				err := streamFromRepository[domain.PodLog](ctx, repo, id, stream)
+				finalizer, err := streamFromRepository[domain.PodLog](errCtx, repo, id, stream)
+				streamFinalizers = append(streamFinalizers, finalizer)
 				if err != nil {
 					return fmt.Errorf("could not stream from repository for collector %s: %w", col, err)
 				}
@@ -154,16 +161,23 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 
 	err := errGroup.Wait()
 	if err != nil {
-		cleanErr := c.supportArchiveRepository.Delete(ctx, id)
-		if cleanErr != nil {
-			logger.Error(cleanErr, "could not clean up after error", "collector", id)
-		}
-
 		return "", fmt.Errorf("error creating support archive: %w", err)
 	}
 	logger.Info("Created support archive successfully")
 
 	return url, nil
+}
+
+func finalizeStreams(finalizers []func() error, logger logr.Logger) {
+	for _, finalizer := range finalizers {
+		if finalizer == nil {
+			continue
+		}
+		err := finalizer()
+		if err != nil {
+			logger.Error(err, "could not finalize collector")
+		}
+	}
 }
 
 func (c *CreateArchiveUseCase) updateFinalStatus(ctx context.Context, cr *libapi.SupportArchive, url string) error {
@@ -299,14 +313,14 @@ func getSuccessfulArchiveCreatedCondition(downloadURL string) metav1.Condition {
 	}
 }
 
-func streamFromRepository[DATATYPE any](ctx context.Context, repository collectorRepository[DATATYPE], id domain.SupportArchiveID, stream domain.Stream) error {
-	finalized, err := repository.IsCollected(ctx, id)
+func streamFromRepository[DATATYPE any](ctx context.Context, repository collectorRepository[DATATYPE], id domain.SupportArchiveID, stream domain.Stream) (func() error, error) {
+	isCollected, err := repository.IsCollected(ctx, id)
 	if err != nil {
-		return fmt.Errorf("error during finalized call for collector: %w", err)
+		return nil, fmt.Errorf("error during is collected call for collector: %w", err)
 	}
 
-	if !finalized {
-		return errors.New("collector is not finalized")
+	if !isCollected {
+		return nil, errors.New("collector is not completed")
 	}
 
 	return repository.Stream(ctx, id, stream)

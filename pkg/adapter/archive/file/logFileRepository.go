@@ -3,6 +3,7 @@ package file
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"path/filepath"
@@ -28,6 +29,7 @@ func NewLogFileRepository(workPath string, fs volumeFs, repository *baseFileRepo
 }
 
 func (l *LogFileRepository) Create(ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *domain.PodLog) error {
+	logger := log.FromContext(ctx).WithName("LogFileRepository.Create")
 	for {
 		select {
 		case <-ctx.Done():
@@ -36,6 +38,10 @@ func (l *LogFileRepository) Create(ctx context.Context, id domain.SupportArchive
 			if ok {
 				err := l.createPodLog(ctx, id, data)
 				if err != nil {
+					cleanErr := l.Delete(ctx, id)
+					if cleanErr != nil {
+						logger.Error(cleanErr, fmt.Sprintf("failed to clean up log files after error: %s", cleanErr))
+					}
 					return fmt.Errorf("error creating pod log: %w", err)
 				}
 			} else {
@@ -79,30 +85,31 @@ func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportA
 	return nil
 }
 
-func (l *LogFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream domain.Stream) error {
-	logger := log.FromContext(ctx).WithName("LogFileRepository.Stream")
-
+func (l *LogFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream domain.Stream) (func() error, error) {
 	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveDirName)
 	dir, err := l.filesystem.ReadDir(dirPath)
 	if err != nil {
-		return fmt.Errorf("failed to read directory %s: %w", dirPath, err)
+		return nil, fmt.Errorf("failed to read directory %s: %w", dirPath, err)
 	}
 
 	var filesToClose []closableRWFile
-	defer func() {
+	// TODO Discuss this
+	finalizerFn := func() error {
+		var multiErr []error
 		for _, file := range filesToClose {
 			closeErr := file.Close()
 			if closeErr != nil {
-				logger.Error(closeErr, "failed to close file")
+				multiErr = append(multiErr, fmt.Errorf("failed to close file: %w", closeErr))
 			}
 		}
-	}()
+		return errors.Join(multiErr...)
+	}
 
 	for _, file := range dir {
 		filePath := filepath.Join(dirPath, file.Name())
 		open, openErr := l.filesystem.Open(filePath)
 		if openErr != nil {
-			return fmt.Errorf("failed to open file %s: %w", filePath, openErr)
+			return nil, fmt.Errorf("failed to open file %s: %w", filePath, openErr)
 		}
 		filesToClose = append(filesToClose, open)
 
@@ -113,7 +120,7 @@ func (l *LogFileRepository) Stream(ctx context.Context, id domain.SupportArchive
 	}
 	close(stream.Data)
 
-	return nil
+	return finalizerFn, nil
 }
 
 func writeSaveToChannel[T any](ctx context.Context, data T, dataChannel chan<- T) {

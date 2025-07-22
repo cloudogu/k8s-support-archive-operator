@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
+	// Import all Kubernetes client auth plugins (e.g., Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -106,7 +106,7 @@ func startOperator(
 
 	archivePath := "/data/support-archives"
 	workPath := "/data/work"
-	supportArchiveRepository := file.NewZipFileArchiveRepository(archivePath, workPath, file.NewZipWriter, operatorConfig)
+	supportArchiveRepository := file.NewZipFileArchiveRepository(archivePath, file.NewZipWriter, operatorConfig)
 
 	fs := filesystem.FileSystem{}
 	baseFileRepository := file.NewBaseFileRepository(workPath, fs)
@@ -118,7 +118,7 @@ func startOperator(
 	mapping[domain.CollectorTypeLog] = usecase.CollectorAndRepository{Collector: logCollector, Repository: logRepository}
 
 	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
-	deleteUseCase := usecase.NewDeleteArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
+	deleteUseCase := usecase.NewDeleteArchiveUseCase(mapping, supportArchiveRepository)
 	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, createUseCase, deleteUseCase)
 	err = configureManager(k8sManager, r)
 	if err != nil {

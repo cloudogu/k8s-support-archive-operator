@@ -164,7 +164,11 @@ func TestLogFileRepository_Stream(t *testing.T) {
 				workPath:   tt.fields.workPath,
 				filesystem: tt.fields.filesystem(t),
 			}
-			tt.wantErr(t, l.Stream(tt.args.ctx, tt.args.id, tt.args.stream))
+			finalizer, err := l.Stream(tt.args.ctx, tt.args.id, tt.args.stream)
+			tt.wantErr(t, err)
+			if finalizer != nil {
+				_ = finalizer()
+			}
 		})
 	}
 }
@@ -251,6 +255,29 @@ func TestLogFileRepository_Create(t *testing.T) {
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
+			},
+		},
+		{
+			name: "should cleanup after error",
+			fields: fields{
+				workPath: testWorkPath,
+				filesystem: func(t *testing.T) volumeFs {
+					fsMock := newMockVolumeFs(t)
+					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, os.FileMode(0755)).Return(assert.AnError)
+					fsMock.EXPECT().RemoveAll(testWorkDirArchivePath).Return(nil)
+
+					return fsMock
+				},
+			},
+			args: args{
+				ctx:        testCtx,
+				id:         testID,
+				dataStream: getSuccessStream(),
+			},
+			wantErr: func(t *testing.T, err error) {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, assert.AnError)
+				assert.ErrorContains(t, err, "error creating pod log")
 			},
 		},
 	}

@@ -49,10 +49,20 @@ func (z *ZipFileArchiveRepository) Create(ctx context.Context, id domain.Support
 		return "", fmt.Errorf("failed to create zip archive directory: %w", err)
 	}
 
-	zipFile, err := z.filesystem.OpenFile(destinationPath, os.O_RDWR|os.O_CREATE, 0644)
+	zipFile, err := z.filesystem.OpenFile(destinationPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file %s: %w", destinationPath, err)
 	}
+	defer func() {
+		// If any error occurs during creating, try to delete the zip to avoid false recognition bei Exists method.
+		if err == nil {
+			return
+		}
+		err = z.filesystem.Remove(destinationPath)
+		if err != nil {
+			logger.Error(err, fmt.Sprintf("failed to remove zip file %s after error: %s", destinationPath, err))
+		}
+	}()
 
 	zipWriter := z.zipCreator(zipFile)
 	defer func() {
@@ -65,9 +75,9 @@ func (z *ZipFileArchiveRepository) Create(ctx context.Context, id domain.Support
 	}()
 
 	for collector, stream := range streams {
-		streamErr := z.rangeOverStream(ctx, collector, stream, zipWriter)
-		if streamErr != nil {
-			return "", streamErr
+		err = z.rangeOverStream(ctx, collector, stream, zipWriter)
+		if err != nil {
+			return "", err
 		}
 	}
 

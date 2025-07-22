@@ -9,14 +9,12 @@ import (
 )
 
 type DeleteArchiveUseCase struct {
-	supportArchivesInterface supportArchiveV1Interface
 	supportArchiveRepository supportArchiveRepository
 	collectorMapping         CollectorMapping
 }
 
-func NewDeleteArchiveUseCase(supportArchivesInterface supportArchiveV1Interface, collectorMapping CollectorMapping, supportArchiveRepository supportArchiveRepository) *DeleteArchiveUseCase {
+func NewDeleteArchiveUseCase(collectorMapping CollectorMapping, supportArchiveRepository supportArchiveRepository) *DeleteArchiveUseCase {
 	return &DeleteArchiveUseCase{
-		supportArchivesInterface: supportArchivesInterface,
 		supportArchiveRepository: supportArchiveRepository,
 		collectorMapping:         collectorMapping,
 	}
@@ -39,7 +37,7 @@ func (d *DeleteArchiveUseCase) Delete(ctx context.Context, cr *libapi.SupportArc
 
 	err := d.supportArchiveRepository.Delete(ctx, id)
 	if err != nil {
-		multiErr = append(multiErr, err)
+		multiErr = append(multiErr, fmt.Errorf("failed to delete support archive: %w", err))
 	}
 
 	return errors.Join(multiErr...)
