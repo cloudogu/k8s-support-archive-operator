@@ -3,7 +3,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: {{ include "helm.fullname" . }}-storage
   labels: {{ include "helm.labels" . | nindent 4 }}
-  {{- if .Values.webserver.pvc.keepOnDelete}}
+  {{- if .Values.webserver.pvc.keepOnDelete }}
   annotations:
     helm.sh/resource-policy: keep
   {{- end }}

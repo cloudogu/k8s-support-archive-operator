@@ -19,10 +19,10 @@ controllerManager:
     resources:
       limits:
         memory: 105M
-        ephemeral-storage: 100Mi # avoid resource exhaustion (sonar finding)
       requests:
         cpu: 15m
         memory: 105M
+        ephemeral-storage: 100Mi
   env:
     logLevel: debug
     stage: development
@@ -58,6 +58,7 @@ webserver:
     requests:
       cpu: 15m
       memory: 64Mi
+      ephemeral-storage: 100Mi
     limits:
       memory: 64Mi
   image:
