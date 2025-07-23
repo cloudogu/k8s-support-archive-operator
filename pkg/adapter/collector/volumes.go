@@ -24,17 +24,21 @@ func (vc *VolumesCollector) Name() string {
 	return string(domain.CollectorTypVolumeInfo)
 }
 
-func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, _, _ time.Time, resultChan chan<- *domain.VolumeInfo) error {
+func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, start, _ time.Time, resultChan chan<- *domain.VolumeInfo) error {
 	list, err := vc.coreV1Interface.PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing pvcs: %w", err)
 	}
 
-	now := time.Now()
-	result := &domain.VolumeInfo{Name: pvcVolumeMetricName, Timestamp: now, Items: make([]domain.VolumeInfoItem, 0, len(list.Items))}
+	if len(list.Items) == 0 {
+		close(resultChan)
+		return nil
+	}
+
+	result := &domain.VolumeInfo{Name: pvcVolumeMetricName, Timestamp: start, Items: make([]domain.VolumeInfoItem, 0, len(list.Items))}
 
 	for _, pvc := range list.Items {
-		i, itemErr := vc.getOutputItem(ctx, pvc.Name, namespace, string(pvc.Status.Phase), now)
+		i, itemErr := vc.getOutputItem(ctx, pvc.Name, namespace, string(pvc.Status.Phase), start)
 		if itemErr != nil {
 			return fmt.Errorf("error getting output item for pvc %s: %w", pvc.Name, itemErr)
 		}
@@ -49,12 +53,12 @@ func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, _, _ 
 func (vc *VolumesCollector) getOutputItem(ctx context.Context, pvcName, namespace, phase string, timestamp time.Time) (domain.VolumeInfoItem, error) {
 	capacityBytes, err := vc.metricsProvider.GetCapacityBytesForPVC(ctx, namespace, pvcName, timestamp)
 	if err != nil {
-		return domain.VolumeInfoItem{}, err
+		return domain.VolumeInfoItem{}, fmt.Errorf("failed to get capacity bytes: %w", err)
 	}
 
 	usedBytes, err := vc.metricsProvider.GetUsedBytesForPVC(ctx, namespace, pvcName, timestamp)
 	if err != nil {
-		return domain.VolumeInfoItem{}, err
+		return domain.VolumeInfoItem{}, fmt.Errorf("failed to get used bytes: %w", err)
 	}
 
 	var usagePercentage string
