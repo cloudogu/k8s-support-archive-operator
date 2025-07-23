@@ -51,8 +51,8 @@ func NewCreateArchiveUseCase(supportArchivesInterface supportArchiveV1Interface,
 
 // HandleArchiveRequest processes the support archive custom resource.
 // It reads the actual state and executes the next data collector.
-// If there are remaining collectors after execution, the method returns true, nil to indicate a necessary requeue.
-// If there are no remaining collectors, the method returns false, nil.
+// If there are remaining collectors after execution, the method returns (true, nil) to indicate a necessary requeue.
+// If there are no remaining collectors, the method returns (false, nil).
 func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *libapi.SupportArchive) (bool, error) {
 	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase.HandleArchiveRequest")
 
