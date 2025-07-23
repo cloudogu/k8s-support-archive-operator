@@ -1,9 +1,12 @@
 package file
 
 import (
+	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -38,17 +41,17 @@ func (l *baseFileRepository) FinishCollection(ctx context.Context, id domain.Sup
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	create, err := l.filesystem.Create(stateFilePath)
+	stateFile, err := l.filesystem.Create(stateFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to create file %s: %w", stateFilePath, err)
 	}
 	defer func() {
-		createErr := create.Close()
+		createErr := stateFile.Close()
 		if err != nil {
 			logger.Error(createErr, fmt.Sprintf("failed to close file %s", id))
 		}
 	}()
-	_, err = create.Write([]byte("done"))
+	_, err = stateFile.Write([]byte("done"))
 	if err != nil {
 		return fmt.Errorf("failed to write to file %s: %w", stateFilePath, err)
 	}
@@ -105,6 +108,76 @@ func create[DATATYPE domain.CollectorUnionDataType](ctx context.Context, id doma
 				return nil
 			}
 		}
+	}
+}
+
+func (l *baseFileRepository) stream(ctx context.Context, id domain.SupportArchiveID, directory string, stream domain.Stream) (func() error, error) {
+	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, directory)
+	var filesToClose []closableRWFile
+
+	err := l.filesystem.WalkDir(dirPath, func(path string, info fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		file, err := l.streamFile(ctx, path, info.Name(), stream)
+		if err != nil {
+			return err
+		}
+
+		if file != nil {
+			filesToClose = append(filesToClose, file)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	close(stream.Data)
+
+	return getFileFinalizerFunc(filesToClose), nil
+}
+
+func (l *baseFileRepository) streamFile(ctx context.Context, path, filename string, stream domain.Stream) (closableRWFile, error) {
+	open, openErr := l.filesystem.Open(path)
+	if openErr != nil {
+		return nil, fmt.Errorf("failed to open file %s: %w", path, openErr)
+	}
+
+	writeSaveToChannel(ctx, domain.StreamData{
+		ID:     filename,
+		Reader: bufio.NewReader(open),
+	}, stream.Data)
+
+	return open, nil
+}
+
+func writeSaveToChannel[T any](ctx context.Context, data T, dataChannel chan<- T) {
+	select {
+	case <-ctx.Done():
+		return
+	case dataChannel <- data:
+		return
+	}
+}
+
+func getFileFinalizerFunc(filesToClose []closableRWFile) func() error {
+	return func() error {
+		var multiErr []error
+		for _, file := range filesToClose {
+			closeErr := file.Close()
+			if closeErr != nil {
+				multiErr = append(multiErr, fmt.Errorf("failed to close file: %w", closeErr))
+			}
+		}
+		return errors.Join(multiErr...)
 	}
 }
 
