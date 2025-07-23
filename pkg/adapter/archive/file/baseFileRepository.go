@@ -13,6 +13,10 @@ const (
 	stateFileName = ".done"
 )
 
+type createFn[DATATYPE domain.CollectorUnionDataType] = func(context.Context, domain.SupportArchiveID, *DATATYPE) error
+type deleteFn = func(context.Context, domain.SupportArchiveID) error
+type finishFn = func(context.Context, domain.SupportArchiveID) error
+
 type baseFileRepository struct {
 	workPath   string
 	filesystem volumeFs
@@ -72,6 +76,36 @@ func (l *baseFileRepository) Delete(_ context.Context, id domain.SupportArchiveI
 	}
 
 	return nil
+}
+
+// create queries elements from the stream and calls the concrete createFn for each element.
+// If an error occurs, create executes deleteFn to tidy up.
+// If the stream is closed, create will end and call the finishFn.
+func create[DATATYPE domain.CollectorUnionDataType](ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *DATATYPE, createFn createFn[DATATYPE], deleteFn deleteFn, finishFn finishFn) error {
+	logger := log.FromContext(ctx).WithName("baseFileRepository.create")
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case data, ok := <-dataStream:
+			if ok {
+				err := createFn(ctx, id, data)
+				if err != nil {
+					cleanErr := deleteFn(ctx, id)
+					if cleanErr != nil {
+						logger.Error(cleanErr, fmt.Sprintf("failed to clean up data after error: %s", cleanErr))
+					}
+					return fmt.Errorf("error creating element from data stream: %w", err)
+				}
+			} else {
+				err := finishFn(ctx, id)
+				if err != nil {
+					return fmt.Errorf("error finishing collection: %w", err)
+				}
+				return nil
+			}
+		}
+	}
 }
 
 func getStateFilePath(workPath string, id domain.SupportArchiveID, collectorDir string) string {

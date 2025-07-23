@@ -29,30 +29,7 @@ func NewLogFileRepository(workPath string, fs volumeFs, repository *baseFileRepo
 }
 
 func (l *LogFileRepository) Create(ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *domain.PodLog) error {
-	logger := log.FromContext(ctx).WithName("LogFileRepository.Create")
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case data, ok := <-dataStream:
-			if ok {
-				err := l.createPodLog(ctx, id, data)
-				if err != nil {
-					cleanErr := l.Delete(ctx, id)
-					if cleanErr != nil {
-						logger.Error(cleanErr, fmt.Sprintf("failed to clean up log files after error: %s", cleanErr))
-					}
-					return fmt.Errorf("error creating pod log: %w", err)
-				}
-			} else {
-				err := l.FinishCollection(ctx, id)
-				if err != nil {
-					return fmt.Errorf("error finishing collection: %w", err)
-				}
-				return nil
-			}
-		}
-	}
+	return create(ctx, id, dataStream, l.createPodLog, l.Delete, l.FinishCollection)
 }
 
 func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportArchiveID, data *domain.PodLog) error {

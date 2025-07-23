@@ -30,30 +30,7 @@ func NewVolumesFileRepository(workPath string, fs volumeFs, repository *baseFile
 }
 
 func (v *VolumesFileRepository) Create(ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *domain.VolumeMetrics) error {
-	logger := log.FromContext(ctx).WithName("VolumesFileRepository.Create")
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case data, ok := <-dataStream:
-			if ok {
-				err := v.createVolumeMetricsFile(ctx, id, data)
-				if err != nil {
-					cleanErr := v.Delete(ctx, id)
-					if cleanErr != nil {
-						logger.Error(cleanErr, fmt.Sprintf("failed to clean up log files after error: %s", cleanErr))
-					}
-					return fmt.Errorf("error creating volume metrics: %w", err)
-				}
-			} else {
-				err := v.FinishCollection(ctx, id)
-				if err != nil {
-					return fmt.Errorf("error finishing collection: %w", err)
-				}
-				return nil
-			}
-		}
-	}
+	return create(ctx, id, dataStream, v.createVolumeMetricsFile, v.Delete, v.FinishCollection)
 }
 
 // createVolumeMetricsFile writes the content from data to the metrics file.
