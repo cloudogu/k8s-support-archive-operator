@@ -13,10 +13,11 @@ const (
 	StageProduction                            = "production"
 	StageEnvVar                                = "STAGE"
 	namespaceEnvVar                            = "NAMESPACE"
-	logLevelEnvVar  						   = "LOG_LEVEL"
 	archiveVolumeDownloadServiceNameEnvVar     = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME"
 	archiveVolumeDownloadServiceProtocolEnvVar = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL"
 	archiveVolumeDownloadServicePortEnvVar     = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT"
+	logLevelEnvVar                             = "LOG_LEVEL"
+	errEnvVarFmt                               = "failed to get env var [%s]: %w"
 )
 
 var log = ctrl.Log.WithName("config")
@@ -98,7 +99,7 @@ func configureStage() {
 func GetLogLevel() (string, error) {
 	logLevel, err := getEnvVar(logLevelEnvVar)
 	if err != nil {
-		return "", fmt.Errorf("failed to get env var [%s]: %w", logLevelEnvVar, err)
+		return "", fmt.Errorf(errEnvVarFmt, logLevelEnvVar, err)
 	}
 
 	return logLevel, nil
@@ -107,7 +108,7 @@ func GetLogLevel() (string, error) {
 func getNamespace() (string, error) {
 	namespace, err := getEnvVar(namespaceEnvVar)
 	if err != nil {
-		return "", fmt.Errorf("failed to get env var [%s]: %w", namespaceEnvVar, err)
+		return "", fmt.Errorf(errEnvVarFmt, namespaceEnvVar, err)
 	}
 
 	return namespace, nil
@@ -116,7 +117,7 @@ func getNamespace() (string, error) {
 func getArchiveVolumeDownloadServiceName() (string, error) {
 	envVar, err := getEnvVar(archiveVolumeDownloadServiceNameEnvVar)
 	if err != nil {
-		return "", fmt.Errorf("failed to get env var [%s]: %w", archiveVolumeDownloadServiceNameEnvVar, err)
+		return "", fmt.Errorf(errEnvVarFmt, archiveVolumeDownloadServiceNameEnvVar, err)
 	}
 
 	return envVar, nil
@@ -125,7 +126,7 @@ func getArchiveVolumeDownloadServiceName() (string, error) {
 func getArchiveVolumeDownloadServiceProtocol() (string, error) {
 	envVar, err := getEnvVar(archiveVolumeDownloadServiceProtocolEnvVar)
 	if err != nil {
-		return "", fmt.Errorf("failed to get env var [%s]: %w", archiveVolumeDownloadServiceProtocolEnvVar, err)
+		return "", fmt.Errorf(errEnvVarFmt, archiveVolumeDownloadServiceProtocolEnvVar, err)
 	}
 
 	return envVar, nil
@@ -134,7 +135,7 @@ func getArchiveVolumeDownloadServiceProtocol() (string, error) {
 func getArchiveVolumeDownloadServicePort() (string, error) {
 	envVar, err := getEnvVar(archiveVolumeDownloadServicePortEnvVar)
 	if err != nil {
-		return "", fmt.Errorf("failed to get env var [%s]: %w", archiveVolumeDownloadServicePortEnvVar, err)
+		return "", fmt.Errorf(errEnvVarFmt, archiveVolumeDownloadServicePortEnvVar, err)
 	}
 
 	_, err = strconv.Atoi(envVar)

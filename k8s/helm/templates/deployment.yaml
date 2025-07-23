@@ -74,16 +74,12 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
-        resources: {{- toYaml .Values.controllerManager.manager.resources | nindent 10
-          }}
-        securityContext: {{- toYaml .Values.controllerManager.manager.containerSecurityContext
-          | nindent 10 }}
+        resources: {{ toYaml .Values.controllerManager.manager.resources | nindent 10 }}
+        securityContext: {{ toYaml .Values.controllerManager.manager.containerSecurityContext | nindent 10 }}
         volumeMounts:
           - mountPath: /data
             name: archive-storage
-        imagePullPolicy: {{ .Values.controllerManager.imagePullPolicy }}
-      securityContext: {{- toYaml .Values.controllerManager.podSecurityContext | nindent
-        8 }}
+      securityContext: {{ toYaml .Values.controllerManager.podSecurityContext | nindent 8 }}
       serviceAccountName: {{ include "helm.fullname" . }}-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:

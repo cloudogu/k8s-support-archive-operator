@@ -23,10 +23,10 @@ type supportArchiveV1Interface interface {
 	libclient.SupportArchiveV1Interface
 }
 
-type archiveHandler interface {
+type createArchiveHandler interface {
 	HandleArchiveRequest(ctx context.Context, cr *libv1.SupportArchive) (requeue bool, err error)
 }
 
-type archiveCleaner interface {
-	Clean(ctx context.Context, supportArchiveName, namespace string) error
+type deleteArchiveHandler interface {
+	Delete(ctx context.Context, cr *libv1.SupportArchive) error
 }

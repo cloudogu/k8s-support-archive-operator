@@ -4,9 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/archive/file"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/state"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/reconciler"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
 	"k8s.io/client-go/kubernetes"
@@ -16,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
+	// Import all Kubernetes client auth plugins (e.g., Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -101,10 +103,24 @@ func startOperator(
 		supportArchiveClient,
 	}
 
-	newArchiver := state.NewArchiver(filesystem.FileSystem{}, state.NewZipWriter, *operatorConfig)
 	v1SupportArchive := ecoClientSet.SupportArchiveV1()
-	useCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, newArchiver)
-	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, useCase, newArchiver)
+
+	archivePath := "/data/support-archives"
+	workPath := "/data/work"
+	supportArchiveRepository := file.NewZipFileArchiveRepository(archivePath, file.NewZipWriter, operatorConfig)
+
+	fs := filesystem.FileSystem{}
+	baseFileRepository := file.NewBaseFileRepository(workPath, fs)
+
+	logCollector := collector.NewLogCollector()
+	logRepository := file.NewLogFileRepository(workPath, fs, baseFileRepository)
+
+	mapping := make(map[domain.CollectorType]usecase.CollectorAndRepository)
+	mapping[domain.CollectorTypeLog] = usecase.CollectorAndRepository{Collector: logCollector, Repository: logRepository}
+
+	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
+	deleteUseCase := usecase.NewDeleteArchiveUseCase(mapping, supportArchiveRepository)
+	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, createUseCase, deleteUseCase)
 	err = configureManager(k8sManager, r)
 	if err != nil {
 		return fmt.Errorf("unable to configure manager: %w", err)

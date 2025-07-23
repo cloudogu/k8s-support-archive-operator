@@ -214,13 +214,3 @@ isProduction:
 	fi
 
 
-
-.PHONY: isLocal
-isLocal:
-	@if [[ ! ("${RUNTIME_ENV}" == "remote" || "${STAGE}" == "production") ]]; then \
-		echo "command executed locally, command continue execution."; \
-	else \
-		echo "command executed remotely or on production, command aborted"; exit 1; \
-	fi
-
-
