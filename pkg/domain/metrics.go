@@ -2,13 +2,13 @@ package domain
 
 import "time"
 
-type VolumeMetrics struct {
+type VolumeInfo struct {
 	Name      string
-	Timestamp time.Time      `yaml:"timestamp"`
-	Items     []VolumeMetric `yaml:"items"`
+	Timestamp time.Time        `yaml:"timestamp"`
+	Items     []VolumeInfoItem `yaml:"items"`
 }
 
-type VolumeMetric struct {
+type VolumeInfoItem struct {
 	Name            string `yaml:"name"`
 	Capacity        int64  `yaml:"capacity"`
 	Used            int64  `yaml:"used"`

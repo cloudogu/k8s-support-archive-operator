@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	archiveLogDirName = "logs"
+	archiveLogDirName = "Logs"
 )
 
 type LogFileRepository struct {

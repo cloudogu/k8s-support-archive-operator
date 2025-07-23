@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	archiveVolumesDirName = "volumes"
+	archiveVolumeInfoDirName = "VolumeInfo"
 )
 
 type VolumesFileRepository struct {
@@ -27,15 +27,15 @@ func NewVolumesFileRepository(workPath string, fs volumeFs, repository *baseFile
 	}
 }
 
-func (v *VolumesFileRepository) Create(ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *domain.VolumeMetrics) error {
-	return create(ctx, id, dataStream, v.createVolumeMetricsFile, v.Delete, v.FinishCollection)
+func (v *VolumesFileRepository) Create(ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *domain.VolumeInfo) error {
+	return create(ctx, id, dataStream, v.createVolumeInfo, v.Delete, v.FinishCollection)
 }
 
-// createVolumeMetricsFile writes the content from data to the metrics file.
-// If the metrics file exists, it overrides the existing file.
-func (v *VolumesFileRepository) createVolumeMetricsFile(ctx context.Context, id domain.SupportArchiveID, data *domain.VolumeMetrics) error {
-	logger := log.FromContext(ctx).WithName("VolumesFileRepository.createVolumeMetricsFile")
-	filePath := fmt.Sprintf("%s.yaml", filepath.Join(v.workPath, id.Namespace, id.Name, archiveVolumesDirName, data.Name))
+// createVolumeInfo writes the content from data to the volumeInfo file.
+// If the volumeInfo file exists, it overrides the existing file.
+func (v *VolumesFileRepository) createVolumeInfo(ctx context.Context, id domain.SupportArchiveID, data *domain.VolumeInfo) error {
+	logger := log.FromContext(ctx).WithName("VolumesFileRepository.createVolumeInfo")
+	filePath := fmt.Sprintf("%s.yaml", filepath.Join(v.workPath, id.Namespace, id.Name, archiveVolumeInfoDirName, data.Name))
 	err := v.filesystem.MkdirAll(filepath.Dir(filePath), 0755)
 	if err != nil {
 		return fmt.Errorf("error creating directory for volume metrics file: %w", err)
@@ -57,17 +57,17 @@ func (v *VolumesFileRepository) createVolumeMetricsFile(ctx context.Context, id 
 }
 
 func (v *VolumesFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream domain.Stream) (func() error, error) {
-	return v.baseFileRepository.stream(ctx, id, archiveVolumesDirName, stream)
+	return v.baseFileRepository.stream(ctx, id, archiveVolumeInfoDirName, stream)
 }
 
 func (v *VolumesFileRepository) Delete(ctx context.Context, id domain.SupportArchiveID) error {
-	return v.baseFileRepository.Delete(ctx, id, archiveVolumesDirName)
+	return v.baseFileRepository.Delete(ctx, id, archiveVolumeInfoDirName)
 }
 
 func (v *VolumesFileRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID) error {
-	return v.baseFileRepository.FinishCollection(ctx, id, archiveVolumesDirName)
+	return v.baseFileRepository.FinishCollection(ctx, id, archiveVolumeInfoDirName)
 }
 
 func (v *VolumesFileRepository) IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error) {
-	return v.baseFileRepository.IsCollected(ctx, id, archiveVolumesDirName)
+	return v.baseFileRepository.IsCollected(ctx, id, archiveVolumeInfoDirName)
 }

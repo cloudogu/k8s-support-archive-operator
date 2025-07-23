@@ -24,14 +24,14 @@ func (vc *VolumesCollector) Name() string {
 	return "Volumes"
 }
 
-func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, _, _ time.Time, resultChan chan<- *domain.VolumeMetrics) error {
+func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, _, _ time.Time, resultChan chan<- *domain.VolumeInfo) error {
 	list, err := vc.coreV1Interface.PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing pvcs: %w", err)
 	}
 
 	now := time.Now()
-	result := &domain.VolumeMetrics{Name: pvcVolumeMetricName, Timestamp: now, Items: make([]domain.VolumeMetric, 0, len(list.Items))}
+	result := &domain.VolumeInfo{Name: pvcVolumeMetricName, Timestamp: now, Items: make([]domain.VolumeInfoItem, 0, len(list.Items))}
 
 	for _, pvc := range list.Items {
 		i, itemErr := vc.getOutputItem(ctx, pvc.Name, namespace, string(pvc.Status.Phase), now)
@@ -46,15 +46,15 @@ func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, _, _ 
 	return nil
 }
 
-func (vc *VolumesCollector) getOutputItem(ctx context.Context, pvcName, namespace, phase string, timestamp time.Time) (domain.VolumeMetric, error) {
+func (vc *VolumesCollector) getOutputItem(ctx context.Context, pvcName, namespace, phase string, timestamp time.Time) (domain.VolumeInfoItem, error) {
 	capacityBytes, err := vc.metricsProvider.GetCapacityBytesForPVC(ctx, namespace, pvcName, timestamp)
 	if err != nil {
-		return domain.VolumeMetric{}, err
+		return domain.VolumeInfoItem{}, err
 	}
 
 	usedBytes, err := vc.metricsProvider.GetUsedBytesForPVC(ctx, namespace, pvcName, timestamp)
 	if err != nil {
-		return domain.VolumeMetric{}, err
+		return domain.VolumeInfoItem{}, err
 	}
 
 	var usagePercentage string
@@ -62,7 +62,7 @@ func (vc *VolumesCollector) getOutputItem(ctx context.Context, pvcName, namespac
 		usagePercentage = strconv.FormatFloat(float64(usedBytes)/float64(capacityBytes)*100, 'f', 2, 64)
 	}
 
-	return domain.VolumeMetric{
+	return domain.VolumeInfoItem{
 		Name:            pvcName,
 		Capacity:        capacityBytes,
 		Used:            usedBytes,

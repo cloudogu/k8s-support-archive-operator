@@ -3,10 +3,10 @@ package domain
 type CollectorType string
 
 const (
-	CollectorTypeLog   CollectorType = "Logs"
-	CollectorTypVolume CollectorType = "Volumes"
+	CollectorTypeLog       CollectorType = "Logs"
+	CollectorTypVolumeInfo CollectorType = "VolumeInfo"
 )
 
 type CollectorUnionDataType interface {
-	PodLog | VolumeMetrics
+	PodLog | VolumeInfo
 }
