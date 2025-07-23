@@ -25,9 +25,9 @@ func NewBaseFileRepository(workPath string, filesystem volumeFs) *baseFileReposi
 	}
 }
 
-func (l *baseFileRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID) error {
+func (l *baseFileRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID, archiveDir string) error {
 	logger := log.FromContext(ctx).WithName("baseFileRepository.FinishCollection")
-	stateFilePath := getStateFilePath(l.workPath, id)
+	stateFilePath := getStateFilePath(l.workPath, id, archiveDir)
 
 	err := l.filesystem.MkdirAll(filepath.Dir(stateFilePath), os.ModePerm)
 	if err != nil {
@@ -52,8 +52,8 @@ func (l *baseFileRepository) FinishCollection(ctx context.Context, id domain.Sup
 	return nil
 }
 
-func (l *baseFileRepository) IsCollected(_ context.Context, id domain.SupportArchiveID) (bool, error) {
-	stateFilePath := getStateFilePath(l.workPath, id)
+func (l *baseFileRepository) IsCollected(_ context.Context, id domain.SupportArchiveID, collectorDir string) (bool, error) {
+	stateFilePath := getStateFilePath(l.workPath, id, collectorDir)
 	_, err := l.filesystem.Stat(stateFilePath)
 
 	if err != nil && os.IsNotExist(err) {
@@ -64,6 +64,16 @@ func (l *baseFileRepository) IsCollected(_ context.Context, id domain.SupportArc
 	return true, nil
 }
 
-func getStateFilePath(workPath string, id domain.SupportArchiveID) string {
-	return filepath.Join(workPath, id.Namespace, id.Name, archiveDirName, stateFileName)
+func (l *baseFileRepository) Delete(_ context.Context, id domain.SupportArchiveID, archiveDirName string) error {
+	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveDirName)
+	err := l.filesystem.RemoveAll(dirPath)
+	if err != nil {
+		return fmt.Errorf("failed to remove %s directory %s: %w", archiveDirName, dirPath, err)
+	}
+
+	return nil
+}
+
+func getStateFilePath(workPath string, id domain.SupportArchiveID, collectorDir string) string {
+	return filepath.Join(workPath, id.Namespace, id.Name, collectorDir, stateFileName)
 }

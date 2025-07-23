@@ -17,7 +17,7 @@ func (l *LogCollector) Name() string {
 }
 
 // Do not close resultChan on error. Closing the channel should only indicate that the collection finished successfully.
-func (l *LogCollector) Collect(ctx context.Context, startTime, endTime time.Time, resultChan chan<- *domain.PodLog) error {
+func (l *LogCollector) Collect(ctx context.Context, _ string, startTime, endTime time.Time, resultChan chan<- *domain.PodLog) error {
 	doguLog := &domain.PodLog{
 		PodName:   "cas",
 		StartTime: startTime,

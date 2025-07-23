@@ -72,10 +72,6 @@ func (p *PrometheusMetricsV1API) query(ctx context.Context, query string, ts tim
 
 	logWarnings(logger, warnings)
 
-	if value != nil {
-		println(value)
-	}
-
 	switch v := value.(type) {
 	case model.Vector:
 		if len(v) == 0 {

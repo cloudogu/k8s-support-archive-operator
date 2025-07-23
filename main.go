@@ -8,7 +8,6 @@ import (
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
 	v1 "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus/v1"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/state"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/reconciler"
@@ -124,9 +123,11 @@ func startOperator(
 	}
 
 	volumesCollector := collector.NewVolumesCollector(ecoClientSet.CoreV1(), metricsCollector)
+	volumeRepository := file.NewVolumesFileRepository(workPath, fs, baseFileRepository)
 
 	mapping := make(map[domain.CollectorType]usecase.CollectorAndRepository)
 	mapping[domain.CollectorTypeLog] = usecase.CollectorAndRepository{Collector: logCollector, Repository: logRepository}
+	mapping[domain.CollectorTypVolume] = usecase.CollectorAndRepository{Collector: volumesCollector, Repository: volumeRepository}
 
 	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
 	deleteUseCase := usecase.NewDeleteArchiveUseCase(mapping, supportArchiveRepository)

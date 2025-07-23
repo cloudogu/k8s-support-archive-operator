@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	archiveDirName = "logs"
+	archiveLogDirName = "logs"
 )
 
 type LogFileRepository struct {
@@ -57,7 +57,7 @@ func (l *LogFileRepository) Create(ctx context.Context, id domain.SupportArchive
 
 func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportArchiveID, data *domain.PodLog) error {
 	logger := log.FromContext(ctx).WithName("LogFileRepository.createPodLog")
-	filePath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveDirName, fmt.Sprintf("%s%s", data.PodName, ".log"))
+	filePath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveLogDirName, fmt.Sprintf("%s%s", data.PodName, ".log"))
 	err := l.filesystem.MkdirAll(filepath.Dir(filePath), 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(filePath), err)
@@ -86,7 +86,7 @@ func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportA
 }
 
 func (l *LogFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream domain.Stream) (func() error, error) {
-	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveDirName)
+	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveLogDirName)
 	dir, err := l.filesystem.ReadDir(dirPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read directory %s: %w", dirPath, err)
@@ -132,12 +132,14 @@ func writeSaveToChannel[T any](ctx context.Context, data T, dataChannel chan<- T
 	}
 }
 
-func (l *LogFileRepository) Delete(_ context.Context, id domain.SupportArchiveID) error {
-	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveDirName)
-	err := l.filesystem.RemoveAll(dirPath)
-	if err != nil {
-		return fmt.Errorf("failed to remove logs directory %s: %w", dirPath, err)
-	}
+func (l *LogFileRepository) Delete(ctx context.Context, id domain.SupportArchiveID) error {
+	return l.baseFileRepository.Delete(ctx, id, archiveLogDirName)
+}
 
-	return nil
+func (l *LogFileRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID) error {
+	return l.baseFileRepository.FinishCollection(ctx, id, archiveLogDirName)
+}
+
+func (l *LogFileRepository) IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error) {
+	return l.baseFileRepository.IsCollected(ctx, id, archiveLogDirName)
 }

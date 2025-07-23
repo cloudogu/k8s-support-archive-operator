@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-type collector[DATATYPE any] interface {
-	Collect(ctx context.Context, startTime, endTime time.Time, resultChan chan<- *DATATYPE) error
+type collector[DATATYPE domain.CollectorUnionDataType] interface {
+	Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *DATATYPE) error
 	Name() string
 }
 
@@ -18,7 +18,7 @@ type baseCollectorRepository interface {
 	IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error)
 }
 
-type collectorRepository[DATATYPE any] interface {
+type collectorRepository[DATATYPE domain.CollectorUnionDataType] interface {
 	baseCollectorRepository
 	Create(ctx context.Context, id domain.SupportArchiveID, data <-chan *DATATYPE) error
 	// Stream streams data to the given stream
