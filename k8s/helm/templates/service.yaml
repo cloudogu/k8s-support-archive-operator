@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helm.fullname" . }}-webserver
+  labels: {{ include "helm.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "helm.fullname" . }}
+  type: {{ .Values.webserver.service.type }}
+  ports: {{ toYaml .Values.webserver.service.ports | nindent 4 }}
