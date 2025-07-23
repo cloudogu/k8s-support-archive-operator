@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus"
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
@@ -19,18 +18,11 @@ const (
 )
 
 type PrometheusMetricsV1API struct {
-	v1.API
+	v1API
 }
 
-func NewPrometheusMetricsV1API(address string, token string) (*PrometheusMetricsV1API, error) {
-	client, err := prometheus.GetClient(address, token)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create prometheus client: %w", err)
-	}
-
-	v1Api := v1.NewAPI(client)
-
-	return &PrometheusMetricsV1API{v1Api}, nil
+func NewPrometheusMetricsV1API(client client) *PrometheusMetricsV1API {
+	return &PrometheusMetricsV1API{v1.NewAPI(client)}
 }
 
 func (p *PrometheusMetricsV1API) GetCapacityBytesForPVC(ctx context.Context, namespace, pvcName string, ts time.Time) (int64, error) {
@@ -65,7 +57,7 @@ func (p *PrometheusMetricsV1API) queryInt64(ctx context.Context, query string, t
 
 func (p *PrometheusMetricsV1API) query(ctx context.Context, query string, ts time.Time) (string, error) {
 	logger := log.FromContext(ctx).WithName("PrometheusMetricsV1API.query")
-	value, warnings, err := p.API.Query(ctx, query, ts)
+	value, warnings, err := p.v1API.Query(ctx, query, ts)
 	if err != nil {
 		return "", err
 	}
@@ -86,7 +78,7 @@ func (p *PrometheusMetricsV1API) query(ctx context.Context, query string, ts tim
 	case *model.Scalar:
 		return "", errors.New("scalar type not implemented")
 	case *model.String:
-		return v.Value, errors.New("string type not implemented")
+		return "", errors.New("string type not implemented")
 	default:
 		return "", errors.New("unknown prometheus return type")
 	}

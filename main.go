@@ -7,6 +7,7 @@ import (
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/archive/file"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus"
 	v1 "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
@@ -117,10 +118,11 @@ func startOperator(
 	logRepository := file.NewLogFileRepository(workPath, fs, baseFileRepository)
 
 	address := fmt.Sprintf("%s://%s.%s.svc.cluster.local:%s", operatorConfig.MetricsServiceProtocol, operatorConfig.MetricsServiceName, operatorConfig.Namespace, operatorConfig.MetricsServicePort)
-	metricsCollector, err := v1.NewPrometheusMetricsV1API(address, "")
+	metricsClient, err := prometheus.GetClient(address, "")
 	if err != nil {
-		return fmt.Errorf("unable to create prometheus api: %w", err)
+		return fmt.Errorf("unable to create prometheus client: %w", err)
 	}
+	metricsCollector := v1.NewPrometheusMetricsV1API(metricsClient)
 
 	volumesCollector := collector.NewVolumesCollector(ecoClientSet.CoreV1(), metricsCollector)
 	volumeRepository := file.NewVolumesFileRepository(workPath, fs, baseFileRepository)
