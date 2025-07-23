@@ -20,16 +20,16 @@ const (
 )
 
 type SupportArchiveReconciler struct {
-	client         supportArchiveV1Interface
-	archiveHandler archiveHandler
-	cleaner        archiveCleaner
+	client        supportArchiveV1Interface
+	createHandler createArchiveHandler
+	deleteHandler deleteArchiveHandler
 }
 
-func NewSupportArchiveReconciler(client supportArchiveV1Interface, archiveHandler archiveHandler, cleaner archiveCleaner) *SupportArchiveReconciler {
+func NewSupportArchiveReconciler(client supportArchiveV1Interface, createHandler createArchiveHandler, deleteHandler deleteArchiveHandler) *SupportArchiveReconciler {
 	return &SupportArchiveReconciler{
-		client:         client,
-		archiveHandler: archiveHandler,
-		cleaner:        cleaner,
+		client:        client,
+		createHandler: createHandler,
+		deleteHandler: deleteHandler,
 	}
 }
 
@@ -52,7 +52,7 @@ func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if !cr.GetDeletionTimestamp().IsZero() {
-		cleanupErr := s.cleaner.Clean(ctx, cr.Name, cr.Namespace)
+		cleanupErr := s.deleteHandler.Delete(ctx, cr)
 		if cleanupErr != nil {
 			// Do not return here to avoid blocking in error case.
 			// Garbage collection can try to clean up inconsistent files later.
@@ -67,7 +67,7 @@ func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{Requeue: false}, nil
 	}
 
-	requeue, err := s.archiveHandler.HandleArchiveRequest(ctx, cr)
+	requeue, err := s.createHandler.HandleArchiveRequest(ctx, cr)
 	return ctrl.Result{Requeue: requeue}, err
 }
 

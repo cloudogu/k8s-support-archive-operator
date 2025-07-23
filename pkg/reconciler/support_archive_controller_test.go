@@ -37,7 +37,7 @@ func TestNewSupportArchiveOperator(t *testing.T) {
 		mockClient := newMockSupportArchiveV1Interface(t)
 
 		// when
-		doguManager := NewSupportArchiveReconciler(mockClient, newMockArchiveHandler(t), newMockArchiveCleaner(t))
+		doguManager := NewSupportArchiveReconciler(mockClient, newMockCreateArchiveHandler(t), newMockDeleteArchiveHandler(t))
 
 		// then
 		require.NotNil(t, doguManager)
@@ -193,12 +193,12 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		mockInterface := newMockSupportArchiveInterface(t)
 		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
 		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(archiveCrWithFinalizer, nil)
-		archiveHandlerMock := newMockArchiveHandler(t)
+		archiveHandlerMock := newMockCreateArchiveHandler(t)
 		archiveHandlerMock.EXPECT().HandleArchiveRequest(testCtx, archiveCrWithFinalizer).Return(true, nil)
 
 		sut := &SupportArchiveReconciler{
-			client:         mockV1Interface,
-			archiveHandler: archiveHandlerMock,
+			client:        mockV1Interface,
+			createHandler: archiveHandlerMock,
 		}
 
 		// when
@@ -216,12 +216,12 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		mockInterface := newMockSupportArchiveInterface(t)
 		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
 		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(archiveCrWithFinalizer, nil)
-		archiveHandlerMock := newMockArchiveHandler(t)
+		archiveHandlerMock := newMockCreateArchiveHandler(t)
 		archiveHandlerMock.EXPECT().HandleArchiveRequest(testCtx, archiveCrWithFinalizer).Return(false, nil)
 
 		sut := &SupportArchiveReconciler{
-			client:         mockV1Interface,
-			archiveHandler: archiveHandlerMock,
+			client:        mockV1Interface,
+			createHandler: archiveHandlerMock,
 		}
 
 		// when
@@ -239,13 +239,13 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		mockInterface := newMockSupportArchiveInterface(t)
 		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
 		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(deletedArchiveCr, nil)
-		archiveCleanerMock := newMockArchiveCleaner(t)
-		archiveCleanerMock.EXPECT().Clean(testCtx, testSupportArchive, testNamespace).Return(nil)
+		archiveCleanerMock := newMockDeleteArchiveHandler(t)
+		archiveCleanerMock.EXPECT().Delete(testCtx, deletedArchiveCr).Return(nil)
 		mockInterface.EXPECT().RemoveFinalizer(testCtx, deletedArchiveCr, "k8s.cloudogu.com/support-archive-reconciler").Return(nil, nil)
 
 		sut := &SupportArchiveReconciler{
-			client:  mockV1Interface,
-			cleaner: archiveCleanerMock,
+			client:        mockV1Interface,
+			deleteHandler: archiveCleanerMock,
 		}
 
 		// when
@@ -263,13 +263,13 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		mockInterface := newMockSupportArchiveInterface(t)
 		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
 		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(deletedArchiveCr, nil)
-		archiveCleanerMock := newMockArchiveCleaner(t)
-		archiveCleanerMock.EXPECT().Clean(testCtx, testSupportArchive, testNamespace).Return(assert.AnError)
+		archiveCleanerMock := newMockDeleteArchiveHandler(t)
+		archiveCleanerMock.EXPECT().Delete(testCtx, deletedArchiveCr).Return(assert.AnError)
 		mockInterface.EXPECT().RemoveFinalizer(testCtx, deletedArchiveCr, "k8s.cloudogu.com/support-archive-reconciler").Return(nil, assert.AnError)
 
 		sut := &SupportArchiveReconciler{
-			client:  mockV1Interface,
-			cleaner: archiveCleanerMock,
+			client:        mockV1Interface,
+			deleteHandler: archiveCleanerMock,
 		}
 
 		// when

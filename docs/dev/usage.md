@@ -20,15 +20,13 @@ This happens, e.g. after adding the finalizer or executing one single collector 
 ### State
 
 When creating the support archive, the operator always checks the metadata from the actual state of the archive first.
-It is defined in a `JSON` File for each archive in `/data/work/<namespace>/<name>` and is not accessible from the nginx sidecar.
-The metadata itself contains the names of the steps which fetched data for the archives (Collectors).
+Every collector type has its own state file `.done` in each archive `/data/work/<namespace/<name>/<type>` and is not accessible from the nginx sidecar.
+The existence of the file indicates that the collector fetched successfully.
 
 The operator persists the state (the resulting archive) as a `ZIP` under following path `/data/supportarchives/namespace/name`.
-To avoid memory exhaustion, the state component should provide a `io.Writer` to the collectors to stream data to the filesystem.
+To avoid memory exhaustion, it is recommended to implement a buffered stream.
 
 ### Collectors
 
 Collectors are responsible to fetch individual data sections for the archive, e.g. logs, kubernetes resources, health.
-They should use the exposed writer from the state component and also care about memory exhaustion.
-
 A list of collectors defines the completeness of a support archives.

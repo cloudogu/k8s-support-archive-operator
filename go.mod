@@ -4,10 +4,11 @@ go 1.24.1
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
-	github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250701142321-bbb1891c2b89
+	github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250722050652-e8520c817aee
 	github.com/go-logr/logr v1.4.2
 	github.com/prometheus/client_golang v1.22.0
 	github.com/stretchr/testify v1.10.0
+	golang.org/x/sync v0.12.0
 	k8s.io/apimachinery v0.32.3
 	k8s.io/client-go v0.32.3
 	sigs.k8s.io/controller-runtime v0.20.4
@@ -51,7 +52,6 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.28.0 // indirect
-	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/term v0.30.0 // indirect
 	golang.org/x/text v0.23.0 // indirect

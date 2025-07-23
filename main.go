@@ -4,11 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/archive/file"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
 	v1 "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/state"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/collector"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/reconciler"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
 	"k8s.io/client-go/kubernetes"
@@ -18,7 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
+	// Import all Kubernetes client auth plugins (e.g., Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -31,7 +33,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	config2 "sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	// +kubebuilder:scaffold:imports
 )
@@ -61,6 +62,8 @@ type ecosystemClientSet struct {
 // nolint:gocyclo
 func main() {
 	ctx := ctrl.SetupSignalHandler()
+
+	config.ConfigureLogger()
 
 	restConfig := config2.GetConfigOrDie()
 	operatorConfig, err := config.NewOperatorConfig(Version)
@@ -102,6 +105,18 @@ func startOperator(
 		supportArchiveClient,
 	}
 
+	v1SupportArchive := ecoClientSet.SupportArchiveV1()
+
+	archivePath := "/data/support-archives"
+	workPath := "/data/work"
+	supportArchiveRepository := file.NewZipFileArchiveRepository(archivePath, file.NewZipWriter, operatorConfig)
+
+	fs := filesystem.FileSystem{}
+	baseFileRepository := file.NewBaseFileRepository(workPath, fs)
+
+	logCollector := collector.NewLogCollector()
+	logRepository := file.NewLogFileRepository(workPath, fs, baseFileRepository)
+
 	address := fmt.Sprintf("%s://%s.%s.svc.cluster.local:%s", operatorConfig.MetricsServiceProtocol, operatorConfig.MetricsServiceName, operatorConfig.Namespace, operatorConfig.MetricsServicePort)
 	metricsCollector, err := v1.NewPrometheusMetricsV1API(address, "")
 	if err != nil {
@@ -110,10 +125,12 @@ func startOperator(
 
 	volumesCollector := collector.NewVolumesCollector(ecoClientSet.CoreV1(), metricsCollector)
 
-	newArchiver := state.NewArchiver(filesystem.FileSystem{}, state.NewZipWriter, *operatorConfig)
-	v1SupportArchive := ecoClientSet.SupportArchiveV1()
-	useCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, newArchiver, []usecase.ArchiveDataCollector{volumesCollector})
-	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, useCase, newArchiver)
+	mapping := make(map[domain.CollectorType]usecase.CollectorAndRepository)
+	mapping[domain.CollectorTypeLog] = usecase.CollectorAndRepository{Collector: logCollector, Repository: logRepository}
+
+	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
+	deleteUseCase := usecase.NewDeleteArchiveUseCase(mapping, supportArchiveRepository)
+	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, createUseCase, deleteUseCase)
 	err = configureManager(k8sManager, r)
 	if err != nil {
 		return fmt.Errorf("unable to configure manager: %w", err)
@@ -156,29 +173,24 @@ func getK8sManagerOptions(flags *flag.FlagSet, args []string, operatorConfig *co
 			operatorConfig.Namespace: {},
 		}},
 	}
-	controllerOpts, zapOpts := parseManagerFlags(flags, args, controllerOpts)
-
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zapOpts)))
+	controllerOpts = parseManagerFlags(flags, args, controllerOpts)
 
 	return controllerOpts
 }
 
-func parseManagerFlags(flags *flag.FlagSet, args []string, ctrlOpts ctrl.Options) (ctrl.Options, zap.Options) {
+func parseManagerFlags(flags *flag.FlagSet, args []string, ctrlOpts ctrl.Options) ctrl.Options {
 	var metricsAddr string
 	var probeAddr string
 	flags.StringVar(&metricsAddr, "metrics-bind-address", ":8082", "The address the metric endpoint binds to.")
 	flags.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	zapOpts := zap.Options{
-		Development: config.IsStageDevelopment(),
-	}
-	zapOpts.BindFlags(flags)
+
 	// Ignore errors; flags is set to exit on errors
 	_ = flags.Parse(args)
 
 	ctrlOpts.Metrics = metricsserver.Options{BindAddress: metricsAddr}
 	ctrlOpts.HealthProbeBindAddress = probeAddr
 
-	return ctrlOpts, zapOpts
+	return ctrlOpts
 }
 
 func addChecks(k8sManager controllerManager) error {

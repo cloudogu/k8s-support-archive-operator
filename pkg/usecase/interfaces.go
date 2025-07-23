@@ -3,20 +3,35 @@ package usecase
 import (
 	"context"
 	libclient "github.com/cloudogu/k8s-support-archive-lib/client/v1"
-	col "github.com/cloudogu/k8s-support-archive-operator/pkg/collector"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	"time"
 )
 
-type stateHandler interface {
-	col.StateWriter
-	Read(ctx context.Context, name, namespace string) ([]string, bool, error)
-	GetDownloadURL(ctx context.Context, name, namespace string) string
-	Finalize(ctx context.Context, name string, namespace string) error
-	WriteState(ctx context.Context, name string, namespace string, stateName string) error
+type collector[DATATYPE any] interface {
+	Collect(ctx context.Context, startTime, endTime time.Time, resultChan chan<- *DATATYPE) error
+	Name() string
 }
 
-type ArchiveDataCollector interface {
-	Collect(ctx context.Context, name, namespace string, stateWriter col.StateWriter) error
-	Name() string
+type baseCollectorRepository interface {
+	Delete(ctx context.Context, id domain.SupportArchiveID) error
+	FinishCollection(ctx context.Context, id domain.SupportArchiveID) error
+	IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error)
+}
+
+type collectorRepository[DATATYPE any] interface {
+	baseCollectorRepository
+	Create(ctx context.Context, id domain.SupportArchiveID, data <-chan *DATATYPE) error
+	// Stream streams data to the given stream
+	// It returns a func to finalize the stream which has to be called by the useCase to free up resources and avoid memory exhaustion.
+	// The repository itself cannot do this because it cannot recognize when the data is fully read.
+	// The func may be nil.
+	Stream(ctx context.Context, id domain.SupportArchiveID, stream domain.Stream) (func() error, error)
+}
+
+type supportArchiveRepository interface {
+	Create(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]domain.Stream) (url string, err error)
+	Delete(ctx context.Context, id domain.SupportArchiveID) error
+	Exists(ctx context.Context, id domain.SupportArchiveID) (bool, error)
 }
 
 type supportArchiveV1Interface interface {

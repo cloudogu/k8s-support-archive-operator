@@ -1,4 +1,4 @@
-package state
+package file
 
 import (
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
@@ -16,4 +16,10 @@ type closableRWFile interface {
 type Zipper interface {
 	Close() error
 	Create(name string) (io.Writer, error)
+}
+
+//nolint:unused
+//goland:noinspection GoUnusedType
+type Reader interface {
+	io.Reader
 }
