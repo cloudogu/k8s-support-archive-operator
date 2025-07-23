@@ -2,7 +2,6 @@ package collector
 
 import (
 	"context"
-	"fmt"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"time"
 )
@@ -20,7 +19,7 @@ func (l *LogCollector) Name() string {
 // Do not close resultChan on error. Closing the channel should only indicate that the collection finished successfully.
 func (l *LogCollector) Collect(ctx context.Context, startTime, endTime time.Time, resultChan chan<- *domain.PodLog) error {
 	doguLog := &domain.PodLog{
-		PodName:   fmt.Sprintf("cas"),
+		PodName:   "cas",
 		StartTime: startTime,
 		EndTime:   endTime,
 		Entries:   []string{"log entry"},
@@ -29,7 +28,7 @@ func (l *LogCollector) Collect(ctx context.Context, startTime, endTime time.Time
 	writeSaveToChannel(ctx, doguLog, resultChan)
 
 	doguLog = &domain.PodLog{
-		PodName:   fmt.Sprintf("ldap"),
+		PodName:   "ldap",
 		StartTime: startTime,
 		EndTime:   endTime,
 		Entries:   []string{"log entry"},
