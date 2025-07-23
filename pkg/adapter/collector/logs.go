@@ -13,7 +13,7 @@ func NewLogCollector() *LogCollector {
 }
 
 func (l *LogCollector) Name() string {
-	return "Logs"
+	return string(domain.CollectorTypeLog)
 }
 
 // Do not close resultChan on error. Closing the channel should only indicate that the collection finished successfully.
