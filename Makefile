@@ -1,9 +1,9 @@
 # Set these to the desired values
 ARTIFACT_ID=k8s-support-archive-operator
-VERSION=0.1.2
+VERSION=0.2.0
 IMAGE=cloudogu/${ARTIFACT_ID}:${VERSION}
 GOTAG=1.24.1
-MAKEFILES_VERSION=10.1.1
+MAKEFILES_VERSION=10.2.0
 ADDITIONAL_CLEAN=dist-clean
 MOCKERY_VERSION=v2.53.3
 
@@ -47,7 +47,6 @@ template-image-pull-policy: $(BINARY_YQ)
 		$(BINARY_YQ) -i e ".controllerManager.imagePullPolicy=\"Always\"" ${K8S_COMPONENT_TARGET_VALUES} ;\
 		$(BINARY_YQ) -i e ".webserver.imagePullPolicy=\"Always\"" ${K8S_COMPONENT_TARGET_VALUES} ;\
 	fi
-
 
 .PHONY: helm-values-update-image-version
 helm-values-update-image-version: $(BINARY_YQ)
