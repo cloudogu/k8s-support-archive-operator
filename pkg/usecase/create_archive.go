@@ -89,8 +89,13 @@ func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *lib
 		return false, nil
 	}
 
-	err = c.executeNextCollector(ctx, id, collectorsToExecute)
+	nextCollector := collectorsToExecute[0]
+	err = c.executeNextCollector(ctx, id, nextCollector)
+	conditionErr := c.setConditionForCollector(ctx, cr, nextCollector, err)
 	if err != nil {
+		if conditionErr != nil {
+			logger.Error(err, "could not add collector condition")
+		}
 		return true, fmt.Errorf("could not execute next collector: %w", err)
 	}
 
@@ -194,6 +199,27 @@ func finalizeStreams(finalizers []func() error, logger logr.Logger) {
 	}
 }
 
+func (c *CreateArchiveUseCase) setConditionForCollector(ctx context.Context, cr *libapi.SupportArchive, collectorType domain.CollectorType, err error) error {
+	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase.setConditionForCollector")
+	client := c.supportArchivesInterface.SupportArchives(cr.Namespace)
+	var condition metav1.Condition
+	if err == nil {
+		condition = getSuccessfulCollectorCondition(collectorType)
+	} else {
+		condition = getErrorCollectorCondition(collectorType, err)
+	}
+
+	_, err = client.UpdateStatusWithRetry(ctx, cr, func(status libapi.SupportArchiveStatus) libapi.SupportArchiveStatus {
+		meta.SetStatusCondition(&status.Conditions, condition)
+		return status
+	}, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to add condition for collector %s: %w", collectorType, err)
+	}
+	logger.Info("Condition set successfully", "collector", collectorType)
+	return nil
+}
+
 func (c *CreateArchiveUseCase) updateFinalStatus(ctx context.Context, cr *libapi.SupportArchive, url string) error {
 	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase.updateFinalStatus")
 	client := c.supportArchivesInterface.SupportArchives(cr.Namespace)
@@ -210,8 +236,7 @@ func (c *CreateArchiveUseCase) updateFinalStatus(ctx context.Context, cr *libapi
 	return nil
 }
 
-func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id domain.SupportArchiveID, collectorsToExecute []domain.CollectorType) error {
-	next := collectorsToExecute[0]
+func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id domain.SupportArchiveID, next domain.CollectorType) error {
 	var err error
 	switch next {
 	case domain.CollectorTypeLog:
@@ -235,8 +260,6 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 	if err != nil {
 		return fmt.Errorf("failed to execute collector %s: %w", next, err)
 	}
-
-	// TODO Add collector as condition in cr.status
 
 	return nil
 }
@@ -329,6 +352,26 @@ func getSuccessfulArchiveCreatedCondition(downloadURL string) metav1.Condition {
 		LastTransitionTime: metav1.Time{Time: time.Now()},
 		Reason:             "AllCollectorsExecuted",
 		Message:            fmt.Sprintf("It is available for download under following url: %s", downloadURL),
+	}
+}
+
+func getSuccessfulCollectorCondition(collectorType domain.CollectorType) metav1.Condition {
+	return metav1.Condition{
+		Type:               collectorType.GetConditionType(),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Time{Time: time.Now()},
+		Reason:             "CollectorExecuted",
+		Message:            fmt.Sprintf("Successfully executed collector %s", collectorType),
+	}
+}
+
+func getErrorCollectorCondition(collectorType domain.CollectorType, err error) metav1.Condition {
+	return metav1.Condition{
+		Type:               collectorType.GetConditionType(),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Time{Time: time.Now()},
+		Reason:             "ErrorDuringExecution",
+		Message:            err.Error(),
 	}
 }
 

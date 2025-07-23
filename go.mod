@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
-	github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250722050652-e8520c817aee
+	github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250723111259-2efea2912b80
 	github.com/go-logr/logr v1.4.2
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/common v0.63.0
