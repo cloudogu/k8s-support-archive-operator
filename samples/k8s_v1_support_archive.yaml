@@ -1,8 +1,0 @@
-apiVersion: k8s.cloudogu.com/v1
-kind: SupportArchive
-metadata:
-  labels:
-    app.kubernetes.io/name: k8s-support-archive-operator
-  name: supportarchive-sample
-spec:
-# TODO(user): Add fields here
