@@ -8,6 +8,10 @@ github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UF
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250722050652-e8520c817aee h1:pRTW6mndzjvUULKxIsbhlvXkfArG4Ps+GWpdJMIS/5E=
 github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250722050652-e8520c817aee/go.mod h1:xgC9bj8Q0rzefinCb7RScQwF/bxcZ2675Slqff3rZcQ=
+github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250725142953-d9add64d4720 h1:tzpALrQbWxEU8j3cW+6FQO99d6KfXiaANqDHu1mdGVU=
+github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250725142953-d9add64d4720/go.mod h1:xgC9bj8Q0rzefinCb7RScQwF/bxcZ2675Slqff3rZcQ=
+github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250725145308-af6dbb624efc h1:eiL1Zw1K74UTzDwEvey+MxyOFPAi8CZk6HKyRyRu3Eo=
+github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250725145308-af6dbb624efc/go.mod h1:xgC9bj8Q0rzefinCb7RScQwF/bxcZ2675Slqff3rZcQ=
 github.com/cloudogu/retry-lib v0.1.0 h1:gaAmtyjUqgHbxfCWMeUn0qnGbDH4TtZVSQkbZ1Nq6eI=
 github.com/cloudogu/retry-lib v0.1.0/go.mod h1:iG9y6zx8oJZT5ULtl9koZkYJLRsqam/2mTU+rgjxQ0g=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
