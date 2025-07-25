@@ -276,7 +276,7 @@ func TestZipFileArchiveRepository_Create(t *testing.T) {
 	type args struct {
 		ctx     context.Context
 		id      domain.SupportArchiveID
-		streams map[domain.CollectorType]domain.Stream
+		streams map[domain.CollectorType]*domain.Stream
 	}
 	tests := []struct {
 		name    string
@@ -359,7 +359,7 @@ func TestZipFileArchiveRepository_Create(t *testing.T) {
 			args: args{
 				ctx: testCtx,
 				id:  testID,
-				streams: map[domain.CollectorType]domain.Stream{
+				streams: map[domain.CollectorType]*domain.Stream{
 					domain.CollectorTypeLog: getTestStream(casReader, ldapReader, true),
 				},
 			},
@@ -397,7 +397,7 @@ func TestZipFileArchiveRepository_Create(t *testing.T) {
 			args: args{
 				ctx: testCtx,
 				id:  testID,
-				streams: map[domain.CollectorType]domain.Stream{
+				streams: map[domain.CollectorType]*domain.Stream{
 					domain.CollectorTypeLog: getTestStream(casReader, ldapReader, false),
 				},
 			},
@@ -441,7 +441,7 @@ func TestZipFileArchiveRepository_Create(t *testing.T) {
 			args: args{
 				ctx: testCtx,
 				id:  testID,
-				streams: map[domain.CollectorType]domain.Stream{
+				streams: map[domain.CollectorType]*domain.Stream{
 					domain.CollectorTypeLog: getTestStream(casReader, ldapReader, false),
 				},
 			},
@@ -481,7 +481,7 @@ func TestZipFileArchiveRepository_Create(t *testing.T) {
 			args: args{
 				ctx: getDeadlineContext(testCtx),
 				id:  testID,
-				streams: map[domain.CollectorType]domain.Stream{
+				streams: map[domain.CollectorType]*domain.Stream{
 					domain.CollectorTypeLog: getEmptyStream(),
 				},
 			},
@@ -521,8 +521,8 @@ func TestZipFileArchiveRepository_Create(t *testing.T) {
 	}
 }
 
-func getTestStream(casReader io.Reader, ldapReader io.Reader, closeStream bool) domain.Stream {
-	stream := domain.Stream{
+func getTestStream(casReader io.Reader, ldapReader io.Reader, closeStream bool) *domain.Stream {
+	stream := &domain.Stream{
 		Data: make(chan domain.StreamData),
 	}
 
@@ -544,8 +544,8 @@ func getTestStream(casReader io.Reader, ldapReader io.Reader, closeStream bool) 
 	return stream
 }
 
-func getEmptyStream() domain.Stream {
-	stream := domain.Stream{
+func getEmptyStream() *domain.Stream {
+	stream := &domain.Stream{
 		Data: make(chan domain.StreamData),
 	}
 

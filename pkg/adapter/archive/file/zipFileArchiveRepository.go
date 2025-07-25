@@ -40,7 +40,7 @@ func NewZipFileArchiveRepository(archivesPath string, zipCreator zipCreator, con
 	}
 }
 
-func (z *ZipFileArchiveRepository) Create(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]domain.Stream) (string, error) {
+func (z *ZipFileArchiveRepository) Create(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]*domain.Stream) (string, error) {
 	logger := log.FromContext(ctx).WithName("ZipFileArchiveRepository.FinishCollection")
 	destinationPath := z.getArchivePath(id)
 
@@ -88,7 +88,7 @@ func (z *ZipFileArchiveRepository) getArchiveURL(id domain.SupportArchiveID) str
 	return fmt.Sprintf("%s://%s.%s.svc.cluster.local:%s/%s/%s.zip", z.archiveVolumeDownloadServiceProtocol, z.archiveVolumeDownloadServiceName, id.Namespace, z.archiveVolumeDownloadServicePort, id.Namespace, id.Name)
 }
 
-func (z *ZipFileArchiveRepository) rangeOverStream(ctx context.Context, collector domain.CollectorType, stream domain.Stream, zipWriter Zipper) error {
+func (z *ZipFileArchiveRepository) rangeOverStream(ctx context.Context, collector domain.CollectorType, stream *domain.Stream, zipWriter Zipper) error {
 	for {
 		select {
 		case <-ctx.Done():

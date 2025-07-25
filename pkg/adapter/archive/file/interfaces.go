@@ -1,7 +1,9 @@
 package file
 
 import (
+	"context"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"io"
 )
 
@@ -22,4 +24,11 @@ type Zipper interface {
 //goland:noinspection GoUnusedType
 type Reader interface {
 	io.Reader
+}
+
+type baseFileRepo interface {
+	IsCollected(ctx context.Context, id domain.SupportArchiveID, collectorDir string) (bool, error)
+	FinishCollection(ctx context.Context, id domain.SupportArchiveID, collectorDir string) error
+	Delete(ctx context.Context, id domain.SupportArchiveID, collectorDir string) error
+	stream(ctx context.Context, id domain.SupportArchiveID, directory string, stream *domain.Stream) (func() error, error)
 }

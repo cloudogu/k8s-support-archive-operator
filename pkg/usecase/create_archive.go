@@ -118,7 +118,7 @@ func (c *CreateArchiveUseCase) deleteUnusedRepositoryData(ctx context.Context, i
 
 func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.SupportArchiveID, requiredCollectors CollectorMapping) (string, error) {
 	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase.createArchive")
-	streamMap := make(map[domain.CollectorType]domain.Stream)
+	streamMap := make(map[domain.CollectorType]*domain.Stream)
 	streamFinalizers := make([]func() error, len(requiredCollectors))
 	defer func() {
 		finalizeStreams(streamFinalizers, logger)
@@ -127,7 +127,7 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 	errGroup, errCtx := errgroup.WithContext(ctx)
 
 	for col := range requiredCollectors {
-		var stream domain.Stream
+		var stream *domain.Stream
 		var finalizer func() error
 		var err error
 		logger.Info("collecting stream for collector", "collector", col)
@@ -164,14 +164,14 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 	return url, nil
 }
 
-func fetchRepoAndStreamWithErrorGroup[DATATYPE domain.CollectorUnionDataType](errCtx context.Context, group *errgroup.Group, col domain.CollectorType, collectorMapping CollectorMapping, id domain.SupportArchiveID) (domain.Stream, func() error, error) {
+func fetchRepoAndStreamWithErrorGroup[DATATYPE domain.CollectorUnionDataType](errCtx context.Context, group *errgroup.Group, col domain.CollectorType, collectorMapping CollectorMapping, id domain.SupportArchiveID) (*domain.Stream, func() error, error) {
 	_, repo, typeErr := getCollectorAndRepositoryForType[DATATYPE](col, collectorMapping)
 	if typeErr != nil {
-		return domain.Stream{}, nil, typeErr
+		return nil, nil, typeErr
 	}
 
 	resultChan := make(chan domain.StreamData)
-	stream := domain.Stream{
+	stream := &domain.Stream{
 		Data: resultChan,
 	}
 	var finalizer func() error
@@ -375,7 +375,7 @@ func getErrorCollectorCondition(collectorType domain.CollectorType, err error) m
 	}
 }
 
-func streamFromRepository[DATATYPE domain.CollectorUnionDataType](ctx context.Context, repository collectorRepository[DATATYPE], id domain.SupportArchiveID, stream domain.Stream) (func() error, error) {
+func streamFromRepository[DATATYPE domain.CollectorUnionDataType](ctx context.Context, repository collectorRepository[DATATYPE], id domain.SupportArchiveID, stream *domain.Stream) (func() error, error) {
 	isCollected, err := repository.IsCollected(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("error during is collected call for collector: %w", err)

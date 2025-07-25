@@ -14,16 +14,16 @@ const (
 )
 
 type VolumesFileRepository struct {
-	*baseFileRepository
+	baseFileRepo
 	workPath   string
 	filesystem volumeFs
 }
 
-func NewVolumesFileRepository(workPath string, fs volumeFs, repository *baseFileRepository) *VolumesFileRepository {
+func NewVolumesFileRepository(workPath string, fs volumeFs, repository baseFileRepo) *VolumesFileRepository {
 	return &VolumesFileRepository{
-		workPath:           workPath,
-		filesystem:         fs,
-		baseFileRepository: repository,
+		workPath:     workPath,
+		filesystem:   fs,
+		baseFileRepo: repository,
 	}
 }
 
@@ -56,18 +56,18 @@ func (v *VolumesFileRepository) createVolumeInfo(ctx context.Context, id domain.
 	return nil
 }
 
-func (v *VolumesFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream domain.Stream) (func() error, error) {
-	return v.baseFileRepository.stream(ctx, id, archiveVolumeInfoDirName, stream)
+func (v *VolumesFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) (func() error, error) {
+	return v.baseFileRepo.stream(ctx, id, archiveVolumeInfoDirName, stream)
 }
 
 func (v *VolumesFileRepository) Delete(ctx context.Context, id domain.SupportArchiveID) error {
-	return v.baseFileRepository.Delete(ctx, id, archiveVolumeInfoDirName)
+	return v.baseFileRepo.Delete(ctx, id, archiveVolumeInfoDirName)
 }
 
 func (v *VolumesFileRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID) error {
-	return v.baseFileRepository.FinishCollection(ctx, id, archiveVolumeInfoDirName)
+	return v.baseFileRepo.FinishCollection(ctx, id, archiveVolumeInfoDirName)
 }
 
 func (v *VolumesFileRepository) IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error) {
-	return v.baseFileRepository.IsCollected(ctx, id, archiveVolumeInfoDirName)
+	return v.baseFileRepo.IsCollected(ctx, id, archiveVolumeInfoDirName)
 }

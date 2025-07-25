@@ -32,9 +32,9 @@ func NewBaseFileRepository(workPath string, filesystem volumeFs) *baseFileReposi
 	}
 }
 
-func (l *baseFileRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID, archiveDir string) error {
+func (l *baseFileRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID, collectorDir string) error {
 	logger := log.FromContext(ctx).WithName("baseFileRepository.FinishCollection")
-	stateFilePath := getStateFilePath(l.workPath, id, archiveDir)
+	stateFilePath := getStateFilePath(l.workPath, id, collectorDir)
 
 	err := l.filesystem.MkdirAll(filepath.Dir(stateFilePath), os.ModePerm)
 	if err != nil {
@@ -71,11 +71,11 @@ func (l *baseFileRepository) IsCollected(_ context.Context, id domain.SupportArc
 	return true, nil
 }
 
-func (l *baseFileRepository) Delete(_ context.Context, id domain.SupportArchiveID, archiveDirName string) error {
-	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveDirName)
+func (l *baseFileRepository) Delete(_ context.Context, id domain.SupportArchiveID, collectorDir string) error {
+	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, collectorDir)
 	err := l.filesystem.RemoveAll(dirPath)
 	if err != nil {
-		return fmt.Errorf("failed to remove %s directory %s: %w", archiveDirName, dirPath, err)
+		return fmt.Errorf("failed to remove %s directory %s: %w", collectorDir, dirPath, err)
 	}
 
 	return nil
@@ -85,7 +85,6 @@ func (l *baseFileRepository) Delete(_ context.Context, id domain.SupportArchiveI
 // If an error occurs, create executes deleteFn to tidy up.
 // If the stream is closed, create will end and call the finishFn.
 func create[DATATYPE domain.CollectorUnionDataType](ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *DATATYPE, createFn createFn[DATATYPE], deleteFn deleteFn, finishFn finishFn) error {
-	logger := log.FromContext(ctx).WithName("baseFileRepository.create")
 	for {
 		select {
 		case <-ctx.Done():
@@ -94,11 +93,12 @@ func create[DATATYPE domain.CollectorUnionDataType](ctx context.Context, id doma
 			if ok {
 				err := createFn(ctx, id, data)
 				if err != nil {
+					err = fmt.Errorf("error creating element from data stream: %w", err)
 					cleanErr := deleteFn(ctx, id)
 					if cleanErr != nil {
-						logger.Error(cleanErr, fmt.Sprintf("failed to clean up data after error: %s", cleanErr))
+						return errors.Join(err, fmt.Errorf("failed to clean up data after error: %w", cleanErr))
 					}
-					return fmt.Errorf("error creating element from data stream: %w", err)
+					return err
 				}
 			} else {
 				err := finishFn(ctx, id)
@@ -111,7 +111,7 @@ func create[DATATYPE domain.CollectorUnionDataType](ctx context.Context, id doma
 	}
 }
 
-func (l *baseFileRepository) stream(ctx context.Context, id domain.SupportArchiveID, directory string, stream domain.Stream) (func() error, error) {
+func (l *baseFileRepository) stream(ctx context.Context, id domain.SupportArchiveID, directory string, stream *domain.Stream) (func() error, error) {
 	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, directory)
 	var filesToClose []closableRWFile
 
@@ -140,12 +140,12 @@ func (l *baseFileRepository) stream(ctx context.Context, id domain.SupportArchiv
 		return nil, err
 	}
 
-	close(stream.Data)
+	//close(stream.Data)
 
 	return getFileFinalizerFunc(filesToClose), nil
 }
 
-func (l *baseFileRepository) streamFile(ctx context.Context, path, filename string, stream domain.Stream) (closableRWFile, error) {
+func (l *baseFileRepository) streamFile(ctx context.Context, path, filename string, stream *domain.Stream) (closableRWFile, error) {
 	open, openErr := l.filesystem.Open(path)
 	if openErr != nil {
 		return nil, fmt.Errorf("failed to open file %s: %w", path, openErr)

@@ -222,7 +222,7 @@ func (_c *mockCollectorRepository_IsCollected_Call[DATATYPE]) RunAndReturn(run f
 }
 
 // Stream provides a mock function with given fields: ctx, id, stream
-func (_m *mockCollectorRepository[DATATYPE]) Stream(ctx context.Context, id domain.SupportArchiveID, stream domain.Stream) (func() error, error) {
+func (_m *mockCollectorRepository[DATATYPE]) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) (func() error, error) {
 	ret := _m.Called(ctx, id, stream)
 
 	if len(ret) == 0 {
@@ -231,10 +231,10 @@ func (_m *mockCollectorRepository[DATATYPE]) Stream(ctx context.Context, id doma
 
 	var r0 func() error
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, domain.Stream) (func() error, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, *domain.Stream) (func() error, error)); ok {
 		return rf(ctx, id, stream)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, domain.Stream) func() error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, *domain.Stream) func() error); ok {
 		r0 = rf(ctx, id, stream)
 	} else {
 		if ret.Get(0) != nil {
@@ -242,7 +242,7 @@ func (_m *mockCollectorRepository[DATATYPE]) Stream(ctx context.Context, id doma
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, domain.SupportArchiveID, domain.Stream) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, domain.SupportArchiveID, *domain.Stream) error); ok {
 		r1 = rf(ctx, id, stream)
 	} else {
 		r1 = ret.Error(1)
@@ -259,14 +259,14 @@ type mockCollectorRepository_Stream_Call[DATATYPE domain.CollectorUnionDataType]
 // Stream is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id domain.SupportArchiveID
-//   - stream domain.Stream
+//   - stream *domain.Stream
 func (_e *mockCollectorRepository_Expecter[DATATYPE]) Stream(ctx interface{}, id interface{}, stream interface{}) *mockCollectorRepository_Stream_Call[DATATYPE] {
 	return &mockCollectorRepository_Stream_Call[DATATYPE]{Call: _e.mock.On("Stream", ctx, id, stream)}
 }
 
-func (_c *mockCollectorRepository_Stream_Call[DATATYPE]) Run(run func(ctx context.Context, id domain.SupportArchiveID, stream domain.Stream)) *mockCollectorRepository_Stream_Call[DATATYPE] {
+func (_c *mockCollectorRepository_Stream_Call[DATATYPE]) Run(run func(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream)) *mockCollectorRepository_Stream_Call[DATATYPE] {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(domain.SupportArchiveID), args[2].(domain.Stream))
+		run(args[0].(context.Context), args[1].(domain.SupportArchiveID), args[2].(*domain.Stream))
 	})
 	return _c
 }
@@ -276,7 +276,7 @@ func (_c *mockCollectorRepository_Stream_Call[DATATYPE]) Return(_a0 func() error
 	return _c
 }
 
-func (_c *mockCollectorRepository_Stream_Call[DATATYPE]) RunAndReturn(run func(context.Context, domain.SupportArchiveID, domain.Stream) (func() error, error)) *mockCollectorRepository_Stream_Call[DATATYPE] {
+func (_c *mockCollectorRepository_Stream_Call[DATATYPE]) RunAndReturn(run func(context.Context, domain.SupportArchiveID, *domain.Stream) (func() error, error)) *mockCollectorRepository_Stream_Call[DATATYPE] {
 	_c.Call.Return(run)
 	return _c
 }

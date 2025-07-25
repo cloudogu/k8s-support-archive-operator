@@ -13,16 +13,16 @@ const (
 )
 
 type LogFileRepository struct {
-	*baseFileRepository
+	baseFileRepo
 	workPath   string
 	filesystem volumeFs
 }
 
-func NewLogFileRepository(workPath string, fs volumeFs, repository *baseFileRepository) *LogFileRepository {
+func NewLogFileRepository(workPath string, fs volumeFs, repository baseFileRepo) *LogFileRepository {
 	return &LogFileRepository{
-		workPath:           workPath,
-		filesystem:         fs,
-		baseFileRepository: repository,
+		workPath:     workPath,
+		filesystem:   fs,
+		baseFileRepo: repository,
 	}
 }
 
@@ -60,18 +60,18 @@ func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportA
 	return nil
 }
 
-func (l *LogFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream domain.Stream) (func() error, error) {
-	return l.baseFileRepository.stream(ctx, id, archiveLogDirName, stream)
+func (l *LogFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) (func() error, error) {
+	return l.baseFileRepo.stream(ctx, id, archiveLogDirName, stream)
 }
 
 func (l *LogFileRepository) Delete(ctx context.Context, id domain.SupportArchiveID) error {
-	return l.baseFileRepository.Delete(ctx, id, archiveLogDirName)
+	return l.baseFileRepo.Delete(ctx, id, archiveLogDirName)
 }
 
 func (l *LogFileRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID) error {
-	return l.baseFileRepository.FinishCollection(ctx, id, archiveLogDirName)
+	return l.baseFileRepo.FinishCollection(ctx, id, archiveLogDirName)
 }
 
 func (l *LogFileRepository) IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error) {
-	return l.baseFileRepository.IsCollected(ctx, id, archiveLogDirName)
+	return l.baseFileRepo.IsCollected(ctx, id, archiveLogDirName)
 }
