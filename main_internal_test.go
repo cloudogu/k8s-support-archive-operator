@@ -20,8 +20,14 @@ import (
 
 var testCtx = context.Background()
 var testOperatorConfig = &config.OperatorConfig{
-	Version:   nil,
-	Namespace: "test",
+	Version:                              nil,
+	Namespace:                            "test",
+	MetricsServiceName:                   "test",
+	MetricsServiceProtocol:               "http",
+	MetricsServicePort:                   "8080",
+	ArchiveVolumeDownloadServicePort:     "8080",
+	ArchiveVolumeDownloadServiceName:     "test",
+	ArchiveVolumeDownloadServiceProtocol: "http",
 }
 
 func Test_main(t *testing.T) {}

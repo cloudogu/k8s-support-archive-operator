@@ -16,6 +16,9 @@ func TestNewOperatorConfig(t *testing.T) {
 		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
 		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
 		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
+		t.Setenv("METRICS_SERVICE_NAME", "metrics")
+		t.Setenv("METRICS_SERVICE_PORT", "8081")
+		t.Setenv("METRICS_SERVICE_PROTOCOL", "http")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -32,6 +35,9 @@ func TestNewOperatorConfig(t *testing.T) {
 		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
 		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
 		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
+		t.Setenv("METRICS_SERVICE_NAME", "metrics")
+		t.Setenv("METRICS_SERVICE_PORT", "8081")
+		t.Setenv("METRICS_SERVICE_PROTOCOL", "http")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -88,6 +94,8 @@ func TestGetLogLevel(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.want != "" {
 				t.Setenv(logLevelEnvVar, tt.want)
+			} else {
+				require.NoError(t, os.Unsetenv(logLevelEnvVar))
 			}
 			got, err := GetLogLevel()
 			if !tt.wantErr(t, err, fmt.Sprintf("GetLogLevel()")) {
