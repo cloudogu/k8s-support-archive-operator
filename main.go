@@ -118,6 +118,7 @@ func startOperator(
 	logRepository := file.NewLogFileRepository(workPath, fs, baseFileRepository)
 
 	address := fmt.Sprintf("%s://%s.%s.svc.cluster.local:%s", operatorConfig.MetricsServiceProtocol, operatorConfig.MetricsServiceName, operatorConfig.Namespace, operatorConfig.MetricsServicePort)
+	// TODO Implement ServiceAccount for Prometheus. Create secret in Prometheus Chart and use it?
 	metricsClient, err := prometheus.GetClient(address, "")
 	if err != nil {
 		return fmt.Errorf("unable to create prometheus client: %w", err)
