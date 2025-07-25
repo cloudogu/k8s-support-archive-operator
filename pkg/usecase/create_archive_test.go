@@ -122,7 +122,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					logRepository.EXPECT().IsCollected(testCtx, testID).Return(false, nil)
 					logRepository.EXPECT().Create(mock.AnythingOfType("*context.cancelCtx"), testID, mock.AnythingOfType("<-chan *domain.PodLog")).Return(nil)
 					logCollector := newMockCollector[domain.PodLog](t)
-					logCollector.EXPECT().Collect(mock.AnythingOfType("*context.cancelCtx"), mock.Anything, mock.Anything, mock.AnythingOfType("chan<- *domain.PodLog")).Return(nil)
+					logCollector.EXPECT().Collect(mock.AnythingOfType("*context.cancelCtx"), testArchiveNamespace, mock.Anything, mock.Anything, mock.AnythingOfType("chan<- *domain.PodLog")).Return(nil)
 
 					collectorMapping[domain.CollectorTypeLog] = CollectorAndRepository{Repository: logRepository, Collector: logCollector}
 					return collectorMapping
@@ -131,6 +131,21 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					repoMock := newMockSupportArchiveRepository(t)
 					repoMock.EXPECT().Exists(testCtx, testID).Return(false, nil)
 					return repoMock
+				},
+				supportArchivesInterface: func(t *testing.T) supportArchiveV1Interface {
+					interfaceMock := newMockSupportArchiveV1Interface(t)
+					clientMock := newMockSupportArchiveInterface(t)
+					interfaceMock.EXPECT().SupportArchives(testArchiveNamespace).Return(clientMock)
+					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
+						updatedCRStatus := modifyStatusFn(cr.Status)
+						for _, cond := range updatedCRStatus.Conditions {
+							if cond.Type == "TODO" && cond.Status == ("True") {
+								return
+							}
+						}
+						t.FailNow()
+					})
+					return interfaceMock
 				},
 			},
 			args: args{
@@ -152,7 +167,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					logRepository.EXPECT().Create(mock.AnythingOfType("*context.cancelCtx"), testID, mock.AnythingOfType("<-chan *domain.PodLog")).Return(nil)
 					logCollector := newMockCollector[domain.PodLog](t)
 					logCollector.EXPECT().Name().Return("Logs")
-					logCollector.EXPECT().Collect(mock.AnythingOfType("*context.cancelCtx"), mock.Anything, mock.Anything, mock.AnythingOfType("chan<- *domain.PodLog")).Return(assert.AnError)
+					logCollector.EXPECT().Collect(mock.AnythingOfType("*context.cancelCtx"), testArchiveNamespace, mock.Anything, mock.Anything, mock.AnythingOfType("chan<- *domain.PodLog")).Return(assert.AnError)
 
 					collectorMapping[domain.CollectorTypeLog] = CollectorAndRepository{Repository: logRepository, Collector: logCollector}
 					return collectorMapping
@@ -161,6 +176,21 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					repoMock := newMockSupportArchiveRepository(t)
 					repoMock.EXPECT().Exists(testCtx, testID).Return(false, nil)
 					return repoMock
+				},
+				supportArchivesInterface: func(t *testing.T) supportArchiveV1Interface {
+					interfaceMock := newMockSupportArchiveV1Interface(t)
+					clientMock := newMockSupportArchiveInterface(t)
+					interfaceMock.EXPECT().SupportArchives(testArchiveNamespace).Return(clientMock)
+					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
+						updatedCRStatus := modifyStatusFn(cr.Status)
+						for _, cond := range updatedCRStatus.Conditions {
+							if cond.Type == "TODO" && cond.Status == ("False") {
+								return
+							}
+						}
+						t.FailNow()
+					})
+					return interfaceMock
 				},
 			},
 			args: args{
@@ -182,7 +212,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					logRepository := newMockCollectorRepository[domain.PodLog](t)
 					logRepository.EXPECT().IsCollected(testCtx, testID).Return(true, nil)
 					logRepository.EXPECT().IsCollected(mock.AnythingOfType("*context.cancelCtx"), testID).Return(true, nil)
-					logRepository.EXPECT().Stream(mock.AnythingOfType("*context.cancelCtx"), testID, mock.AnythingOfType("domain.Stream")).Return(nil, nil)
+					logRepository.EXPECT().Stream(mock.AnythingOfType("*context.cancelCtx"), testID, mock.AnythingOfType("*domain.Stream")).Return(nil, nil)
 
 					collectorMapping[domain.CollectorTypeLog] = CollectorAndRepository{Repository: logRepository, Collector: logCollector}
 					return collectorMapping
@@ -190,7 +220,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 				supportArchiveRepository: func(t *testing.T) supportArchiveRepository {
 					repoMock := newMockSupportArchiveRepository(t)
 					repoMock.EXPECT().Exists(testCtx, testID).Return(false, nil)
-					repoMock.EXPECT().Create(mock.AnythingOfType("*context.cancelCtx"), testID, mock.AnythingOfType("map[domain.CollectorType]domain.Stream")).Return(testURL, nil).Run(func(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]domain.Stream) {
+					repoMock.EXPECT().Create(mock.AnythingOfType("*context.cancelCtx"), testID, mock.AnythingOfType("map[domain.CollectorType]*domain.Stream")).Return(testURL, nil).Run(func(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]*domain.Stream) {
 						logStream, ok := streams[domain.CollectorTypeLog]
 						require.True(t, ok)
 						require.NotNil(t, logStream)
@@ -324,7 +354,7 @@ func Test_streamFromRepository(t *testing.T) {
 		ctx        context.Context
 		repository func(t *testing.T) collectorRepository[domain.PodLog]
 		id         domain.SupportArchiveID
-		stream     domain.Stream
+		stream     *domain.Stream
 	}
 	type testCase[DATATYPE any] struct {
 		name    string
@@ -343,7 +373,7 @@ func Test_streamFromRepository(t *testing.T) {
 					return repoMock
 				},
 				id:     testID,
-				stream: domain.Stream{},
+				stream: &domain.Stream{},
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
@@ -362,7 +392,7 @@ func Test_streamFromRepository(t *testing.T) {
 					return repoMock
 				},
 				id:     testID,
-				stream: domain.Stream{},
+				stream: &domain.Stream{},
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
