@@ -140,7 +140,7 @@ func (l *baseFileRepository) stream(ctx context.Context, id domain.SupportArchiv
 		return nil, err
 	}
 
-	//close(stream.Data)
+	close(stream.Data)
 
 	return getFileFinalizerFunc(filesToClose), nil
 }

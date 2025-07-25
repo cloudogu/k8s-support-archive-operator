@@ -2,6 +2,7 @@ package file
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/stretchr/testify/assert"
@@ -531,4 +532,144 @@ func Test_baseFileRepository_stream(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_getFileFinalizerFunc(t *testing.T) {
+	type args struct {
+		filesToClose func(t *testing.T) []closableRWFile
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr func(t *testing.T, err error)
+	}{
+		{
+			name: "should return function which closes all files",
+			args: args{
+				filesToClose: func(t *testing.T) []closableRWFile {
+					file1 := newMockClosableRWFile(t)
+					file1.EXPECT().Close().Return(nil)
+					file2 := newMockClosableRWFile(t)
+					file2.EXPECT().Close().Return(nil)
+
+					return []closableRWFile{file1, file2}
+				},
+			},
+			wantErr: func(t *testing.T, err error) {
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "should return multiple errors",
+			args: args{
+				filesToClose: func(t *testing.T) []closableRWFile {
+					file1 := newMockClosableRWFile(t)
+					file1.EXPECT().Close().Return(errors.New("error1"))
+					file2 := newMockClosableRWFile(t)
+					file2.EXPECT().Close().Return(errors.New("error2"))
+
+					return []closableRWFile{file1, file2}
+				},
+			},
+			wantErr: func(t *testing.T, err error) {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, "error1")
+				assert.ErrorContains(t, err, "error2")
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			finalizerFunc := getFileFinalizerFunc(tt.args.filesToClose(t))
+			err := finalizerFunc()
+			tt.wantErr(t, err)
+		})
+	}
+}
+
+func Test_baseFileRepository_streamFile(t *testing.T) {
+	type fields struct {
+		workPath   string
+		filesystem func(t *testing.T) (volumeFs, closableRWFile)
+	}
+	type args struct {
+		ctx      context.Context
+		path     string
+		filename string
+		stream   *domain.Stream
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr func(t *testing.T, err error)
+	}{
+		{
+			name: "should return error on error open file",
+			fields: fields{
+				workPath: testWorkPath,
+				filesystem: func(t *testing.T) (volumeFs, closableRWFile) {
+					fsMock := newMockVolumeFs(t)
+					fsMock.EXPECT().Open(testWorkCasLog).Return(nil, assert.AnError)
+					return fsMock, nil
+				},
+			},
+			args: args{
+				ctx:      testCtx,
+				path:     testWorkCasLog,
+				filename: "cas.log",
+				stream:   &domain.Stream{},
+			},
+			wantErr: func(t *testing.T, err error) {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, assert.AnError)
+				assert.ErrorContains(t, err, "failed to open file")
+			},
+		},
+		{
+			name: "should write file to stream",
+			fields: fields{
+				workPath: testWorkPath,
+				filesystem: func(t *testing.T) (volumeFs, closableRWFile) {
+					fsMock := newMockVolumeFs(t)
+					fileMock := newMockClosableRWFile(t)
+					fsMock.EXPECT().Open(testWorkCasLog).Return(fileMock, nil)
+					return fsMock, fileMock
+				},
+			},
+			args: args{
+				ctx:      testCtx,
+				path:     testWorkCasLog,
+				filename: "cas.log",
+				stream:   getReadStream(),
+			},
+			wantErr: func(t *testing.T, err error) {
+				require.NoError(t, err)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filesystem, expectedWant := tt.fields.filesystem(t)
+			l := &baseFileRepository{
+				workPath:   tt.fields.workPath,
+				filesystem: filesystem,
+			}
+			want, err := l.streamFile(tt.args.ctx, tt.args.path, tt.args.filename, tt.args.stream)
+			tt.wantErr(t, err)
+			assert.Equal(t, expectedWant, want)
+		})
+	}
+}
+
+func getReadStream() *domain.Stream {
+	stream := domain.Stream{}
+	data := make(chan domain.StreamData)
+	stream.Data = data
+
+	go func() {
+		<-data
+	}()
+
+	return &stream
 }
