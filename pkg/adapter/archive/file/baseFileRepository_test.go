@@ -459,27 +459,27 @@ func Test_baseFileRepository_stream(t *testing.T) {
 				assert.ErrorIs(t, err, assert.AnError)
 			},
 		},
-		/*		{
-				name: "should close the stream on success",
-				fields: fields{
-					workPath: testWorkPath,
-					filesystem: func(t *testing.T) volumeFs {
-						fsMock := newMockVolumeFs(t)
-						fsMock.EXPECT().WalkDir(testWorkDirArchivePath, mock.Anything).Return(nil)
-						return fsMock
-					},
+		{
+			name: "should close the stream on success",
+			fields: fields{
+				workPath: testWorkPath,
+				filesystem: func(t *testing.T) volumeFs {
+					fsMock := newMockVolumeFs(t)
+					fsMock.EXPECT().WalkDir(testWorkDirArchivePath, mock.Anything).Return(nil)
+					return fsMock
 				},
-				args: args{
-					ctx:       testCtx,
-					id:        testID,
-					directory: testCollectorDirName,
-					stream:    getEmptyStream(),
-				},
-				wantErr: func(t *testing.T, err error) {
-					require.NoError(t, err)
-				},
-				waitForClose: true,
-			},*/
+			},
+			args: args{
+				ctx:       testCtx,
+				id:        testID,
+				directory: testCollectorDirName,
+				stream:    getEmptyStream(),
+			},
+			wantErr: func(t *testing.T, err error) {
+				require.NoError(t, err)
+			},
+			waitForClose: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
