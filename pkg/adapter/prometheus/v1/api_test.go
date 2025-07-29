@@ -160,6 +160,28 @@ func TestPrometheusMetricsV1API_GetCapacityBytesForPVC(t *testing.T) {
 				assert.ErrorIs(t, err, assert.AnError)
 			},
 		},
+		{
+			name: "should return error on parsing error",
+			fields: fields{
+				v1API: func(t *testing.T) v1API {
+					apiMock := newMockV1API(t)
+					apiMock.EXPECT().Query(testCtx, "kubelet_volume_stats_capacity_bytes{namespace=\"test\", persistentvolumeclaim=\"test-pvc\"}", now).Return(model.Vector{&model.Sample{Value: 1.5}}, nil, nil)
+
+					return apiMock
+				},
+			},
+			args: args{
+				ctx:       testCtx,
+				namespace: testNamespace,
+				pvcName:   testPvcName,
+				ts:        now,
+			},
+			want: 0,
+			wantErr: func(t *testing.T, err error) {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, "failed to parse string 1.5 to int64")
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
