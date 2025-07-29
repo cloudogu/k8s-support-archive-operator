@@ -212,7 +212,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					logRepository := newMockCollectorRepository[domain.PodLog](t)
 					logRepository.EXPECT().IsCollected(testCtx, testID).Return(true, nil)
 					logRepository.EXPECT().IsCollected(mock.AnythingOfType("*context.cancelCtx"), testID).Return(true, nil)
-					logRepository.EXPECT().Stream(mock.AnythingOfType("*context.cancelCtx"), testID, mock.AnythingOfType("*domain.Stream")).Return(nil, nil)
+					logRepository.EXPECT().Stream(mock.AnythingOfType("*context.cancelCtx"), testID, mock.AnythingOfType("*domain.Stream")).Return(nil)
 
 					collectorMapping[domain.CollectorTypeLog] = CollectorAndRepository{Repository: logRepository, Collector: logCollector}
 					return collectorMapping
@@ -402,11 +402,8 @@ func Test_streamFromRepository(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			finalizer, err := streamFromRepository[domain.PodLog](tt.args.ctx, tt.args.repository(t), tt.args.id, tt.args.stream)
+			err := streamFromRepository[domain.PodLog](tt.args.ctx, tt.args.repository(t), tt.args.id, tt.args.stream)
 			tt.wantErr(t, err)
-			if finalizer != nil {
-				_ = finalizer()
-			}
 		})
 	}
 }

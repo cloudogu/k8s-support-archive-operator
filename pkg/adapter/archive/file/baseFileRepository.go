@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -114,9 +115,8 @@ func create[DATATYPE domain.CollectorUnionDataType](ctx context.Context, id doma
 	}
 }
 
-func (l *baseFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) (func() error, error) {
+func (l *baseFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) error {
 	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, l.collectorDir)
-	var filesToClose []closableRWFile
 
 	err := l.filesystem.WalkDir(dirPath, func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
@@ -127,39 +127,32 @@ func (l *baseFileRepository) Stream(ctx context.Context, id domain.SupportArchiv
 			return nil
 		}
 
-		file, err := l.streamFile(ctx, path, info.Name(), stream)
-		if err != nil {
-			return err
-		}
-
-		if file != nil {
-			filesToClose = append(filesToClose, file)
-		}
+		writeSaveToChannel(ctx, domain.StreamData{
+			ID:                info.Name(),
+			StreamConstructor: l.createStreamConstructor(path),
+		}, stream.Data)
 
 		return nil
 	})
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	close(stream.Data)
 
-	return getFileFinalizerFunc(filesToClose), nil
+	return nil
 }
 
-func (l *baseFileRepository) streamFile(ctx context.Context, path, filename string, stream *domain.Stream) (closableRWFile, error) {
-	open, openErr := l.filesystem.Open(path)
-	if openErr != nil {
-		return nil, fmt.Errorf("failed to open file %s: %w", path, openErr)
+func (l *baseFileRepository) createStreamConstructor(path string) domain.StreamConstructor {
+	return func() (io.Reader, domain.CloseStreamFunc, error) {
+		open, openErr := l.filesystem.Open(path)
+		if openErr != nil {
+			return nil, nil, fmt.Errorf("failed to open file %s: %w", path, openErr)
+		}
+
+		return bufio.NewReader(open), open.Close, nil
 	}
-
-	writeSaveToChannel(ctx, domain.StreamData{
-		ID:     filename,
-		Reader: bufio.NewReader(open),
-	}, stream.Data)
-
-	return open, nil
 }
 
 func writeSaveToChannel[T any](ctx context.Context, data T, dataChannel chan<- T) {
@@ -168,19 +161,6 @@ func writeSaveToChannel[T any](ctx context.Context, data T, dataChannel chan<- T
 		return
 	case dataChannel <- data:
 		return
-	}
-}
-
-func getFileFinalizerFunc(filesToClose []closableRWFile) func() error {
-	return func() error {
-		var multiErr []error
-		for _, file := range filesToClose {
-			closeErr := file.Close()
-			if closeErr != nil {
-				multiErr = append(multiErr, fmt.Errorf("failed to close file: %w", closeErr))
-			}
-		}
-		return errors.Join(multiErr...)
 	}
 }
 

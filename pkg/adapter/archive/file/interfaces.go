@@ -12,6 +12,8 @@ type volumeFs interface {
 	filesystem.Filesystem
 }
 
+//nolint:unused
+//goland:noinspection GoUnusedType
 type closableRWFile interface {
 	filesystem.ClosableRWFile
 }
@@ -31,5 +33,5 @@ type baseFileRepo interface {
 	IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error)
 	FinishCollection(ctx context.Context, id domain.SupportArchiveID) error
 	Delete(ctx context.Context, id domain.SupportArchiveID) error
-	Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) (func() error, error)
+	Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) error
 }

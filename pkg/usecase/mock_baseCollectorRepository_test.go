@@ -173,6 +173,54 @@ func (_c *mockBaseCollectorRepository_IsCollected_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// Stream provides a mock function with given fields: ctx, id, stream
+func (_m *mockBaseCollectorRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) error {
+	ret := _m.Called(ctx, id, stream)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Stream")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, *domain.Stream) error); ok {
+		r0 = rf(ctx, id, stream)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// mockBaseCollectorRepository_Stream_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Stream'
+type mockBaseCollectorRepository_Stream_Call struct {
+	*mock.Call
+}
+
+// Stream is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id domain.SupportArchiveID
+//   - stream *domain.Stream
+func (_e *mockBaseCollectorRepository_Expecter) Stream(ctx interface{}, id interface{}, stream interface{}) *mockBaseCollectorRepository_Stream_Call {
+	return &mockBaseCollectorRepository_Stream_Call{Call: _e.mock.On("Stream", ctx, id, stream)}
+}
+
+func (_c *mockBaseCollectorRepository_Stream_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream)) *mockBaseCollectorRepository_Stream_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(domain.SupportArchiveID), args[2].(*domain.Stream))
+	})
+	return _c
+}
+
+func (_c *mockBaseCollectorRepository_Stream_Call) Return(_a0 error) *mockBaseCollectorRepository_Stream_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *mockBaseCollectorRepository_Stream_Call) RunAndReturn(run func(context.Context, domain.SupportArchiveID, *domain.Stream) error) *mockBaseCollectorRepository_Stream_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // newMockBaseCollectorRepository creates a new instance of mockBaseCollectorRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func newMockBaseCollectorRepository(t interface {

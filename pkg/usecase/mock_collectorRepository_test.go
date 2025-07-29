@@ -222,33 +222,21 @@ func (_c *mockCollectorRepository_IsCollected_Call[DATATYPE]) RunAndReturn(run f
 }
 
 // Stream provides a mock function with given fields: ctx, id, stream
-func (_m *mockCollectorRepository[DATATYPE]) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) (func() error, error) {
+func (_m *mockCollectorRepository[DATATYPE]) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) error {
 	ret := _m.Called(ctx, id, stream)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Stream")
 	}
 
-	var r0 func() error
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, *domain.Stream) (func() error, error)); ok {
-		return rf(ctx, id, stream)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, *domain.Stream) func() error); ok {
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, *domain.Stream) error); ok {
 		r0 = rf(ctx, id, stream)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(func() error)
-		}
+		r0 = ret.Error(0)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, domain.SupportArchiveID, *domain.Stream) error); ok {
-		r1 = rf(ctx, id, stream)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
 
 // mockCollectorRepository_Stream_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Stream'
@@ -271,12 +259,12 @@ func (_c *mockCollectorRepository_Stream_Call[DATATYPE]) Run(run func(ctx contex
 	return _c
 }
 
-func (_c *mockCollectorRepository_Stream_Call[DATATYPE]) Return(_a0 func() error, _a1 error) *mockCollectorRepository_Stream_Call[DATATYPE] {
-	_c.Call.Return(_a0, _a1)
+func (_c *mockCollectorRepository_Stream_Call[DATATYPE]) Return(_a0 error) *mockCollectorRepository_Stream_Call[DATATYPE] {
+	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *mockCollectorRepository_Stream_Call[DATATYPE]) RunAndReturn(run func(context.Context, domain.SupportArchiveID, *domain.Stream) (func() error, error)) *mockCollectorRepository_Stream_Call[DATATYPE] {
+func (_c *mockCollectorRepository_Stream_Call[DATATYPE]) RunAndReturn(run func(context.Context, domain.SupportArchiveID, *domain.Stream) error) *mockCollectorRepository_Stream_Call[DATATYPE] {
 	_c.Call.Return(run)
 	return _c
 }

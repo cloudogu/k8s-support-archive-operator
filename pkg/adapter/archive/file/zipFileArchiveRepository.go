@@ -97,9 +97,19 @@ func (z *ZipFileArchiveRepository) rangeOverStream(ctx context.Context, collecto
 			return ctx.Err()
 		case data, ok := <-stream.Data:
 			if ok {
-				dataErr := z.copyDataFromStreamToArchive(zipWriter, collector, data.ID, data.Reader)
+				reader, closeReader, err := data.StreamConstructor()
+				if err != nil {
+					return fmt.Errorf("failed to construct reader for file %s: %w", data.ID, err)
+				}
+
+				dataErr := z.copyDataFromStreamToArchive(zipWriter, collector, data.ID, reader)
 				if dataErr != nil {
 					return fmt.Errorf("error streaming data: %w", dataErr)
+				}
+
+				err = closeReader()
+				if err != nil {
+					return fmt.Errorf("error closing reader for file %s: %w", data.ID, err)
 				}
 			} else {
 				return nil
