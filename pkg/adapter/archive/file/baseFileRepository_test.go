@@ -21,13 +21,13 @@ const (
 
 func Test_baseFileRepository_FinishCollection(t *testing.T) {
 	type fields struct {
-		workPath   string
-		filesystem func(t *testing.T) volumeFs
+		workPath     string
+		collectorDir string
+		filesystem   func(t *testing.T) volumeFs
 	}
 	type args struct {
-		ctx          context.Context
-		id           domain.SupportArchiveID
-		collectorDir string
+		ctx context.Context
+		id  domain.SupportArchiveID
 	}
 	tests := []struct {
 		name    string
@@ -49,12 +49,12 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 
 					return fsMock
 				},
-				workPath: testWorkPath,
+				workPath:     testWorkPath,
+				collectorDir: testCollectorDirName,
 			},
 			args: args{
-				ctx:          testCtx,
-				id:           testID,
-				collectorDir: testCollectorDirName,
+				ctx: testCtx,
+				id:  testID,
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
@@ -74,12 +74,12 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 
 					return fsMock
 				},
-				workPath: testWorkPath,
+				workPath:     testWorkPath,
+				collectorDir: testCollectorDirName,
 			},
 			args: args{
-				ctx:          testCtx,
-				id:           testID,
-				collectorDir: testCollectorDirName,
+				ctx: testCtx,
+				id:  testID,
 			},
 			wantErr: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, assert.AnError)
@@ -96,12 +96,12 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 
 					return fsMock
 				},
-				workPath: testWorkPath,
+				workPath:     testWorkPath,
+				collectorDir: testCollectorDirName,
 			},
 			args: args{
-				ctx:          testCtx,
-				id:           testID,
-				collectorDir: testCollectorDirName,
+				ctx: testCtx,
+				id:  testID,
 			},
 			wantErr: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, assert.AnError)
@@ -117,12 +117,12 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 
 					return fsMock
 				},
-				workPath: testWorkPath,
+				workPath:     testWorkPath,
+				collectorDir: testCollectorDirName,
 			},
 			args: args{
-				ctx:          testCtx,
-				id:           testID,
-				collectorDir: testCollectorDirName,
+				ctx: testCtx,
+				id:  testID,
 			},
 			wantErr: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, assert.AnError)
@@ -133,23 +133,24 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &baseFileRepository{
-				workPath:   tt.fields.workPath,
-				filesystem: tt.fields.filesystem(t),
+				workPath:     tt.fields.workPath,
+				collectorDir: tt.fields.collectorDir,
+				filesystem:   tt.fields.filesystem(t),
 			}
-			tt.wantErr(t, l.FinishCollection(tt.args.ctx, tt.args.id, tt.args.collectorDir))
+			tt.wantErr(t, l.FinishCollection(tt.args.ctx, tt.args.id))
 		})
 	}
 }
 
 func Test_baseFileRepository_IsCollected(t *testing.T) {
 	type fields struct {
-		workPath   string
-		filesystem func(t *testing.T) volumeFs
+		workPath     string
+		collectorDir string
+		filesystem   func(t *testing.T) volumeFs
 	}
 	type args struct {
-		ctx          context.Context
-		id           domain.SupportArchiveID
-		collectorDir string
+		ctx context.Context
+		id  domain.SupportArchiveID
 	}
 	tests := []struct {
 		name    string
@@ -166,12 +167,12 @@ func Test_baseFileRepository_IsCollected(t *testing.T) {
 					fsMock.EXPECT().Stat(testStateFilePath).Return(nil, nil)
 					return fsMock
 				},
-				workPath: testWorkPath,
+				workPath:     testWorkPath,
+				collectorDir: testCollectorDirName,
 			},
 			args: args{
-				ctx:          testCtx,
-				id:           testID,
-				collectorDir: testCollectorDirName,
+				ctx: testCtx,
+				id:  testID,
 			},
 			want:    true,
 			wantErr: assert.NoError,
@@ -184,12 +185,12 @@ func Test_baseFileRepository_IsCollected(t *testing.T) {
 					fsMock.EXPECT().Stat(testStateFilePath).Return(nil, os.ErrNotExist)
 					return fsMock
 				},
-				workPath: testWorkPath,
+				workPath:     testWorkPath,
+				collectorDir: testCollectorDirName,
 			},
 			args: args{
-				ctx:          testCtx,
-				id:           testID,
-				collectorDir: testCollectorDirName,
+				ctx: testCtx,
+				id:  testID,
 			},
 			want:    false,
 			wantErr: assert.NoError,
@@ -202,12 +203,12 @@ func Test_baseFileRepository_IsCollected(t *testing.T) {
 					fsMock.EXPECT().Stat(testStateFilePath).Return(nil, assert.AnError)
 					return fsMock
 				},
-				workPath: testWorkPath,
+				workPath:     testWorkPath,
+				collectorDir: testCollectorDirName,
 			},
 			args: args{
-				ctx:          testCtx,
-				id:           testID,
-				collectorDir: testCollectorDirName,
+				ctx: testCtx,
+				id:  testID,
 			},
 			want:    false,
 			wantErr: assert.Error,
@@ -216,10 +217,11 @@ func Test_baseFileRepository_IsCollected(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &baseFileRepository{
-				workPath:   tt.fields.workPath,
-				filesystem: tt.fields.filesystem(t),
+				workPath:     tt.fields.workPath,
+				collectorDir: tt.fields.collectorDir,
+				filesystem:   tt.fields.filesystem(t),
 			}
-			got, err := l.IsCollected(tt.args.ctx, tt.args.id, tt.args.collectorDir)
+			got, err := l.IsCollected(tt.args.ctx, tt.args.id)
 			if !tt.wantErr(t, err, fmt.Sprintf("IsCollected(%v, %v)", tt.args.ctx, tt.args.id)) {
 				return
 			}
@@ -230,13 +232,13 @@ func Test_baseFileRepository_IsCollected(t *testing.T) {
 
 func Test_baseFileRepository_Delete(t *testing.T) {
 	type fields struct {
-		workPath   string
-		filesystem func(t *testing.T) volumeFs
+		workPath     string
+		collectorDir string
+		filesystem   func(t *testing.T) volumeFs
 	}
 	type args struct {
-		ctx          context.Context
-		id           domain.SupportArchiveID
-		collectorDir string
+		ctx context.Context
+		id  domain.SupportArchiveID
 	}
 	tests := []struct {
 		name    string
@@ -247,7 +249,8 @@ func Test_baseFileRepository_Delete(t *testing.T) {
 		{
 			name: "success",
 			fields: fields{
-				workPath: testWorkPath,
+				workPath:     testWorkPath,
+				collectorDir: testCollectorDirName,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
 					fsMock.EXPECT().RemoveAll(testWorkDirArchivePath).Return(nil)
@@ -256,16 +259,16 @@ func Test_baseFileRepository_Delete(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:          testCtx,
-				id:           testID,
-				collectorDir: testCollectorDirName,
+				ctx: testCtx,
+				id:  testID,
 			},
 			wantErr: assert.NoError,
 		},
 		{
 			name: "should return error on error remove directory",
 			fields: fields{
-				workPath: testWorkPath,
+				workPath:     testWorkPath,
+				collectorDir: testCollectorDirName,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
 					fsMock.EXPECT().RemoveAll(testWorkDirArchivePath).Return(assert.AnError)
@@ -274,9 +277,8 @@ func Test_baseFileRepository_Delete(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:          testCtx,
-				id:           testID,
-				collectorDir: testCollectorDirName,
+				ctx: testCtx,
+				id:  testID,
 			},
 			wantErr: assert.Error,
 		},
@@ -284,10 +286,11 @@ func Test_baseFileRepository_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &baseFileRepository{
-				workPath:   tt.fields.workPath,
-				filesystem: tt.fields.filesystem(t),
+				workPath:     tt.fields.workPath,
+				collectorDir: tt.fields.collectorDir,
+				filesystem:   tt.fields.filesystem(t),
 			}
-			tt.wantErr(t, l.Delete(tt.args.ctx, tt.args.id, tt.args.collectorDir), fmt.Sprintf("Delete(%v, %v, %v)", tt.args.ctx, tt.args.id, tt.args.collectorDir))
+			tt.wantErr(t, l.Delete(tt.args.ctx, tt.args.id), fmt.Sprintf("Delete(%v, %v)", tt.args.ctx, tt.args.id))
 		})
 	}
 }
@@ -297,11 +300,12 @@ func TestNewBaseFileRepository(t *testing.T) {
 	fsMock := newMockVolumeFs(t)
 
 	// when
-	repository := NewBaseFileRepository(testWorkPath, fsMock)
+	repository := NewBaseFileRepository(testWorkPath, testCollectorDirName, fsMock)
 
 	// then
 	assert.NotNil(t, repository)
 	assert.Equal(t, testWorkPath, repository.workPath)
+	assert.Equal(t, testCollectorDirName, repository.collectorDir)
 	assert.Equal(t, fsMock, repository.filesystem)
 }
 
@@ -420,16 +424,16 @@ func getSuccessStream() chan *domain.PodLog {
 	return channel
 }
 
-func Test_baseFileRepository_stream(t *testing.T) {
+func Test_baseFileRepository_Stream(t *testing.T) {
 	type fields struct {
 		workPath   string
+		directory  string
 		filesystem func(t *testing.T) volumeFs
 	}
 	type args struct {
-		ctx       context.Context
-		id        domain.SupportArchiveID
-		directory string
-		stream    *domain.Stream
+		ctx    context.Context
+		id     domain.SupportArchiveID
+		stream *domain.Stream
 	}
 	tests := []struct {
 		name         string
@@ -442,7 +446,8 @@ func Test_baseFileRepository_stream(t *testing.T) {
 		{
 			name: "should return error on error walking work directory",
 			fields: fields{
-				workPath: testWorkPath,
+				workPath:  testWorkPath,
+				directory: testCollectorDirName,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
 					fsMock.EXPECT().WalkDir(testWorkDirArchivePath, mock.Anything).Return(assert.AnError)
@@ -450,9 +455,8 @@ func Test_baseFileRepository_stream(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:       testCtx,
-				id:        testID,
-				directory: testCollectorDirName,
+				ctx: testCtx,
+				id:  testID,
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
@@ -462,7 +466,8 @@ func Test_baseFileRepository_stream(t *testing.T) {
 		{
 			name: "should close the stream on success",
 			fields: fields{
-				workPath: testWorkPath,
+				workPath:  testWorkPath,
+				directory: testCollectorDirName,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
 					fsMock.EXPECT().WalkDir(testWorkDirArchivePath, mock.Anything).Return(nil)
@@ -470,10 +475,9 @@ func Test_baseFileRepository_stream(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:       testCtx,
-				id:        testID,
-				directory: testCollectorDirName,
-				stream:    getEmptyStream(),
+				ctx:    testCtx,
+				id:     testID,
+				stream: getEmptyStream(),
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
@@ -484,15 +488,16 @@ func Test_baseFileRepository_stream(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &baseFileRepository{
-				workPath:   tt.fields.workPath,
-				filesystem: tt.fields.filesystem(t),
+				workPath:     tt.fields.workPath,
+				collectorDir: tt.fields.directory,
+				filesystem:   tt.fields.filesystem(t),
 			}
 
 			group, _ := errgroup.WithContext(tt.args.ctx)
 			var got func() error
 			group.Go(func() error {
 				var err error
-				got, err = l.stream(tt.args.ctx, tt.args.id, tt.args.directory, tt.args.stream)
+				got, err = l.Stream(tt.args.ctx, tt.args.id, tt.args.stream)
 				return err
 			})
 

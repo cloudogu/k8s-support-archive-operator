@@ -3,9 +3,10 @@ package file
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"gopkg.in/yaml.v3"
-	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -19,11 +20,11 @@ type VolumesFileRepository struct {
 	filesystem volumeFs
 }
 
-func NewVolumesFileRepository(workPath string, fs volumeFs, repository baseFileRepo) *VolumesFileRepository {
+func NewVolumesFileRepository(workPath string, fs volumeFs) *VolumesFileRepository {
 	return &VolumesFileRepository{
 		workPath:     workPath,
 		filesystem:   fs,
-		baseFileRepo: repository,
+		baseFileRepo: NewBaseFileRepository(workPath, archiveVolumeInfoDirName, fs),
 	}
 }
 
@@ -54,20 +55,4 @@ func (v *VolumesFileRepository) createVolumeInfo(ctx context.Context, id domain.
 	logger.Info("created volume metrics file")
 
 	return nil
-}
-
-func (v *VolumesFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) (func() error, error) {
-	return v.stream(ctx, id, archiveVolumeInfoDirName, stream)
-}
-
-func (v *VolumesFileRepository) Delete(ctx context.Context, id domain.SupportArchiveID) error {
-	return v.baseFileRepo.Delete(ctx, id, archiveVolumeInfoDirName)
-}
-
-func (v *VolumesFileRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID) error {
-	return v.baseFileRepo.FinishCollection(ctx, id, archiveVolumeInfoDirName)
-}
-
-func (v *VolumesFileRepository) IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error) {
-	return v.baseFileRepo.IsCollected(ctx, id, archiveVolumeInfoDirName)
 }

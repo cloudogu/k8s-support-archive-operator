@@ -3,8 +3,9 @@ package file
 import (
 	"context"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"path/filepath"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -18,11 +19,11 @@ type LogFileRepository struct {
 	filesystem volumeFs
 }
 
-func NewLogFileRepository(workPath string, fs volumeFs, repository baseFileRepo) *LogFileRepository {
+func NewLogFileRepository(workPath string, fs volumeFs) *LogFileRepository {
 	return &LogFileRepository{
 		workPath:     workPath,
 		filesystem:   fs,
-		baseFileRepo: repository,
+		baseFileRepo: NewBaseFileRepository(workPath, archiveLogDirName, fs),
 	}
 }
 
@@ -58,20 +59,4 @@ func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportA
 	logger.Info(fmt.Sprintf("Created file %s", filePath))
 
 	return nil
-}
-
-func (l *LogFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) (func() error, error) {
-	return l.stream(ctx, id, archiveLogDirName, stream)
-}
-
-func (l *LogFileRepository) Delete(ctx context.Context, id domain.SupportArchiveID) error {
-	return l.baseFileRepo.Delete(ctx, id, archiveLogDirName)
-}
-
-func (l *LogFileRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID) error {
-	return l.baseFileRepo.FinishCollection(ctx, id, archiveLogDirName)
-}
-
-func (l *LogFileRepository) IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error) {
-	return l.baseFileRepo.IsCollected(ctx, id, archiveLogDirName)
 }

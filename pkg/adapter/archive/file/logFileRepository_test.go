@@ -2,11 +2,13 @@ package file
 
 import (
 	"context"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -157,80 +159,13 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 func TestNewLogFileRepository(t *testing.T) {
 	// given
 	fsMock := newMockVolumeFs(t)
-	baseRepoMock := newMockBaseFileRepo(t)
 
 	// when
-	repository := NewLogFileRepository(testWorkPath, fsMock, baseRepoMock)
+	repository := NewLogFileRepository(testWorkPath, fsMock)
 
 	// then
 	assert.NotNil(t, repository)
 	assert.Equal(t, testWorkPath, repository.workPath)
 	assert.Equal(t, fsMock, repository.filesystem)
-	assert.Equal(t, baseRepoMock, repository.baseFileRepo)
-}
-
-func TestLogFileRepository_Stream(t *testing.T) {
-	t.Run("should delegate to base repo", func(t *testing.T) {
-		// given
-		baseRepoMock := newMockBaseFileRepo(t)
-		testStream := &domain.Stream{}
-		baseRepoMock.EXPECT().stream(testCtx, testID, testLogCollectorDirName, testStream).Return(nil, nil)
-
-		sut := &LogFileRepository{baseFileRepo: baseRepoMock}
-
-		// when
-		_, err := sut.Stream(testCtx, testID, testStream)
-
-		// then
-		require.NoError(t, err)
-	})
-}
-
-func TestLogFileRepository_Delete(t *testing.T) {
-	t.Run("should delegate to base repo", func(t *testing.T) {
-		// given
-		baseRepoMock := newMockBaseFileRepo(t)
-		baseRepoMock.EXPECT().Delete(testCtx, testID, testLogCollectorDirName).Return(nil)
-
-		sut := &LogFileRepository{baseFileRepo: baseRepoMock}
-
-		// when
-		err := sut.Delete(testCtx, testID)
-
-		// then
-		require.NoError(t, err)
-	})
-}
-
-func TestLogFileRepository_FinishCollection(t *testing.T) {
-	t.Run("should delegate to base repo", func(t *testing.T) {
-		// given
-		baseRepoMock := newMockBaseFileRepo(t)
-		baseRepoMock.EXPECT().FinishCollection(testCtx, testID, testLogCollectorDirName).Return(nil)
-
-		sut := &LogFileRepository{baseFileRepo: baseRepoMock}
-
-		// when
-		err := sut.FinishCollection(testCtx, testID)
-
-		// then
-		require.NoError(t, err)
-	})
-}
-
-func TestLogFileRepository_IsCollected(t *testing.T) {
-	t.Run("should delegate to base repo", func(t *testing.T) {
-		// given
-		baseRepoMock := newMockBaseFileRepo(t)
-		baseRepoMock.EXPECT().IsCollected(testCtx, testID, testLogCollectorDirName).Return(false, nil)
-
-		sut := &LogFileRepository{baseFileRepo: baseRepoMock}
-
-		// when
-		collected, err := sut.IsCollected(testCtx, testID)
-
-		// then
-		require.NoError(t, err)
-		assert.False(t, collected)
-	})
+	assert.NotEmpty(t, repository.baseFileRepo)
 }

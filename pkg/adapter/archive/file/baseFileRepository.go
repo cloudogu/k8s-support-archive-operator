@@ -5,10 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -21,20 +22,22 @@ type deleteFn = func(context.Context, domain.SupportArchiveID) error
 type finishFn = func(context.Context, domain.SupportArchiveID) error
 
 type baseFileRepository struct {
-	workPath   string
-	filesystem volumeFs
+	workPath     string
+	collectorDir string
+	filesystem   volumeFs
 }
 
-func NewBaseFileRepository(workPath string, filesystem volumeFs) *baseFileRepository {
+func NewBaseFileRepository(workPath string, collectorDir string, filesystem volumeFs) *baseFileRepository {
 	return &baseFileRepository{
-		workPath:   workPath,
-		filesystem: filesystem,
+		workPath:     workPath,
+		collectorDir: collectorDir,
+		filesystem:   filesystem,
 	}
 }
 
-func (l *baseFileRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID, collectorDir string) error {
+func (l *baseFileRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID) error {
 	logger := log.FromContext(ctx).WithName("baseFileRepository.FinishCollection")
-	stateFilePath := getStateFilePath(l.workPath, id, collectorDir)
+	stateFilePath := getStateFilePath(l.workPath, id, l.collectorDir)
 
 	err := l.filesystem.MkdirAll(filepath.Dir(stateFilePath), os.ModePerm)
 	if err != nil {
@@ -59,8 +62,8 @@ func (l *baseFileRepository) FinishCollection(ctx context.Context, id domain.Sup
 	return nil
 }
 
-func (l *baseFileRepository) IsCollected(_ context.Context, id domain.SupportArchiveID, collectorDir string) (bool, error) {
-	stateFilePath := getStateFilePath(l.workPath, id, collectorDir)
+func (l *baseFileRepository) IsCollected(_ context.Context, id domain.SupportArchiveID) (bool, error) {
+	stateFilePath := getStateFilePath(l.workPath, id, l.collectorDir)
 	_, err := l.filesystem.Stat(stateFilePath)
 
 	if err != nil && os.IsNotExist(err) {
@@ -71,11 +74,11 @@ func (l *baseFileRepository) IsCollected(_ context.Context, id domain.SupportArc
 	return true, nil
 }
 
-func (l *baseFileRepository) Delete(_ context.Context, id domain.SupportArchiveID, collectorDir string) error {
-	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, collectorDir)
+func (l *baseFileRepository) Delete(_ context.Context, id domain.SupportArchiveID) error {
+	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, l.collectorDir)
 	err := l.filesystem.RemoveAll(dirPath)
 	if err != nil {
-		return fmt.Errorf("failed to remove %s directory %s: %w", collectorDir, dirPath, err)
+		return fmt.Errorf("failed to remove %s directory %s: %w", l.collectorDir, dirPath, err)
 	}
 
 	return nil
@@ -111,8 +114,8 @@ func create[DATATYPE domain.CollectorUnionDataType](ctx context.Context, id doma
 	}
 }
 
-func (l *baseFileRepository) stream(ctx context.Context, id domain.SupportArchiveID, directory string, stream *domain.Stream) (func() error, error) {
-	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, directory)
+func (l *baseFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) (func() error, error) {
+	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, l.collectorDir)
 	var filesToClose []closableRWFile
 
 	err := l.filesystem.WalkDir(dirPath, func(path string, info fs.DirEntry, err error) error {

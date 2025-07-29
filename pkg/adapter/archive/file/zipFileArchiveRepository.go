@@ -5,12 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 

@@ -22,17 +22,17 @@ func (_m *mockBaseFileRepo) EXPECT() *mockBaseFileRepo_Expecter {
 	return &mockBaseFileRepo_Expecter{mock: &_m.Mock}
 }
 
-// Delete provides a mock function with given fields: ctx, id, collectorDir
-func (_m *mockBaseFileRepo) Delete(ctx context.Context, id domain.SupportArchiveID, collectorDir string) error {
-	ret := _m.Called(ctx, id, collectorDir)
+// Delete provides a mock function with given fields: ctx, id
+func (_m *mockBaseFileRepo) Delete(ctx context.Context, id domain.SupportArchiveID) error {
+	ret := _m.Called(ctx, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, string) error); ok {
-		r0 = rf(ctx, id, collectorDir)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID) error); ok {
+		r0 = rf(ctx, id)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -48,14 +48,13 @@ type mockBaseFileRepo_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id domain.SupportArchiveID
-//   - collectorDir string
-func (_e *mockBaseFileRepo_Expecter) Delete(ctx interface{}, id interface{}, collectorDir interface{}) *mockBaseFileRepo_Delete_Call {
-	return &mockBaseFileRepo_Delete_Call{Call: _e.mock.On("Delete", ctx, id, collectorDir)}
+func (_e *mockBaseFileRepo_Expecter) Delete(ctx interface{}, id interface{}) *mockBaseFileRepo_Delete_Call {
+	return &mockBaseFileRepo_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
 }
 
-func (_c *mockBaseFileRepo_Delete_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID, collectorDir string)) *mockBaseFileRepo_Delete_Call {
+func (_c *mockBaseFileRepo_Delete_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID)) *mockBaseFileRepo_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(domain.SupportArchiveID), args[2].(string))
+		run(args[0].(context.Context), args[1].(domain.SupportArchiveID))
 	})
 	return _c
 }
@@ -65,22 +64,22 @@ func (_c *mockBaseFileRepo_Delete_Call) Return(_a0 error) *mockBaseFileRepo_Dele
 	return _c
 }
 
-func (_c *mockBaseFileRepo_Delete_Call) RunAndReturn(run func(context.Context, domain.SupportArchiveID, string) error) *mockBaseFileRepo_Delete_Call {
+func (_c *mockBaseFileRepo_Delete_Call) RunAndReturn(run func(context.Context, domain.SupportArchiveID) error) *mockBaseFileRepo_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// FinishCollection provides a mock function with given fields: ctx, id, collectorDir
-func (_m *mockBaseFileRepo) FinishCollection(ctx context.Context, id domain.SupportArchiveID, collectorDir string) error {
-	ret := _m.Called(ctx, id, collectorDir)
+// FinishCollection provides a mock function with given fields: ctx, id
+func (_m *mockBaseFileRepo) FinishCollection(ctx context.Context, id domain.SupportArchiveID) error {
+	ret := _m.Called(ctx, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FinishCollection")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, string) error); ok {
-		r0 = rf(ctx, id, collectorDir)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID) error); ok {
+		r0 = rf(ctx, id)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -96,14 +95,13 @@ type mockBaseFileRepo_FinishCollection_Call struct {
 // FinishCollection is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id domain.SupportArchiveID
-//   - collectorDir string
-func (_e *mockBaseFileRepo_Expecter) FinishCollection(ctx interface{}, id interface{}, collectorDir interface{}) *mockBaseFileRepo_FinishCollection_Call {
-	return &mockBaseFileRepo_FinishCollection_Call{Call: _e.mock.On("FinishCollection", ctx, id, collectorDir)}
+func (_e *mockBaseFileRepo_Expecter) FinishCollection(ctx interface{}, id interface{}) *mockBaseFileRepo_FinishCollection_Call {
+	return &mockBaseFileRepo_FinishCollection_Call{Call: _e.mock.On("FinishCollection", ctx, id)}
 }
 
-func (_c *mockBaseFileRepo_FinishCollection_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID, collectorDir string)) *mockBaseFileRepo_FinishCollection_Call {
+func (_c *mockBaseFileRepo_FinishCollection_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID)) *mockBaseFileRepo_FinishCollection_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(domain.SupportArchiveID), args[2].(string))
+		run(args[0].(context.Context), args[1].(domain.SupportArchiveID))
 	})
 	return _c
 }
@@ -113,14 +111,14 @@ func (_c *mockBaseFileRepo_FinishCollection_Call) Return(_a0 error) *mockBaseFil
 	return _c
 }
 
-func (_c *mockBaseFileRepo_FinishCollection_Call) RunAndReturn(run func(context.Context, domain.SupportArchiveID, string) error) *mockBaseFileRepo_FinishCollection_Call {
+func (_c *mockBaseFileRepo_FinishCollection_Call) RunAndReturn(run func(context.Context, domain.SupportArchiveID) error) *mockBaseFileRepo_FinishCollection_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// IsCollected provides a mock function with given fields: ctx, id, collectorDir
-func (_m *mockBaseFileRepo) IsCollected(ctx context.Context, id domain.SupportArchiveID, collectorDir string) (bool, error) {
-	ret := _m.Called(ctx, id, collectorDir)
+// IsCollected provides a mock function with given fields: ctx, id
+func (_m *mockBaseFileRepo) IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error) {
+	ret := _m.Called(ctx, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsCollected")
@@ -128,17 +126,17 @@ func (_m *mockBaseFileRepo) IsCollected(ctx context.Context, id domain.SupportAr
 
 	var r0 bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, string) (bool, error)); ok {
-		return rf(ctx, id, collectorDir)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID) (bool, error)); ok {
+		return rf(ctx, id)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, string) bool); ok {
-		r0 = rf(ctx, id, collectorDir)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID) bool); ok {
+		r0 = rf(ctx, id)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, domain.SupportArchiveID, string) error); ok {
-		r1 = rf(ctx, id, collectorDir)
+	if rf, ok := ret.Get(1).(func(context.Context, domain.SupportArchiveID) error); ok {
+		r1 = rf(ctx, id)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -154,14 +152,13 @@ type mockBaseFileRepo_IsCollected_Call struct {
 // IsCollected is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id domain.SupportArchiveID
-//   - collectorDir string
-func (_e *mockBaseFileRepo_Expecter) IsCollected(ctx interface{}, id interface{}, collectorDir interface{}) *mockBaseFileRepo_IsCollected_Call {
-	return &mockBaseFileRepo_IsCollected_Call{Call: _e.mock.On("IsCollected", ctx, id, collectorDir)}
+func (_e *mockBaseFileRepo_Expecter) IsCollected(ctx interface{}, id interface{}) *mockBaseFileRepo_IsCollected_Call {
+	return &mockBaseFileRepo_IsCollected_Call{Call: _e.mock.On("IsCollected", ctx, id)}
 }
 
-func (_c *mockBaseFileRepo_IsCollected_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID, collectorDir string)) *mockBaseFileRepo_IsCollected_Call {
+func (_c *mockBaseFileRepo_IsCollected_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID)) *mockBaseFileRepo_IsCollected_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(domain.SupportArchiveID), args[2].(string))
+		run(args[0].(context.Context), args[1].(domain.SupportArchiveID))
 	})
 	return _c
 }
@@ -171,34 +168,34 @@ func (_c *mockBaseFileRepo_IsCollected_Call) Return(_a0 bool, _a1 error) *mockBa
 	return _c
 }
 
-func (_c *mockBaseFileRepo_IsCollected_Call) RunAndReturn(run func(context.Context, domain.SupportArchiveID, string) (bool, error)) *mockBaseFileRepo_IsCollected_Call {
+func (_c *mockBaseFileRepo_IsCollected_Call) RunAndReturn(run func(context.Context, domain.SupportArchiveID) (bool, error)) *mockBaseFileRepo_IsCollected_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// stream provides a mock function with given fields: ctx, id, directory, stream
-func (_m *mockBaseFileRepo) stream(ctx context.Context, id domain.SupportArchiveID, directory string, stream *domain.Stream) (func() error, error) {
-	ret := _m.Called(ctx, id, directory, stream)
+// Stream provides a mock function with given fields: ctx, id, stream
+func (_m *mockBaseFileRepo) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) (func() error, error) {
+	ret := _m.Called(ctx, id, stream)
 
 	if len(ret) == 0 {
-		panic("no return value specified for stream")
+		panic("no return value specified for Stream")
 	}
 
 	var r0 func() error
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, string, *domain.Stream) (func() error, error)); ok {
-		return rf(ctx, id, directory, stream)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, *domain.Stream) (func() error, error)); ok {
+		return rf(ctx, id, stream)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, string, *domain.Stream) func() error); ok {
-		r0 = rf(ctx, id, directory, stream)
+	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, *domain.Stream) func() error); ok {
+		r0 = rf(ctx, id, stream)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(func() error)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, domain.SupportArchiveID, string, *domain.Stream) error); ok {
-		r1 = rf(ctx, id, directory, stream)
+	if rf, ok := ret.Get(1).(func(context.Context, domain.SupportArchiveID, *domain.Stream) error); ok {
+		r1 = rf(ctx, id, stream)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -206,33 +203,32 @@ func (_m *mockBaseFileRepo) stream(ctx context.Context, id domain.SupportArchive
 	return r0, r1
 }
 
-// mockBaseFileRepo_stream_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'stream'
-type mockBaseFileRepo_stream_Call struct {
+// mockBaseFileRepo_Stream_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Stream'
+type mockBaseFileRepo_Stream_Call struct {
 	*mock.Call
 }
 
-// stream is a helper method to define mock.On call
+// Stream is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id domain.SupportArchiveID
-//   - directory string
 //   - stream *domain.Stream
-func (_e *mockBaseFileRepo_Expecter) stream(ctx interface{}, id interface{}, directory interface{}, stream interface{}) *mockBaseFileRepo_stream_Call {
-	return &mockBaseFileRepo_stream_Call{Call: _e.mock.On("stream", ctx, id, directory, stream)}
+func (_e *mockBaseFileRepo_Expecter) Stream(ctx interface{}, id interface{}, stream interface{}) *mockBaseFileRepo_Stream_Call {
+	return &mockBaseFileRepo_Stream_Call{Call: _e.mock.On("Stream", ctx, id, stream)}
 }
 
-func (_c *mockBaseFileRepo_stream_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID, directory string, stream *domain.Stream)) *mockBaseFileRepo_stream_Call {
+func (_c *mockBaseFileRepo_Stream_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream)) *mockBaseFileRepo_Stream_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(domain.SupportArchiveID), args[2].(string), args[3].(*domain.Stream))
+		run(args[0].(context.Context), args[1].(domain.SupportArchiveID), args[2].(*domain.Stream))
 	})
 	return _c
 }
 
-func (_c *mockBaseFileRepo_stream_Call) Return(_a0 func() error, _a1 error) *mockBaseFileRepo_stream_Call {
+func (_c *mockBaseFileRepo_Stream_Call) Return(_a0 func() error, _a1 error) *mockBaseFileRepo_Stream_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *mockBaseFileRepo_stream_Call) RunAndReturn(run func(context.Context, domain.SupportArchiveID, string, *domain.Stream) (func() error, error)) *mockBaseFileRepo_stream_Call {
+func (_c *mockBaseFileRepo_Stream_Call) RunAndReturn(run func(context.Context, domain.SupportArchiveID, *domain.Stream) (func() error, error)) *mockBaseFileRepo_Stream_Call {
 	_c.Call.Return(run)
 	return _c
 }

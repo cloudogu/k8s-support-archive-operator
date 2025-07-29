@@ -112,10 +112,9 @@ func startOperator(
 	supportArchiveRepository := file.NewZipFileArchiveRepository(archivePath, file.NewZipWriter, operatorConfig)
 
 	fs := filesystem.FileSystem{}
-	baseFileRepository := file.NewBaseFileRepository(workPath, fs)
 
 	logCollector := collector.NewLogCollector()
-	logRepository := file.NewLogFileRepository(workPath, fs, baseFileRepository)
+	logRepository := file.NewLogFileRepository(workPath, fs)
 
 	address := fmt.Sprintf("%s://%s.%s.svc.cluster.local:%s", operatorConfig.MetricsServiceProtocol, operatorConfig.MetricsServiceName, operatorConfig.Namespace, operatorConfig.MetricsServicePort)
 	// TODO Implement ServiceAccount for Prometheus. Create secret in Prometheus Chart and use it?
@@ -126,7 +125,7 @@ func startOperator(
 	metricsCollector := v1.NewPrometheusMetricsV1API(metricsClient)
 
 	volumesCollector := collector.NewVolumesCollector(ecoClientSet.CoreV1(), metricsCollector)
-	volumeRepository := file.NewVolumesFileRepository(workPath, fs, baseFileRepository)
+	volumeRepository := file.NewVolumesFileRepository(workPath, fs)
 
 	mapping := make(map[domain.CollectorType]usecase.CollectorAndRepository)
 	mapping[domain.CollectorTypeLog] = usecase.CollectorAndRepository{Collector: logCollector, Repository: logRepository}

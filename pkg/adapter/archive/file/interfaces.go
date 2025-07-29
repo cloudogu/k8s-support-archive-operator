@@ -2,9 +2,10 @@ package file
 
 import (
 	"context"
+	"io"
+
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"io"
 )
 
 type volumeFs interface {
@@ -27,8 +28,8 @@ type Reader interface {
 }
 
 type baseFileRepo interface {
-	IsCollected(ctx context.Context, id domain.SupportArchiveID, collectorDir string) (bool, error)
-	FinishCollection(ctx context.Context, id domain.SupportArchiveID, collectorDir string) error
-	Delete(ctx context.Context, id domain.SupportArchiveID, collectorDir string) error
-	stream(ctx context.Context, id domain.SupportArchiveID, directory string, stream *domain.Stream) (func() error, error)
+	IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error)
+	FinishCollection(ctx context.Context, id domain.SupportArchiveID) error
+	Delete(ctx context.Context, id domain.SupportArchiveID) error
+	Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) (func() error, error)
 }
