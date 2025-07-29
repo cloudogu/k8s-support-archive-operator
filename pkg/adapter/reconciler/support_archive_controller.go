@@ -44,6 +44,9 @@ func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// TODO owner references (only in stage prod) ?
+	// TODO no finalizers
+
 	if !slices.Contains(cr.GetFinalizers(), finalizerName) {
 		logger.Info(fmt.Sprintf("Adding finalizer to support archive %q", cr.Name))
 		cr.Finalizers = append(cr.Finalizers, finalizerName)
