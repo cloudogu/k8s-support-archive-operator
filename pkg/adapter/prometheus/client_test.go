@@ -26,7 +26,7 @@ func TestTokenTransport_RoundTrip(t *testing.T) {
 		tripperMock := newMockRoundTripper(t)
 		tripperMock.EXPECT().RoundTrip(testRequest).Return(nil, nil)
 		transport := TokenTransport{
-			RoundTripper: tripperMock,
+			roundTripper: tripperMock,
 			token:        token,
 		}
 

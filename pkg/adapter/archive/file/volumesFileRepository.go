@@ -57,7 +57,7 @@ func (v *VolumesFileRepository) createVolumeInfo(ctx context.Context, id domain.
 }
 
 func (v *VolumesFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) (func() error, error) {
-	return v.baseFileRepo.stream(ctx, id, archiveVolumeInfoDirName, stream)
+	return v.stream(ctx, id, archiveVolumeInfoDirName, stream)
 }
 
 func (v *VolumesFileRepository) Delete(ctx context.Context, id domain.SupportArchiveID) error {

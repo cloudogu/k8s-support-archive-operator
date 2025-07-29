@@ -57,7 +57,7 @@ func (p *PrometheusMetricsV1API) queryInt64(ctx context.Context, query string, t
 
 func (p *PrometheusMetricsV1API) query(ctx context.Context, query string, ts time.Time) (string, error) {
 	logger := log.FromContext(ctx).WithName("PrometheusMetricsV1API.query")
-	value, warnings, err := p.v1API.Query(ctx, query, ts)
+	value, warnings, err := p.Query(ctx, query, ts)
 	if err != nil {
 		return "", err
 	}

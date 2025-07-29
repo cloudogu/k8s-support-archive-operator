@@ -61,7 +61,7 @@ func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportA
 }
 
 func (l *LogFileRepository) Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) (func() error, error) {
-	return l.baseFileRepo.stream(ctx, id, archiveLogDirName, stream)
+	return l.stream(ctx, id, archiveLogDirName, stream)
 }
 
 func (l *LogFileRepository) Delete(ctx context.Context, id domain.SupportArchiveID) error {

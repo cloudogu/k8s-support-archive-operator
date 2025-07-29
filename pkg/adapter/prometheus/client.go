@@ -7,7 +7,7 @@ import (
 )
 
 type TokenTransport struct {
-	http.RoundTripper
+	roundTripper
 	token string
 }
 
@@ -16,14 +16,14 @@ func (tt *TokenTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		req.Header.Add("Authorization", tt.token)
 	}
 
-	return tt.RoundTripper.RoundTrip(req)
+	return tt.roundTripper.RoundTrip(req)
 }
 
 func GetClient(address, token string) (api.Client, error) {
 	transport := api.DefaultRoundTripper
 
 	tokenTransport := &TokenTransport{
-		RoundTripper: transport,
+		roundTripper: transport,
 		token:        token,
 	}
 
