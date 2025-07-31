@@ -1,0 +1,19 @@
+{{- if .Values.global.networkPolicies.enabled }}
+{{- if .Values.global.networkPolicies.denyIngress }}
+# This NetworkPolicy denies all ingress to k8s-support-archive-operator.
+# Dependent Dogus and Components must bring their own NetworkPolicy to access k8s-support-archive-operator.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ printf "%s-deny-ingress" (include "helm.name" .) | trunc 63 | trimSuffix "-" }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "helm.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "helm.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+{{- end}}
+{{- end}}
