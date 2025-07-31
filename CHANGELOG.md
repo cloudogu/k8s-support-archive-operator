@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- [#10] add network policies to allow ingress from k8s-ces-control (and deny everything else)
+- [#10] add network policies to all deny ingress
 
 ### Added
 - [#5] Adds initial logic for the operator
