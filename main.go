@@ -47,6 +47,11 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+const (
+	archivePath = "/data/support-archives"
+	workPath    = "/data/work"
+)
+
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
@@ -106,9 +111,6 @@ func startOperator(
 	}
 
 	v1SupportArchive := ecoClientSet.SupportArchiveV1()
-
-	archivePath := "/data/support-archives"
-	workPath := "/data/work"
 	supportArchiveRepository := file.NewZipFileArchiveRepository(archivePath, file.NewZipWriter, operatorConfig)
 
 	fs := filesystem.FileSystem{}
