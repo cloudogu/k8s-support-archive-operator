@@ -4,9 +4,10 @@ global:
 controllerManager:
   manager:
     args:
-      - --metrics-bind-address=:8443
+      - --metrics-bind-address=:8082
       - --health-probe-bind-address=:8081
     containerSecurityContext:
+      runAsGroup: 65532
       allowPrivilegeEscalation: false
       capabilities:
         drop:
@@ -18,14 +19,17 @@ controllerManager:
     resources:
       limits:
         memory: 105M
+        ephemeral-storage: 100Mi
       requests:
         cpu: 15m
         memory: 105M
+        ephemeral-storage: 100Mi
   env:
     logLevel: debug
     stage: development
   imagePullPolicy: IfNotPresent
   podSecurityContext:
+    fsGroup: 65532
     runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
@@ -36,7 +40,43 @@ kubernetesClusterDomain: cluster.local
 metricsService:
   ports:
     - name: https
-      port: 8443
+      port: 8082
       protocol: TCP
-      targetPort: 8443
+      targetPort: 8082
   type: ClusterIP
+webserver:
+  env:
+    downloadService:
+      protocol: http
+      port: 8080
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsGroup: 65532
+    capabilities:
+      drop:
+        - ALL
+  resources:
+    requests:
+      cpu: 15m
+      memory: 64Mi
+      ephemeral-storage: 100Mi
+    limits:
+      memory: 64Mi
+      ephemeral-storage: 100Mi
+  image:
+    registry: docker.io
+    repository: nginxinc/nginx-unprivileged
+    tag: 1.28.0-alpine
+  imagePullPolicy: IfNotPresent
+  pvc:
+    accessModes:
+      - ReadWriteOnce
+    requests:
+      storage: 1Gi
+    keepOnDelete: true
+  service:
+    type: ClusterIP
+    ports:
+      - protocol: TCP
+        port: 8080
+        targetPort: 8080
