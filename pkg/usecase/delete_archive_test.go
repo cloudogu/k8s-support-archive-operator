@@ -26,7 +26,7 @@ func TestDeleteArchiveUseCase_Delete(t *testing.T) {
 	}
 	type args struct {
 		ctx context.Context
-		cr  *libapi.SupportArchive
+		id  domain.SupportArchiveID
 	}
 	tests := []struct {
 		name    string
@@ -63,7 +63,7 @@ func TestDeleteArchiveUseCase_Delete(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				cr:  testCR,
+				id:  testID,
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestDeleteArchiveUseCase_Delete(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				cr:  testCR,
+				id:  testID,
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
@@ -108,7 +108,7 @@ func TestDeleteArchiveUseCase_Delete(t *testing.T) {
 				supportArchiveRepository: tt.fields.supportArchiveRepository(t),
 				collectorMapping:         tt.fields.collectorMapping(t),
 			}
-			tt.wantErr(t, d.Delete(tt.args.ctx, tt.args.cr))
+			tt.wantErr(t, d.Delete(tt.args.ctx, tt.args.id))
 		})
 	}
 }

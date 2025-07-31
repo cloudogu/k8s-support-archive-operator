@@ -32,10 +32,15 @@ type supportArchiveRepository interface {
 	Create(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]*domain.Stream) (url string, err error)
 	Delete(ctx context.Context, id domain.SupportArchiveID) error
 	Exists(ctx context.Context, id domain.SupportArchiveID) (bool, error)
+	List(ctx context.Context) ([]domain.SupportArchiveID, error)
 }
 
 type supportArchiveV1Interface interface {
 	libclient.SupportArchiveV1Interface
+}
+
+type deleteArchiveHandler interface {
+	Delete(ctx context.Context, id domain.SupportArchiveID) error
 }
 
 //nolint:unused

@@ -184,6 +184,64 @@ func (_c *mockSupportArchiveRepository_Exists_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// List provides a mock function with given fields: ctx
+func (_m *mockSupportArchiveRepository) List(ctx context.Context) ([]domain.SupportArchiveID, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for List")
+	}
+
+	var r0 []domain.SupportArchiveID
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]domain.SupportArchiveID, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []domain.SupportArchiveID); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.SupportArchiveID)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// mockSupportArchiveRepository_List_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'List'
+type mockSupportArchiveRepository_List_Call struct {
+	*mock.Call
+}
+
+// List is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *mockSupportArchiveRepository_Expecter) List(ctx interface{}) *mockSupportArchiveRepository_List_Call {
+	return &mockSupportArchiveRepository_List_Call{Call: _e.mock.On("List", ctx)}
+}
+
+func (_c *mockSupportArchiveRepository_List_Call) Run(run func(ctx context.Context)) *mockSupportArchiveRepository_List_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *mockSupportArchiveRepository_List_Call) Return(_a0 []domain.SupportArchiveID, _a1 error) *mockSupportArchiveRepository_List_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *mockSupportArchiveRepository_List_Call) RunAndReturn(run func(context.Context) ([]domain.SupportArchiveID, error)) *mockSupportArchiveRepository_List_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // newMockSupportArchiveRepository creates a new instance of mockSupportArchiveRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func newMockSupportArchiveRepository(t interface {

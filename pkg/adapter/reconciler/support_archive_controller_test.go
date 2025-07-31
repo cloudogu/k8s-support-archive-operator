@@ -3,6 +3,7 @@ package reconciler
 import (
 	"context"
 	v1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -92,99 +93,25 @@ func createScheme(t *testing.T) *runtime.Scheme {
 }
 
 func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
-	initialArchiveCr := &v1.SupportArchive{
+	archiveCr := &v1.SupportArchive{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testSupportArchive,
 			Namespace: testNamespace,
 		},
 	}
 
-	archiveCrWithFinalizer := &v1.SupportArchive{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       testSupportArchive,
-			Namespace:  testNamespace,
-			Finalizers: []string{"k8s.cloudogu.com/support-archive-reconciler"},
-		},
+	archiveId := domain.SupportArchiveID{
+		Namespace: testNamespace,
+		Name:      testSupportArchive,
 	}
 
 	deletedArchiveCr := &v1.SupportArchive{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              testSupportArchive,
 			Namespace:         testNamespace,
-			Finalizers:        []string{"k8s.cloudogu.com/support-archive-reconciler"},
 			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 		},
 	}
-
-	t.Run("should do nothing if the request is not found", func(t *testing.T) {
-		// given
-		request := ctrl.Request{NamespacedName: types.NamespacedName{Name: testSupportArchive, Namespace: testNamespace}}
-		mockV1Interface := newMockSupportArchiveV1Interface(t)
-		mockInterface := newMockSupportArchiveInterface(t)
-		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
-		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(nil, errors.NewNotFound(schema.GroupResource{}, "not found"))
-
-		sut := &SupportArchiveReconciler{
-			client: mockV1Interface,
-		}
-
-		// when
-		actual, err := sut.Reconcile(testCtx, request)
-
-		// then
-		require.NoError(t, err)
-		assert.Equal(t, ctrl.Result{Requeue: false}, actual)
-	})
-
-	t.Run("should add finalizer and retry", func(t *testing.T) {
-		// given
-		request := ctrl.Request{NamespacedName: types.NamespacedName{Name: testSupportArchive, Namespace: testNamespace}}
-		mockV1Interface := newMockSupportArchiveV1Interface(t)
-		mockInterface := newMockSupportArchiveInterface(t)
-		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(initialArchiveCr, nil)
-		mockInterface.EXPECT().Update(testCtx, archiveCrWithFinalizer, metav1.UpdateOptions{}).Return(nil, nil)
-
-		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
-		sut := &SupportArchiveReconciler{
-			client: mockV1Interface,
-		}
-
-		// when
-		actual, err := sut.Reconcile(testCtx, request)
-
-		// then
-		require.NoError(t, err)
-		assert.Equal(t, ctrl.Result{Requeue: true}, actual)
-	})
-
-	t.Run("should retry with error on error adding finalizer", func(t *testing.T) {
-		// given
-		archiveCrWithoutFinalizer := &v1.SupportArchive{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      testSupportArchive,
-				Namespace: testNamespace,
-			},
-		}
-
-		request := ctrl.Request{NamespacedName: types.NamespacedName{Name: testSupportArchive, Namespace: testNamespace}}
-		mockV1Interface := newMockSupportArchiveV1Interface(t)
-		mockInterface := newMockSupportArchiveInterface(t)
-		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(archiveCrWithoutFinalizer, nil)
-		mockInterface.EXPECT().Update(testCtx, archiveCrWithFinalizer, metav1.UpdateOptions{}).Return(nil, assert.AnError)
-
-		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
-		sut := &SupportArchiveReconciler{
-			client: mockV1Interface,
-		}
-
-		// when
-		actual, err := sut.Reconcile(testCtx, request)
-
-		// then
-		require.Error(t, err)
-		assert.ErrorIs(t, err, assert.AnError)
-		assert.Equal(t, ctrl.Result{Requeue: true}, actual)
-	})
 
 	t.Run("should proceed with archive creation", func(t *testing.T) {
 		// given
@@ -192,9 +119,9 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		mockV1Interface := newMockSupportArchiveV1Interface(t)
 		mockInterface := newMockSupportArchiveInterface(t)
 		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
-		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(archiveCrWithFinalizer, nil)
+		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(archiveCr, nil)
 		archiveHandlerMock := newMockCreateArchiveHandler(t)
-		archiveHandlerMock.EXPECT().HandleArchiveRequest(testCtx, archiveCrWithFinalizer).Return(true, nil)
+		archiveHandlerMock.EXPECT().HandleArchiveRequest(testCtx, archiveCr).Return(true, nil)
 
 		sut := &SupportArchiveReconciler{
 			client:        mockV1Interface,
@@ -215,13 +142,36 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		mockV1Interface := newMockSupportArchiveV1Interface(t)
 		mockInterface := newMockSupportArchiveInterface(t)
 		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
-		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(archiveCrWithFinalizer, nil)
+		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(archiveCr, nil)
 		archiveHandlerMock := newMockCreateArchiveHandler(t)
-		archiveHandlerMock.EXPECT().HandleArchiveRequest(testCtx, archiveCrWithFinalizer).Return(false, nil)
+		archiveHandlerMock.EXPECT().HandleArchiveRequest(testCtx, archiveCr).Return(false, nil)
 
 		sut := &SupportArchiveReconciler{
 			client:        mockV1Interface,
 			createHandler: archiveHandlerMock,
+		}
+
+		// when
+		actual, err := sut.Reconcile(testCtx, request)
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, ctrl.Result{Requeue: false}, actual)
+	})
+
+	t.Run("should cleanup if the request is not found", func(t *testing.T) {
+		// given
+		request := ctrl.Request{NamespacedName: types.NamespacedName{Name: testSupportArchive, Namespace: testNamespace}}
+		mockV1Interface := newMockSupportArchiveV1Interface(t)
+		mockInterface := newMockSupportArchiveInterface(t)
+		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
+		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(nil, errors.NewNotFound(schema.GroupResource{}, "not found"))
+		archiveCleanerMock := newMockDeleteArchiveHandler(t)
+		archiveCleanerMock.EXPECT().Delete(testCtx, archiveId).Return(nil)
+
+		sut := &SupportArchiveReconciler{
+			client:        mockV1Interface,
+			deleteHandler: archiveCleanerMock,
 		}
 
 		// when
@@ -240,8 +190,7 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
 		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(deletedArchiveCr, nil)
 		archiveCleanerMock := newMockDeleteArchiveHandler(t)
-		archiveCleanerMock.EXPECT().Delete(testCtx, deletedArchiveCr).Return(nil)
-		mockInterface.EXPECT().RemoveFinalizer(testCtx, deletedArchiveCr, "k8s.cloudogu.com/support-archive-reconciler").Return(nil, nil)
+		archiveCleanerMock.EXPECT().Delete(testCtx, archiveId).Return(nil)
 
 		sut := &SupportArchiveReconciler{
 			client:        mockV1Interface,
@@ -264,8 +213,7 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
 		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(deletedArchiveCr, nil)
 		archiveCleanerMock := newMockDeleteArchiveHandler(t)
-		archiveCleanerMock.EXPECT().Delete(testCtx, deletedArchiveCr).Return(assert.AnError)
-		mockInterface.EXPECT().RemoveFinalizer(testCtx, deletedArchiveCr, "k8s.cloudogu.com/support-archive-reconciler").Return(nil, assert.AnError)
+		archiveCleanerMock.EXPECT().Delete(testCtx, archiveId).Return(assert.AnError)
 
 		sut := &SupportArchiveReconciler{
 			client:        mockV1Interface,
@@ -278,6 +226,6 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		// then
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
-		assert.Equal(t, ctrl.Result{Requeue: true}, actual)
+		assert.Equal(t, ctrl.Result{}, actual)
 	})
 }

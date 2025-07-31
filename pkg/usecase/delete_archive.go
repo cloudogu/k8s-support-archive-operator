@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	libapi "github.com/cloudogu/k8s-support-archive-lib/api/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 )
 
@@ -21,12 +20,7 @@ func NewDeleteArchiveUseCase(collectorMapping CollectorMapping, supportArchiveRe
 	}
 }
 
-func (d *DeleteArchiveUseCase) Delete(ctx context.Context, cr *libapi.SupportArchive) error {
-	id := domain.SupportArchiveID{
-		Namespace: cr.Namespace,
-		Name:      cr.Name,
-	}
-
+func (d *DeleteArchiveUseCase) Delete(ctx context.Context, id domain.SupportArchiveID) error {
 	var multiErr []error
 	// Always try to delete all collector files to avoid zombie data.
 	for col := range d.collectorMapping {

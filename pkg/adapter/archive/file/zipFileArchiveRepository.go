@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
@@ -180,6 +182,32 @@ func (z *ZipFileArchiveRepository) Exists(_ context.Context, id domain.SupportAr
 		return false, fmt.Errorf("failed to check if file %s exists: %w", destinationPath, err)
 	}
 	return true, nil
+}
+
+func (z *ZipFileArchiveRepository) List(_ context.Context) ([]domain.SupportArchiveID, error) {
+	archiveMatcher := regexp.MustCompile(fmt.Sprintf("%s/%s", regexp.QuoteMeta(z.archivesPath), `(?P<namespace>[^/]+)/(?P<name>[^/.]+)\.zip`))
+	namespaceIndex := archiveMatcher.SubexpIndex("namespace")
+	nameIndex := archiveMatcher.SubexpIndex("name")
+
+	var list []domain.SupportArchiveID
+	err := z.filesystem.WalkDir(z.archivesPath, func(path string, d fs.DirEntry, err error) error {
+		errs := []error{err}
+		if !d.IsDir() {
+			matches := archiveMatcher.FindStringSubmatch(path)
+			if matches == nil || len(matches) != 3 {
+				errs = append(errs, fmt.Errorf("failed to match path %q: not an archive", path))
+			} else {
+				list = append(list, domain.SupportArchiveID{
+					Namespace: matches[namespaceIndex],
+					Name:      matches[nameIndex],
+				})
+			}
+		}
+
+		return errors.Join(errs...)
+	})
+
+	return list, err
 }
 
 func (z *ZipFileArchiveRepository) getArchivePath(id domain.SupportArchiveID) string {
