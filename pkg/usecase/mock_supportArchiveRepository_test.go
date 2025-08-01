@@ -23,7 +23,7 @@ func (_m *mockSupportArchiveRepository) EXPECT() *mockSupportArchiveRepository_E
 }
 
 // Create provides a mock function with given fields: ctx, id, streams
-func (_m *mockSupportArchiveRepository) Create(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]domain.Stream) (string, error) {
+func (_m *mockSupportArchiveRepository) Create(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]*domain.Stream) (string, error) {
 	ret := _m.Called(ctx, id, streams)
 
 	if len(ret) == 0 {
@@ -32,16 +32,16 @@ func (_m *mockSupportArchiveRepository) Create(ctx context.Context, id domain.Su
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, map[domain.CollectorType]domain.Stream) (string, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, map[domain.CollectorType]*domain.Stream) (string, error)); ok {
 		return rf(ctx, id, streams)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, map[domain.CollectorType]domain.Stream) string); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID, map[domain.CollectorType]*domain.Stream) string); ok {
 		r0 = rf(ctx, id, streams)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, domain.SupportArchiveID, map[domain.CollectorType]domain.Stream) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, domain.SupportArchiveID, map[domain.CollectorType]*domain.Stream) error); ok {
 		r1 = rf(ctx, id, streams)
 	} else {
 		r1 = ret.Error(1)
@@ -58,14 +58,14 @@ type mockSupportArchiveRepository_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id domain.SupportArchiveID
-//   - streams map[domain.CollectorType]domain.Stream
+//   - streams map[domain.CollectorType]*domain.Stream
 func (_e *mockSupportArchiveRepository_Expecter) Create(ctx interface{}, id interface{}, streams interface{}) *mockSupportArchiveRepository_Create_Call {
 	return &mockSupportArchiveRepository_Create_Call{Call: _e.mock.On("Create", ctx, id, streams)}
 }
 
-func (_c *mockSupportArchiveRepository_Create_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]domain.Stream)) *mockSupportArchiveRepository_Create_Call {
+func (_c *mockSupportArchiveRepository_Create_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]*domain.Stream)) *mockSupportArchiveRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(domain.SupportArchiveID), args[2].(map[domain.CollectorType]domain.Stream))
+		run(args[0].(context.Context), args[1].(domain.SupportArchiveID), args[2].(map[domain.CollectorType]*domain.Stream))
 	})
 	return _c
 }
@@ -75,7 +75,7 @@ func (_c *mockSupportArchiveRepository_Create_Call) Return(url string, err error
 	return _c
 }
 
-func (_c *mockSupportArchiveRepository_Create_Call) RunAndReturn(run func(context.Context, domain.SupportArchiveID, map[domain.CollectorType]domain.Stream) (string, error)) *mockSupportArchiveRepository_Create_Call {
+func (_c *mockSupportArchiveRepository_Create_Call) RunAndReturn(run func(context.Context, domain.SupportArchiveID, map[domain.CollectorType]*domain.Stream) (string, error)) *mockSupportArchiveRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -180,6 +180,64 @@ func (_c *mockSupportArchiveRepository_Exists_Call) Return(_a0 bool, _a1 error) 
 }
 
 func (_c *mockSupportArchiveRepository_Exists_Call) RunAndReturn(run func(context.Context, domain.SupportArchiveID) (bool, error)) *mockSupportArchiveRepository_Exists_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// List provides a mock function with given fields: ctx
+func (_m *mockSupportArchiveRepository) List(ctx context.Context) ([]domain.SupportArchiveID, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for List")
+	}
+
+	var r0 []domain.SupportArchiveID
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]domain.SupportArchiveID, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []domain.SupportArchiveID); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.SupportArchiveID)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// mockSupportArchiveRepository_List_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'List'
+type mockSupportArchiveRepository_List_Call struct {
+	*mock.Call
+}
+
+// List is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *mockSupportArchiveRepository_Expecter) List(ctx interface{}) *mockSupportArchiveRepository_List_Call {
+	return &mockSupportArchiveRepository_List_Call{Call: _e.mock.On("List", ctx)}
+}
+
+func (_c *mockSupportArchiveRepository_List_Call) Run(run func(ctx context.Context)) *mockSupportArchiveRepository_List_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *mockSupportArchiveRepository_List_Call) Return(_a0 []domain.SupportArchiveID, _a1 error) *mockSupportArchiveRepository_List_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *mockSupportArchiveRepository_List_Call) RunAndReturn(run func(context.Context) ([]domain.SupportArchiveID, error)) *mockSupportArchiveRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }

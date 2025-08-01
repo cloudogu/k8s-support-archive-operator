@@ -1,9 +1,10 @@
-package reconciler
+package kubernetes
 
 import (
 	"context"
-	libv1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
+	"github.com/cloudogu/k8s-support-archive-lib/api/v1"
 	libclient "github.com/cloudogu/k8s-support-archive-lib/client/v1"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -24,9 +25,9 @@ type supportArchiveV1Interface interface {
 }
 
 type createArchiveHandler interface {
-	HandleArchiveRequest(ctx context.Context, cr *libv1.SupportArchive) (requeue bool, err error)
+	HandleArchiveRequest(ctx context.Context, cr *v1.SupportArchive) (requeue bool, err error)
 }
 
 type deleteArchiveHandler interface {
-	Delete(ctx context.Context, cr *libv1.SupportArchive) error
+	Delete(ctx context.Context, id domain.SupportArchiveID) error
 }

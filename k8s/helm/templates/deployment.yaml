@@ -43,6 +43,12 @@ spec:
             subPath: support-archives
       - args: {{ toYaml .Values.controllerManager.manager.args | nindent 8 }}
         env:
+        - name: METRICS_SERVICE_NAME
+          value: {{ .Values.metrics.service.name }}
+        - name: METRICS_SERVICE_PORT
+          value: "{{ .Values.metrics.service.port }}"
+        - name: METRICS_SERVICE_PROTOCOL
+          value: {{ .Values.metrics.service.protocol }}
         - name: KUBERNETES_CLUSTER_DOMAIN
           value: {{ quote .Values.kubernetesClusterDomain }}
         - name: STAGE
@@ -55,6 +61,8 @@ spec:
           value: {{ quote .Values.webserver.env.downloadService.protocol | default "http" }}
         - name: ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT
           value: {{ quote .Values.webserver.env.downloadService.port | default "8080" }}
+        - name: SUPPORT_ARCHIVE_SYNC_INTERVAL
+          value: {{ .Values.controllerManager.env.supportArchiveSyncInterval | default "1m" }}
         - name: NAMESPACE
           valueFrom:
             fieldRef:

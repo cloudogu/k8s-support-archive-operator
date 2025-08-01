@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"golang.org/x/sync/errgroup"
+	"time"
+
 	libapi "github.com/cloudogu/k8s-support-archive-lib/api/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"github.com/go-logr/logr"
-	"golang.org/x/sync/errgroup"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"time"
 )
 
 type CollectorAndRepository struct {
@@ -27,10 +28,9 @@ func (cm CollectorMapping) getRequiredCollectorMapping(cr *libapi.SupportArchive
 	if !cr.Spec.ExcludedContents.Logs {
 		mapping[domain.CollectorTypeLog] = cm[domain.CollectorTypeLog]
 	}
-	// TODO extend with more collectors
-	/*if !cr.Spec.ExcludedContents.VolumeInfo {
-		mapping[domain.CollectorTypVolume] = cm[domain.CollectorTypVolume]
-	}*/
+	if !cr.Spec.ExcludedContents.VolumeInfo {
+		mapping[domain.CollectorTypVolumeInfo] = cm[domain.CollectorTypVolumeInfo]
+	}
 
 	return mapping
 }
@@ -90,8 +90,13 @@ func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *lib
 		return false, nil
 	}
 
-	err = c.executeNextCollector(ctx, id, collectorsToExecute)
+	nextCollector := collectorsToExecute[0]
+	err = c.executeNextCollector(ctx, id, nextCollector)
+	conditionErr := c.setConditionForCollector(ctx, cr, nextCollector, err)
 	if err != nil {
+		if conditionErr != nil {
+			logger.Error(err, "could not add collector condition")
+		}
 		return true, fmt.Errorf("could not execute next collector: %w", err)
 	}
 
@@ -114,42 +119,28 @@ func (c *CreateArchiveUseCase) deleteUnusedRepositoryData(ctx context.Context, i
 
 func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.SupportArchiveID, requiredCollectors CollectorMapping) (string, error) {
 	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase.createArchive")
-	streamMap := make(map[domain.CollectorType]domain.Stream)
-	streamFinalizers := make([]func() error, len(requiredCollectors))
-	defer func() {
-		finalizeStreams(streamFinalizers, logger)
-	}()
+	streamMap := make(map[domain.CollectorType]*domain.Stream)
 
 	errGroup, errCtx := errgroup.WithContext(ctx)
 
 	for col := range requiredCollectors {
+		var stream *domain.Stream
+		var err error
 		logger.Info("collecting stream for collector", "collector", col)
 		switch col {
 		case domain.CollectorTypeLog:
-			_, repo, typeErr := getCollectorAndRepositoryForType[domain.PodLog](col, c.collectorMapping)
-			if typeErr != nil {
-				return "", typeErr
-			}
-
-			resultChan := make(chan domain.StreamData)
-			stream := domain.Stream{
-				Data: resultChan,
-			}
-
-			errGroup.Go(func() error {
-				finalizer, err := streamFromRepository[domain.PodLog](errCtx, repo, id, stream)
-				streamFinalizers = append(streamFinalizers, finalizer)
-				if err != nil {
-					return fmt.Errorf("could not stream from repository for collector %s: %w", col, err)
-				}
-				return nil
-			})
-			streamMap[col] = stream
-		case domain.CollectorTypVolume:
-			return "", errors.New("not implemented yet")
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.PodLog](errCtx, errGroup, col, c.collectorMapping, id)
+		case domain.CollectorTypVolumeInfo:
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.VolumeInfo](errCtx, errGroup, col, c.collectorMapping, id)
 		default:
 			return "", errors.New("invalid collector type")
 		}
+
+		if err != nil {
+			return "", err
+		}
+
+		streamMap[col] = stream
 	}
 
 	var url string
@@ -168,16 +159,47 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 	return url, nil
 }
 
-func finalizeStreams(finalizers []func() error, logger logr.Logger) {
-	for _, finalizer := range finalizers {
-		if finalizer == nil {
-			continue
-		}
-		err := finalizer()
-		if err != nil {
-			logger.Error(err, "could not finalize collector")
-		}
+func fetchRepoAndStreamWithErrorGroup[DATATYPE domain.CollectorUnionDataType](errCtx context.Context, group *errgroup.Group, col domain.CollectorType, collectorMapping CollectorMapping, id domain.SupportArchiveID) (*domain.Stream, error) {
+	_, repo, typeErr := getCollectorAndRepositoryForType[DATATYPE](col, collectorMapping)
+	if typeErr != nil {
+		return nil, typeErr
 	}
+
+	resultChan := make(chan domain.StreamData)
+	stream := &domain.Stream{
+		Data: resultChan,
+	}
+	group.Go(func() error {
+		var err error
+		err = streamFromRepository[DATATYPE](errCtx, repo, id, stream)
+		if err != nil {
+			return fmt.Errorf("could not stream from repository for collector %s: %w", col, err)
+		}
+		return nil
+	})
+
+	return stream, nil
+}
+
+func (c *CreateArchiveUseCase) setConditionForCollector(ctx context.Context, cr *libapi.SupportArchive, collectorType domain.CollectorType, err error) error {
+	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase.setConditionForCollector")
+	client := c.supportArchivesInterface.SupportArchives(cr.Namespace)
+	var condition metav1.Condition
+	if err == nil {
+		condition = getSuccessfulCollectorCondition(collectorType)
+	} else {
+		condition = getErrorCollectorCondition(collectorType, err)
+	}
+
+	_, err = client.UpdateStatusWithRetry(ctx, cr, func(status libapi.SupportArchiveStatus) libapi.SupportArchiveStatus {
+		meta.SetStatusCondition(&status.Conditions, condition)
+		return status
+	}, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to add condition for collector %s: %w", collectorType, err)
+	}
+	logger.Info("Condition set successfully", "collector", collectorType)
+	return nil
 }
 
 func (c *CreateArchiveUseCase) updateFinalStatus(ctx context.Context, cr *libapi.SupportArchive, url string) error {
@@ -196,8 +218,7 @@ func (c *CreateArchiveUseCase) updateFinalStatus(ctx context.Context, cr *libapi
 	return nil
 }
 
-func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id domain.SupportArchiveID, collectorsToExecute []domain.CollectorType) error {
-	next := collectorsToExecute[0]
+func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id domain.SupportArchiveID, next domain.CollectorType) error {
 	var err error
 	switch next {
 	case domain.CollectorTypeLog:
@@ -207,8 +228,13 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 		}
 
 		err = startCollector(ctx, id, time.Now(), time.Now(), col, repo)
-	case domain.CollectorTypVolume:
-		err = fmt.Errorf("not implemented yet")
+	case domain.CollectorTypVolumeInfo:
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.VolumeInfo](next, c.collectorMapping)
+		if typeErr != nil {
+			return typeErr
+		}
+
+		err = startCollector(ctx, id, time.Now(), time.Now(), col, repo)
 	default:
 		return fmt.Errorf("collector type %s is not supported", next)
 	}
@@ -217,12 +243,10 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 		return fmt.Errorf("failed to execute collector %s: %w", next, err)
 	}
 
-	// TODO Add collector as condition in cr.status
-
 	return nil
 }
 
-func getCollectorAndRepositoryForType[DATATYPE any](collectorType domain.CollectorType, mapping CollectorMapping) (collector[DATATYPE], collectorRepository[DATATYPE], error) {
+func getCollectorAndRepositoryForType[DATATYPE domain.CollectorUnionDataType](collectorType domain.CollectorType, mapping CollectorMapping) (collector[DATATYPE], collectorRepository[DATATYPE], error) {
 	col, ok := mapping[collectorType].Collector.(collector[DATATYPE])
 	if !ok {
 		return nil, nil, fmt.Errorf("invalid collector type for collector %s", collectorType)
@@ -236,14 +260,14 @@ func getCollectorAndRepositoryForType[DATATYPE any](collectorType domain.Collect
 	return col, repo, nil
 }
 
-func startCollector[DATATYPE any](ctx context.Context, id domain.SupportArchiveID, startTime, endTime time.Time, collector collector[DATATYPE], repository collectorRepository[DATATYPE]) error {
+func startCollector[DATATYPE domain.CollectorUnionDataType](ctx context.Context, id domain.SupportArchiveID, startTime, endTime time.Time, collector collector[DATATYPE], repository collectorRepository[DATATYPE]) error {
 	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase.startCollector")
 	resultChan := make(chan *DATATYPE)
 	errGroup, errCtx := errgroup.WithContext(ctx)
 
 	errGroup.Go(func() error {
 		logger.Info("starting collector")
-		return collector.Collect(errCtx, startTime, endTime, resultChan)
+		return collector.Collect(errCtx, id.Namespace, startTime, endTime, resultChan)
 	})
 
 	errGroup.Go(func() error {
@@ -313,14 +337,34 @@ func getSuccessfulArchiveCreatedCondition(downloadURL string) metav1.Condition {
 	}
 }
 
-func streamFromRepository[DATATYPE any](ctx context.Context, repository collectorRepository[DATATYPE], id domain.SupportArchiveID, stream domain.Stream) (func() error, error) {
+func getSuccessfulCollectorCondition(collectorType domain.CollectorType) metav1.Condition {
+	return metav1.Condition{
+		Type:               collectorType.GetConditionType(),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Time{Time: time.Now()},
+		Reason:             "CollectorExecuted",
+		Message:            fmt.Sprintf("Successfully executed collector %s", collectorType),
+	}
+}
+
+func getErrorCollectorCondition(collectorType domain.CollectorType, err error) metav1.Condition {
+	return metav1.Condition{
+		Type:               collectorType.GetConditionType(),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Time{Time: time.Now()},
+		Reason:             "ErrorDuringExecution",
+		Message:            err.Error(),
+	}
+}
+
+func streamFromRepository[DATATYPE domain.CollectorUnionDataType](ctx context.Context, repository collectorRepository[DATATYPE], id domain.SupportArchiveID, stream *domain.Stream) error {
 	isCollected, err := repository.IsCollected(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("error during is collected call for collector: %w", err)
+		return fmt.Errorf("error during is collected call for collector: %w", err)
 	}
 
 	if !isCollected {
-		return nil, errors.New("collector is not completed")
+		return errors.New("collector is not completed")
 	}
 
 	return repository.Stream(ctx, id, stream)

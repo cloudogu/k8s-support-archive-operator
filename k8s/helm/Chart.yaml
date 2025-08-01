@@ -20,6 +20,7 @@ version: 0.0.0-replaceme
 # It is recommended to use it with quotes.
 appVersion: "0.0.0-replaceme"
 
+# TODO: Should we add prometheus as required dependency? Support archive could be created without it.
 annotations:
   # Dependency for the SupportArchive-CRD.
   # Allow all versions up to next major version to avoid breaking changes

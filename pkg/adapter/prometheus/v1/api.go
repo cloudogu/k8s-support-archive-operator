@@ -1,0 +1,91 @@
+package v1
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/api/prometheus/v1"
+	"github.com/prometheus/common/model"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"strconv"
+	"time"
+)
+
+const (
+	capacityBytesQueryFmt = "kubelet_volume_stats_capacity_bytes{namespace=\"%s\", persistentvolumeclaim=\"%s\"}"
+	usedBytesQueryFmt     = "kubelet_volume_stats_used_bytes{namespace=\"%s\", persistentvolumeclaim=\"%s\"}"
+)
+
+type PrometheusMetricsV1API struct {
+	v1API
+}
+
+func NewPrometheusMetricsV1API(client client) *PrometheusMetricsV1API {
+	return &PrometheusMetricsV1API{v1.NewAPI(client)}
+}
+
+func (p *PrometheusMetricsV1API) GetCapacityBytesForPVC(ctx context.Context, namespace, pvcName string, ts time.Time) (int64, error) {
+	query := fmt.Sprintf(capacityBytesQueryFmt, namespace, pvcName)
+
+	return p.queryInt64(ctx, query, ts)
+}
+
+func (p *PrometheusMetricsV1API) GetUsedBytesForPVC(ctx context.Context, namespace, pvcName string, ts time.Time) (int64, error) {
+	query := fmt.Sprintf(usedBytesQueryFmt, namespace, pvcName)
+
+	return p.queryInt64(ctx, query, ts)
+}
+
+func (p *PrometheusMetricsV1API) queryInt64(ctx context.Context, query string, ts time.Time) (int64, error) {
+	result, err := p.query(ctx, query, ts)
+	if err != nil {
+		return 0, err
+	}
+
+	if result == "" {
+		return 0, nil
+	}
+
+	bytesInt, err := strconv.ParseInt(result, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse string %s to int64: %w", result, err)
+	}
+
+	return bytesInt, nil
+}
+
+func (p *PrometheusMetricsV1API) query(ctx context.Context, query string, ts time.Time) (string, error) {
+	logger := log.FromContext(ctx).WithName("PrometheusMetricsV1API.query")
+	value, warnings, err := p.Query(ctx, query, ts)
+	if err != nil {
+		return "", err
+	}
+
+	logWarnings(logger, warnings)
+
+	switch v := value.(type) {
+	case model.Vector:
+		if len(v) == 0 {
+			logger.Info(fmt.Sprintf("empty vector result for query %s", query))
+			return "", nil
+		}
+		logger.Info(fmt.Sprintf("vector result: %s", v.String()))
+		// Query should always return one value
+		return v[0].Value.String(), nil
+	case model.Matrix:
+		return "", errors.New("matrix type not implemented")
+	case *model.Scalar:
+		return "", errors.New("scalar type not implemented")
+	case *model.String:
+		return "", errors.New("string type not implemented")
+	default:
+		return "", errors.New("unknown prometheus return type")
+	}
+}
+
+func logWarnings(logger logr.Logger, warnings []string) {
+	for _, warning := range warnings {
+		logger.Info(fmt.Sprintf("Warning: %s", warning))
+	}
+}

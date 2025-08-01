@@ -9,6 +9,10 @@ type Stream struct {
 }
 
 type StreamData struct {
-	ID     string
-	Reader io.Reader
+	ID                string
+	StreamConstructor StreamConstructor
 }
+
+type StreamConstructor func() (io.Reader, CloseStreamFunc, error)
+
+type CloseStreamFunc func() error

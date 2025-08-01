@@ -4,19 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/archive/file"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/reconciler"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	// Import all Kubernetes client auth plugins (e.g., Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -27,12 +15,27 @@ import (
 	k8scloudoguclient "github.com/cloudogu/k8s-support-archive-lib/client"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	config2 "sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	// +kubebuilder:scaffold:imports
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/archive/file"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
+	adapterK8s "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/kubernetes"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus"
+	v1 "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus/v1"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
 )
 
 var (
@@ -43,6 +46,11 @@ var (
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
+)
+
+const (
+	archivePath = "/data/support-archives"
+	workPath    = "/data/work"
 )
 
 func init() {
@@ -104,24 +112,34 @@ func startOperator(
 	}
 
 	v1SupportArchive := ecoClientSet.SupportArchiveV1()
-
-	archivePath := "/data/support-archives"
-	workPath := "/data/work"
 	supportArchiveRepository := file.NewZipFileArchiveRepository(archivePath, file.NewZipWriter, operatorConfig)
 
 	fs := filesystem.FileSystem{}
-	baseFileRepository := file.NewBaseFileRepository(workPath, fs)
 
 	logCollector := collector.NewLogCollector()
-	logRepository := file.NewLogFileRepository(workPath, fs, baseFileRepository)
+	logRepository := file.NewLogFileRepository(workPath, fs)
+
+	address := fmt.Sprintf("%s://%s.%s.svc.cluster.local:%s", operatorConfig.MetricsServiceProtocol, operatorConfig.MetricsServiceName, operatorConfig.Namespace, operatorConfig.MetricsServicePort)
+	// TODO Implement ServiceAccount for Prometheus. Create secret in Prometheus Chart and use it?
+	metricsClient, err := prometheus.GetClient(address, "")
+	if err != nil {
+		return fmt.Errorf("unable to create prometheus client: %w", err)
+	}
+	metricsCollector := v1.NewPrometheusMetricsV1API(metricsClient)
+
+	volumesCollector := collector.NewVolumesCollector(ecoClientSet.CoreV1(), metricsCollector)
+	volumeRepository := file.NewVolumesFileRepository(workPath, fs)
 
 	mapping := make(map[domain.CollectorType]usecase.CollectorAndRepository)
 	mapping[domain.CollectorTypeLog] = usecase.CollectorAndRepository{Collector: logCollector, Repository: logRepository}
+	mapping[domain.CollectorTypVolumeInfo] = usecase.CollectorAndRepository{Collector: volumesCollector, Repository: volumeRepository}
 
 	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
 	deleteUseCase := usecase.NewDeleteArchiveUseCase(mapping, supportArchiveRepository)
-	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, createUseCase, deleteUseCase)
-	err = configureManager(k8sManager, r)
+	r := adapterK8s.NewSupportArchiveReconciler(v1SupportArchive, createUseCase, deleteUseCase)
+	reconciliationTrigger := make(chan event.GenericEvent)
+	syncHandler := usecase.NewSyncArchiveUseCase(v1SupportArchive, supportArchiveRepository, deleteUseCase, operatorConfig.SupportArchiveSyncInterval, operatorConfig.Namespace, reconciliationTrigger)
+	err = configureManager(k8sManager, r, reconciliationTrigger, syncHandler)
 	if err != nil {
 		return fmt.Errorf("unable to configure manager: %w", err)
 	}
@@ -142,10 +160,17 @@ func NewK8sManager(
 	return ctrl.NewManager(restConfig, options)
 }
 
-func configureManager(k8sManager controllerManager, supportArchiveReconciler *reconciler.SupportArchiveReconciler) error {
-	err := supportArchiveReconciler.SetupWithManager(k8sManager)
+func configureManager(k8sManager controllerManager, supportArchiveReconciler *adapterK8s.SupportArchiveReconciler, trigger chan event.GenericEvent, syncHandler *usecase.SyncArchiveUseCase) error {
+	err := supportArchiveReconciler.SetupWithManager(k8sManager, trigger)
 	if err != nil {
 		return fmt.Errorf("unable to configure reconciler: %w", err)
+	}
+
+	err = k8sManager.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		return syncHandler.SyncArchivesWithInterval(ctx)
+	}))
+	if err != nil {
+		return fmt.Errorf("unable to add sync archive handler: %w", err)
 	}
 
 	err = addChecks(k8sManager)

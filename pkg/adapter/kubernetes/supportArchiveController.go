@@ -1,22 +1,23 @@
-package reconciler
+package kubernetes
 
 import (
 	"context"
 	"errors"
 	"fmt"
+
 	libv1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+
+	k8sErrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"slices"
-)
-
-const (
-	finalizerName = "k8s.cloudogu.com/support-archive-reconciler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 type SupportArchiveReconciler struct {
@@ -35,36 +36,18 @@ func NewSupportArchiveReconciler(client supportArchiveV1Interface, createHandler
 
 func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-
 	logger.Info(fmt.Sprintf("Reconciler is triggered by resource %q", req.NamespacedName))
 
 	archiveInterface := s.client.SupportArchives(req.Namespace)
 	cr, err := archiveInterface.Get(ctx, req.Name, metav1.GetOptions{})
-	if err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	if !slices.Contains(cr.GetFinalizers(), finalizerName) {
-		logger.Info(fmt.Sprintf("Adding finalizer to support archive %q", cr.Name))
-		cr.Finalizers = append(cr.Finalizers, finalizerName)
-		_, updateErr := archiveInterface.Update(ctx, cr, metav1.UpdateOptions{})
-		return ctrl.Result{Requeue: true}, updateErr
-	}
-
-	if !cr.GetDeletionTimestamp().IsZero() {
-		cleanupErr := s.deleteHandler.Delete(ctx, cr)
-		if cleanupErr != nil {
-			// Do not return here to avoid blocking in error case.
-			// Garbage collection can try to clean up inconsistent files later.
-			logger.Info(fmt.Sprintf("Failed to clean up for support archive request %q: %v", cr.Name, cleanupErr))
-		}
-
-		_, updateErr := archiveInterface.RemoveFinalizer(ctx, cr, finalizerName)
-		if updateErr != nil {
-			return ctrl.Result{Requeue: true}, updateErr
-		}
-
-		return ctrl.Result{Requeue: false}, nil
+	if err != nil && !k8sErrs.IsNotFound(err) {
+		return ctrl.Result{}, err
+	} else if k8sErrs.IsNotFound(err) || !cr.GetDeletionTimestamp().IsZero() {
+		cleanupErr := s.deleteHandler.Delete(ctx, domain.SupportArchiveID{
+			Namespace: req.Namespace,
+			Name:      req.Name,
+		})
+		return ctrl.Result{}, cleanupErr
 	}
 
 	requeue, err := s.createHandler.HandleArchiveRequest(ctx, cr)
@@ -72,7 +55,7 @@ func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (s *SupportArchiveReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (s *SupportArchiveReconciler) SetupWithManager(mgr ctrl.Manager, externalEvents <-chan event.GenericEvent) error {
 	if mgr == nil {
 		return errors.New("must provide a non-nil Manager")
 	}
@@ -87,5 +70,6 @@ func (s *SupportArchiveReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(options).
 		For(&libv1.SupportArchive{}).
+		WatchesRawSource(source.Channel(externalEvents, &handler.EnqueueRequestForObject{})).
 		Complete(s)
 }
