@@ -2,11 +2,16 @@ package kubernetes
 
 import (
 	"context"
-	v1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	v1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -15,9 +20,8 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/config"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"testing"
-	"time"
 )
 
 var testCtx = context.Background()
@@ -55,7 +59,7 @@ func TestSupportArchiveReconciler_SetupWithManager(t *testing.T) {
 		sut := &SupportArchiveReconciler{}
 
 		// when
-		err := sut.SetupWithManager(nil)
+		err := sut.SetupWithManager(nil, nil)
 
 		// then
 		require.Error(t, err)
@@ -74,7 +78,7 @@ func TestSupportArchiveReconciler_SetupWithManager(t *testing.T) {
 		sut := &SupportArchiveReconciler{}
 
 		// when
-		err := sut.SetupWithManager(ctrlManMock)
+		err := sut.SetupWithManager(ctrlManMock, make(<-chan event.GenericEvent))
 
 		// then
 		require.NoError(t, err)

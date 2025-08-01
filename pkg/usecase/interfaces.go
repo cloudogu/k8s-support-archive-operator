@@ -2,9 +2,10 @@ package usecase
 
 import (
 	"context"
+	"time"
+
 	libclient "github.com/cloudogu/k8s-support-archive-lib/client/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"time"
 )
 
 type collector[DATATYPE domain.CollectorUnionDataType] interface {

@@ -12,9 +12,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 type SupportArchiveReconciler struct {
@@ -52,7 +55,7 @@ func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (s *SupportArchiveReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (s *SupportArchiveReconciler) SetupWithManager(mgr ctrl.Manager, externalEvents <-chan event.GenericEvent) error {
 	if mgr == nil {
 		return errors.New("must provide a non-nil Manager")
 	}
@@ -67,5 +70,6 @@ func (s *SupportArchiveReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(options).
 		For(&libv1.SupportArchive{}).
+		WatchesRawSource(source.Channel(externalEvents, &handler.EnqueueRequestForObject{})).
 		Complete(s)
 }

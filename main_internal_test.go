@@ -3,19 +3,22 @@ package main
 import (
 	"context"
 	"flag"
-	v1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
-	"github.com/go-logr/logr"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	v1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
+
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	config2 "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"testing"
 )
 
 var testCtx = context.Background()
@@ -82,7 +85,7 @@ func Test_configureManager(t *testing.T) {
 		// given
 
 		// when
-		err := configureManager(nil, nil, nil)
+		err := configureManager(nil, nil, nil, nil)
 
 		// then
 		require.Error(t, err)
@@ -95,7 +98,7 @@ func Test_configureManager(t *testing.T) {
 		managerMock.EXPECT().GetScheme().Return(&runtime.Scheme{})
 
 		// when
-		err := configureManager(managerMock, nil, nil)
+		err := configureManager(managerMock, nil, nil, nil)
 
 		// then
 		require.Error(t, err)
