@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -12,6 +13,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -464,27 +466,6 @@ func Test_baseFileRepository_Stream(t *testing.T) {
 				assert.ErrorIs(t, err, assert.AnError)
 			},
 		},
-		{
-			name: "should close the stream on success",
-			fields: fields{
-				workPath:  testWorkPath,
-				directory: testCollectorDirName,
-				filesystem: func(t *testing.T) volumeFs {
-					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().WalkDir(testWorkDirArchivePath, mock.Anything).Return(nil)
-					return fsMock
-				},
-			},
-			args: args{
-				ctx:    testCtx,
-				id:     testID,
-				stream: getEmptyStream(),
-			},
-			wantErr: func(t *testing.T, err error) {
-				require.NoError(t, err)
-			},
-			waitForClose: true,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -609,5 +590,65 @@ func Test_baseFileRepository_createStreamConstructor(t *testing.T) {
 				assert.NotNil(t, closeReader)
 			}
 		})
+	}
+}
+
+func TestBaseFileRepository(t *testing.T) {
+	t.Run("should close the stream after all files were streamed", func(t *testing.T) {
+		const collectorDir = "collectorDir"
+		const supportArchiveNamespace = "ecosystem"
+		const supportArchiveName = "testArchive"
+
+		workPath := filepath.Join(t.TempDir(), "work")
+
+		fullPath := filepath.Join(workPath, supportArchiveNamespace, supportArchiveName, collectorDir)
+		err := os.MkdirAll(fullPath, os.ModePerm)
+		checkError(t, err)
+
+		fileWriteError := os.WriteFile(filepath.Join(fullPath, "file01.txt"), []byte("file01"), os.ModePerm)
+		checkError(t, fileWriteError)
+
+		fileWriteError = os.WriteFile(filepath.Join(fullPath, stateFileName), []byte("done"), os.ModePerm)
+		checkError(t, fileWriteError)
+
+		repo := NewBaseFileRepository(workPath, collectorDir, filesystem.FileSystem{})
+
+		ctx := context.Background()
+		supportArchiveID := domain.SupportArchiveID{Namespace: supportArchiveNamespace, Name: supportArchiveName}
+		stream := &domain.Stream{
+			Data: make(chan domain.StreamData),
+		}
+
+		waitGroup, _ := errgroup.WithContext(ctx)
+		waitGroup.Go(receiveAll(stream.Data))
+
+		streamError := repo.Stream(ctx, supportArchiveID, stream)
+
+		waitError := waitGroup.Wait()
+		checkError(t, waitError)
+
+		assert.NoError(t, streamError)
+
+		_, open := <-stream.Data
+		assert.False(t, open)
+	})
+}
+
+func checkError(t *testing.T, err error) {
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func receiveAll(channel chan domain.StreamData) func() error {
+	return func() error {
+		for {
+			select {
+			case _, open := <-channel:
+				if !open {
+					return nil
+				}
+			}
+		}
 	}
 }
