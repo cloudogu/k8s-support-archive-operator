@@ -6,6 +6,7 @@ import (
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"strconv"
+	"time"
 )
 
 const (
@@ -16,8 +17,10 @@ const (
 	archiveVolumeDownloadServiceNameEnvVar     = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME"
 	archiveVolumeDownloadServiceProtocolEnvVar = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL"
 	archiveVolumeDownloadServicePortEnvVar     = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT"
+	supportArchiveSyncIntervalEnvVar           = "SUPPORT_ARCHIVE_SYNC_INTERVAL"
 	logLevelEnvVar                             = "LOG_LEVEL"
-	errEnvVarFmt                               = "failed to get env var [%s]: %w"
+	errGetEnvVarFmt                            = "failed to get env var [%s]: %w"
+	errParseEnvVarFmt                          = "failed to parse env var [%s]: %w"
 	metricsServiceNameEnvVar                   = "METRICS_SERVICE_NAME"
 	metricsServicePortEnvVar                   = "METRICS_SERVICE_PORT"
 	metricsServiceProtocolEnvVar               = "METRICS_SERVICE_PROTOCOL"
@@ -38,6 +41,8 @@ type OperatorConfig struct {
 	ArchiveVolumeDownloadServiceProtocol string
 	// ArchiveVolumeDownloadServicePort defines the used port for the download service.
 	ArchiveVolumeDownloadServicePort string
+	// SupportArchiveSyncInterval defines the interval in which to resolve the difference between support archive CRDs and the archives on disk.
+	SupportArchiveSyncInterval time.Duration
 	// MetricsServiceName defines the service name for metrics service.
 	MetricsServiceName string
 	// MetricsServicePort defines the service port for metrics service.
@@ -84,6 +89,12 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	}
 	log.Info(fmt.Sprintf("Archive volume download service port: %s", archiveVolumeDownloadServicePort))
 
+	supportArchiveSyncInterval, err := getSupportArchiveSyncInterval()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get support archive sync interval: %w", err)
+	}
+	log.Info(fmt.Sprintf("Support archive sync interval: %s", supportArchiveSyncInterval))
+
 	metricsServiceName, err := getEnvVar(metricsServiceNameEnvVar)
 	if err != nil {
 		return nil, err
@@ -108,6 +119,7 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 		ArchiveVolumeDownloadServiceName:     archiveVolumeDownloadServiceName,
 		ArchiveVolumeDownloadServiceProtocol: archiveVolumeDownloadServiceProtocol,
 		ArchiveVolumeDownloadServicePort:     archiveVolumeDownloadServicePort,
+		SupportArchiveSyncInterval:           supportArchiveSyncInterval,
 		// prometheus is optional?
 		MetricsServiceName:     metricsServiceName,
 		MetricsServicePort:     metricsServicePort,
@@ -130,7 +142,7 @@ func configureStage() {
 func GetLogLevel() (string, error) {
 	logLevel, err := getEnvVar(logLevelEnvVar)
 	if err != nil {
-		return "", fmt.Errorf(errEnvVarFmt, logLevelEnvVar, err)
+		return "", fmt.Errorf(errGetEnvVarFmt, logLevelEnvVar, err)
 	}
 
 	return logLevel, nil
@@ -139,7 +151,7 @@ func GetLogLevel() (string, error) {
 func getNamespace() (string, error) {
 	namespace, err := getEnvVar(namespaceEnvVar)
 	if err != nil {
-		return "", fmt.Errorf(errEnvVarFmt, namespaceEnvVar, err)
+		return "", fmt.Errorf(errGetEnvVarFmt, namespaceEnvVar, err)
 	}
 
 	return namespace, nil
@@ -148,7 +160,7 @@ func getNamespace() (string, error) {
 func getArchiveVolumeDownloadServiceName() (string, error) {
 	envVar, err := getEnvVar(archiveVolumeDownloadServiceNameEnvVar)
 	if err != nil {
-		return "", fmt.Errorf(errEnvVarFmt, archiveVolumeDownloadServiceNameEnvVar, err)
+		return "", fmt.Errorf(errGetEnvVarFmt, archiveVolumeDownloadServiceNameEnvVar, err)
 	}
 
 	return envVar, nil
@@ -157,7 +169,7 @@ func getArchiveVolumeDownloadServiceName() (string, error) {
 func getArchiveVolumeDownloadServiceProtocol() (string, error) {
 	envVar, err := getEnvVar(archiveVolumeDownloadServiceProtocolEnvVar)
 	if err != nil {
-		return "", fmt.Errorf(errEnvVarFmt, archiveVolumeDownloadServiceProtocolEnvVar, err)
+		return "", fmt.Errorf(errGetEnvVarFmt, archiveVolumeDownloadServiceProtocolEnvVar, err)
 	}
 
 	return envVar, nil
@@ -166,15 +178,29 @@ func getArchiveVolumeDownloadServiceProtocol() (string, error) {
 func getArchiveVolumeDownloadServicePort() (string, error) {
 	envVar, err := getEnvVar(archiveVolumeDownloadServicePortEnvVar)
 	if err != nil {
-		return "", fmt.Errorf(errEnvVarFmt, archiveVolumeDownloadServicePortEnvVar, err)
+		return "", fmt.Errorf(errGetEnvVarFmt, archiveVolumeDownloadServicePortEnvVar, err)
 	}
 
 	_, err = strconv.Atoi(envVar)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse env var [%s]: %w", archiveVolumeDownloadServicePortEnvVar, err)
+		return "", fmt.Errorf(errParseEnvVarFmt, archiveVolumeDownloadServicePortEnvVar, err)
 	}
 
 	return envVar, nil
+}
+
+func getSupportArchiveSyncInterval() (time.Duration, error) {
+	envVar, err := getEnvVar(supportArchiveSyncIntervalEnvVar)
+	if err != nil {
+		return 0, fmt.Errorf(errGetEnvVarFmt, supportArchiveSyncIntervalEnvVar, err)
+	}
+
+	duration, err := time.ParseDuration(envVar)
+	if err != nil {
+		return 0, fmt.Errorf(errParseEnvVarFmt, supportArchiveSyncIntervalEnvVar, err)
+	}
+
+	return duration, nil
 }
 
 func getEnvVar(name string) (string, error) {

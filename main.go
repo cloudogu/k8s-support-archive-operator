@@ -4,21 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/archive/file"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus"
-	v1 "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus/v1"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/reconciler"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	// Import all Kubernetes client auth plugins (e.g., Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -29,12 +15,26 @@ import (
 	k8scloudoguclient "github.com/cloudogu/k8s-support-archive-lib/client"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	config2 "sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	// +kubebuilder:scaffold:imports
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/archive/file"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
+	adapterK8s "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/kubernetes"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus"
+	v1 "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus/v1"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
 )
 
 var (
@@ -135,8 +135,9 @@ func startOperator(
 
 	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
 	deleteUseCase := usecase.NewDeleteArchiveUseCase(mapping, supportArchiveRepository)
-	r := reconciler.NewSupportArchiveReconciler(v1SupportArchive, createUseCase, deleteUseCase)
-	err = configureManager(k8sManager, r)
+	r := adapterK8s.NewSupportArchiveReconciler(v1SupportArchive, createUseCase, deleteUseCase)
+	syncHandler := usecase.NewSyncArchiveUseCase(v1SupportArchive, supportArchiveRepository, deleteUseCase, operatorConfig.SupportArchiveSyncInterval)
+	err = configureManager(k8sManager, r, syncHandler)
 	if err != nil {
 		return fmt.Errorf("unable to configure manager: %w", err)
 	}
@@ -157,10 +158,17 @@ func NewK8sManager(
 	return ctrl.NewManager(restConfig, options)
 }
 
-func configureManager(k8sManager controllerManager, supportArchiveReconciler *reconciler.SupportArchiveReconciler) error {
+func configureManager(k8sManager controllerManager, supportArchiveReconciler *adapterK8s.SupportArchiveReconciler, syncHandler *usecase.SyncArchiveUseCase) error {
 	err := supportArchiveReconciler.SetupWithManager(k8sManager)
 	if err != nil {
 		return fmt.Errorf("unable to configure reconciler: %w", err)
+	}
+
+	err = k8sManager.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		return syncHandler.SyncArchivesWithInterval(ctx)
+	}))
+	if err != nil {
+		return fmt.Errorf("unable to add sync archive handler: %w", err)
 	}
 
 	err = addChecks(k8sManager)

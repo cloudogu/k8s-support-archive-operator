@@ -61,6 +61,8 @@ spec:
           value: {{ quote .Values.webserver.env.downloadService.protocol | default "http" }}
         - name: ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT
           value: {{ quote .Values.webserver.env.downloadService.port | default "8080" }}
+        - name: SUPPORT_ARCHIVE_SYNC_INTERVAL
+          value: {{ .Values.controllerManager.env.supportArchiveSyncInterval | default "1m" }}
         - name: NAMESPACE
           valueFrom:
             fieldRef:

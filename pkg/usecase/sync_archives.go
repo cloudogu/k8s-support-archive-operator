@@ -18,6 +18,10 @@ type SyncArchiveUseCase struct {
 	syncInterval             time.Duration
 }
 
+func NewSyncArchiveUseCase(supportArchivesInterface supportArchiveV1Interface, supportArchiveRepository supportArchiveRepository, supportArchiveHandler deleteArchiveHandler, syncInterval time.Duration) *SyncArchiveUseCase {
+	return &SyncArchiveUseCase{supportArchivesInterface: supportArchivesInterface, supportArchiveRepository: supportArchiveRepository, supportArchiveHandler: supportArchiveHandler, syncInterval: syncInterval}
+}
+
 func (s *SyncArchiveUseCase) SyncArchivesWithInterval(ctx context.Context) error {
 	logger := log.FromContext(ctx).
 		WithName("support archive sync interval handler")

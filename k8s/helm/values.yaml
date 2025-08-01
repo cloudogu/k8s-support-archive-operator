@@ -27,6 +27,7 @@ controllerManager:
   env:
     logLevel: debug
     stage: development
+    supportArchiveSyncInterval: 1m
   imagePullPolicy: IfNotPresent
   podSecurityContext:
     fsGroup: 65532
