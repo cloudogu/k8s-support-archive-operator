@@ -85,7 +85,7 @@ func (l *baseFileRepository) Delete(_ context.Context, id domain.SupportArchiveI
 	return nil
 }
 
-// create queries elements from the stream and calls the concrete createFn for each element.
+// create receives elements from the stream and calls the concrete createFn for each element.
 // If an error occurs, create executes deleteFn to tidy up.
 // If the stream is closed, create will end and call the finishFn.
 func create[DATATYPE domain.CollectorUnionDataType](ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *DATATYPE, createFn createFn[DATATYPE], deleteFn deleteFn, finishFn finishFn) error {
