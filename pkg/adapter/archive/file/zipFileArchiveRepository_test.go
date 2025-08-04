@@ -366,50 +366,6 @@ func TestZipFileArchiveRepository_Create(t *testing.T) {
 			want: testArchiveURL,
 		},
 		{
-			name: "should return error closing the reader",
-			fields: fields{
-				filesystem: func(t *testing.T) volumeFs {
-					fileMock := newMockClosableRWFile(t)
-					fileMock.EXPECT().Close().Return(nil)
-
-					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testNamespacePath, os.FileMode(0755)).Return(nil)
-					fsMock.EXPECT().OpenFile(testArchivePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0644)).Return(fileMock, nil)
-
-					fsMock.EXPECT().Copy(casWriter, casReader).Return(0, nil)
-
-					fsMock.EXPECT().Remove(testArchivePath).Return(nil)
-
-					return fsMock
-				},
-				zipCreator: func(t *testing.T) zipCreator {
-					zipMock := NewMockZipper(t)
-					zipMock.EXPECT().Close().Return(nil)
-
-					zipMock.EXPECT().Create("Logs/cas.log").Return(casWriter, nil)
-
-					return func(w io.Writer) Zipper {
-						return zipMock
-					}
-				},
-				archivesPath:                         testArchivesPath,
-				archiveVolumeDownloadServicePort:     testPort,
-				archiveVolumeDownloadServiceName:     testServiceName,
-				archiveVolumeDownloadServiceProtocol: testProtocol,
-			},
-			args: args{
-				ctx: testCtx,
-				id:  testID,
-				streams: map[domain.CollectorType]*domain.Stream{
-					domain.CollectorTypeLog: getTestStream(casReader, ldapReader, false, true, false),
-				},
-			},
-			wantErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, assert.AnError)
-				assert.ErrorContains(t, err, "error closing reader for file /cas.log")
-			},
-		},
-		{
 			name: "should return error creating the data reader",
 			fields: fields{
 				filesystem: func(t *testing.T) volumeFs {

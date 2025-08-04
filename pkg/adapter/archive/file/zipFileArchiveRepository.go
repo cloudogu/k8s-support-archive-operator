@@ -93,6 +93,16 @@ func (z *ZipFileArchiveRepository) getArchiveURL(id domain.SupportArchiveID) str
 }
 
 func (z *ZipFileArchiveRepository) rangeOverStream(ctx context.Context, collector domain.CollectorType, stream *domain.Stream, zipWriter Zipper) error {
+	var closeFuncs []domain.CloseStreamFunc
+	defer func() {
+		for _, closeFunc := range closeFuncs {
+			err := closeFunc()
+			if err != nil {
+				log.FromContext(ctx).Error(err, "failed to close file reader")
+			}
+		}
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -103,15 +113,11 @@ func (z *ZipFileArchiveRepository) rangeOverStream(ctx context.Context, collecto
 				if err != nil {
 					return fmt.Errorf("failed to construct reader for file %s: %w", data.ID, err)
 				}
+				closeFuncs = append(closeFuncs, closeReader)
 
 				dataErr := z.copyDataFromStreamToArchive(zipWriter, collector, data.ID, reader)
 				if dataErr != nil {
 					return fmt.Errorf("error streaming data: %w", dataErr)
-				}
-
-				err = closeReader()
-				if err != nil {
-					return fmt.Errorf("error closing reader for file %s: %w", data.ID, err)
 				}
 			} else {
 				return nil
