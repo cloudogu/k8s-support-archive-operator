@@ -170,8 +170,7 @@ func fetchRepoAndStreamWithErrorGroup[DATATYPE domain.CollectorUnionDataType](er
 		Data: resultChan,
 	}
 	group.Go(func() error {
-		var err error
-		err = streamFromRepository[DATATYPE](errCtx, repo, id, stream)
+		err := streamFromRepository[DATATYPE](errCtx, repo, id, stream)
 		if err != nil {
 			return fmt.Errorf("could not stream from repository for collector %s: %w", col, err)
 		}
