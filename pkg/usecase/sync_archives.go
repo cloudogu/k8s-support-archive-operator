@@ -15,29 +15,29 @@ import (
 )
 
 type SyncArchiveUseCase struct {
-	supportArchivesInterface supportArchiveV1Interface
-	supportArchiveRepository supportArchiveRepository
-	supportArchiveHandler    deleteArchiveHandler
-	namespace                string
-	syncInterval             time.Duration
-	reconciliationTrigger    chan<- event.GenericEvent
+	supportArchivesInterface    supportArchiveV1Interface
+	supportArchiveRepository    supportArchiveRepository
+	supportArchiveDeleteHandler deleteArchiveHandler
+	namespace                   string
+	syncInterval                time.Duration
+	reconciliationTrigger       chan<- event.GenericEvent
 }
 
 func NewSyncArchiveUseCase(
 	supportArchivesInterface supportArchiveV1Interface,
 	supportArchiveRepository supportArchiveRepository,
-	supportArchiveHandler deleteArchiveHandler,
+	supportArchiveDeleteHandler deleteArchiveHandler,
 	syncInterval time.Duration,
 	namespace string,
 	reconciliationTrigger chan<- event.GenericEvent,
 ) *SyncArchiveUseCase {
 	return &SyncArchiveUseCase{
-		supportArchivesInterface: supportArchivesInterface,
-		supportArchiveRepository: supportArchiveRepository,
-		supportArchiveHandler:    supportArchiveHandler,
-		syncInterval:             syncInterval,
-		namespace:                namespace,
-		reconciliationTrigger:    reconciliationTrigger,
+		supportArchivesInterface:    supportArchivesInterface,
+		supportArchiveRepository:    supportArchiveRepository,
+		supportArchiveDeleteHandler: supportArchiveDeleteHandler,
+		syncInterval:                syncInterval,
+		namespace:                   namespace,
+		reconciliationTrigger:       reconciliationTrigger,
 	}
 }
 
@@ -53,7 +53,6 @@ func (s *SyncArchiveUseCase) SyncArchivesWithInterval(ctx context.Context) error
 	for {
 		select {
 		case <-ctx.Done():
-			errs = append(errs, ctx.Err())
 			return errors.Join(errs...)
 		case <-ticker.C:
 			logger.Info("regularly syncing support archives...")
@@ -82,42 +81,36 @@ func (s *SyncArchiveUseCase) syncArchives(ctx context.Context) error {
 		return fmt.Errorf("failed to list support archive descriptors: %w", err)
 	}
 
-	toDelete, toAdd := s.diff(storedSupportArchives, supportArchiveDescriptors.Items)
-
+	toDelete := s.diff(storedSupportArchives, supportArchiveDescriptors.Items)
 	var errs []error
-	for _, archive := range toDelete {
-		err := s.supportArchiveHandler.Delete(ctx, archive)
+	for archive := range toDelete {
+		err := s.supportArchiveDeleteHandler.Delete(ctx, archive)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to delete support archive %q: %w", archive.Name, err))
 		}
 	}
 
-	for _, archive := range toAdd {
+	for _, archive := range supportArchiveDescriptors.Items {
 		s.reconciliationTrigger <- event.GenericEvent{Object: &archive}
 	}
 
 	return errors.Join(errs...)
 }
 
-func (s *SyncArchiveUseCase) diff(storedSupportArchives []domain.SupportArchiveID, supportArchiveDescriptors []libv1.SupportArchive) ([]domain.SupportArchiveID, []libv1.SupportArchive) {
-	toDelete := make([]domain.SupportArchiveID, len(storedSupportArchives))
-	copy(toDelete, storedSupportArchives)
-	toAdd := make([]libv1.SupportArchive, len(supportArchiveDescriptors))
-	copy(toAdd, supportArchiveDescriptors)
+func (s *SyncArchiveUseCase) diff(storedSupportArchives []domain.SupportArchiveID, supportArchiveDescriptors []libv1.SupportArchive) map[domain.SupportArchiveID]struct{} {
+	toDelete := make(map[domain.SupportArchiveID]struct{}, len(storedSupportArchives))
+	for _, archive := range storedSupportArchives {
+		toDelete[archive] = struct{}{}
+	}
 
-	for i, storedArchive := range storedSupportArchives {
-		for j, archiveDescriptor := range supportArchiveDescriptors {
+	for _, storedArchive := range storedSupportArchives {
+		for _, archiveDescriptor := range supportArchiveDescriptors {
 			if storedArchive.Name == archiveDescriptor.Name && storedArchive.Namespace == archiveDescriptor.Namespace {
-				toDelete = remove(toDelete, i)
-				toAdd = remove(toAdd, j)
+				delete(toDelete, storedArchive)
+				break // we can only break because we know there are no duplicates
 			}
 		}
 	}
 
-	return toDelete, toAdd
-}
-
-func remove[T any](s []T, i int) []T {
-	s[i] = s[len(s)-1]
-	return s[:len(s)-1]
+	return toDelete
 }
