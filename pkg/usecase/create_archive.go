@@ -91,7 +91,7 @@ func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *lib
 	}
 
 	nextCollector := collectorsToExecute[0]
-	err = c.executeNextCollector(ctx, id, nextCollector)
+	err = c.executeNextCollector(ctx, id, nextCollector, cr.Spec.ContentTimeframe.StartTime, cr.Spec.ContentTimeframe.EndTime)
 	conditionErr := c.setConditionForCollector(ctx, cr, nextCollector, err)
 	if err != nil {
 		if conditionErr != nil {
@@ -217,7 +217,7 @@ func (c *CreateArchiveUseCase) updateFinalStatus(ctx context.Context, cr *libapi
 	return nil
 }
 
-func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id domain.SupportArchiveID, next domain.CollectorType) error {
+func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id domain.SupportArchiveID, next domain.CollectorType, startTime metav1.Time, endTime metav1.Time) error {
 	var err error
 	switch next {
 	case domain.CollectorTypeLog:
@@ -226,14 +226,14 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 			return typeErr
 		}
 
-		err = startCollector(ctx, id, time.Now(), time.Now(), col, repo)
+		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
 	case domain.CollectorTypVolumeInfo:
 		col, repo, typeErr := getCollectorAndRepositoryForType[domain.VolumeInfo](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}
 
-		err = startCollector(ctx, id, time.Now(), time.Now(), col, repo)
+		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
 	default:
 		return fmt.Errorf("collector type %s is not supported", next)
 	}
