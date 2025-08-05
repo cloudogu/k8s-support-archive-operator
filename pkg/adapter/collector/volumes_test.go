@@ -42,7 +42,7 @@ func TestVolumesCollector_Collect(t *testing.T) {
 		ctx          context.Context
 		namespace    string
 		start        time.Time
-		in3          time.Time
+		end          time.Time
 		resultChan   chan *domain.VolumeInfo
 		waitForClose bool
 	}
@@ -74,7 +74,7 @@ func TestVolumesCollector_Collect(t *testing.T) {
 				ctx:        testCtx,
 				namespace:  testNamespace,
 				start:      time.Time{},
-				in3:        time.Time{},
+				end:        time.Time{},
 				resultChan: make(chan *domain.VolumeInfo, 1),
 			},
 			wantErr: func(t *testing.T, err error) {
@@ -104,7 +104,7 @@ func TestVolumesCollector_Collect(t *testing.T) {
 				ctx:          testCtx,
 				namespace:    testNamespace,
 				start:        time.Time{},
-				in3:          time.Time{},
+				end:          time.Time{},
 				resultChan:   make(chan *domain.VolumeInfo),
 				waitForClose: true,
 			},
@@ -133,8 +133,8 @@ func TestVolumesCollector_Collect(t *testing.T) {
 			args: args{
 				ctx:          testCtx,
 				namespace:    testNamespace,
-				start:        now,
-				in3:          time.Time{},
+				start:        time.Time{},
+				end:          now,
 				resultChan:   make(chan *domain.VolumeInfo),
 				waitForClose: false,
 			},
@@ -166,8 +166,8 @@ func TestVolumesCollector_Collect(t *testing.T) {
 			args: args{
 				ctx:          testCtx,
 				namespace:    testNamespace,
-				start:        now,
-				in3:          time.Time{},
+				start:        time.Time{},
+				end:          now,
 				resultChan:   make(chan *domain.VolumeInfo),
 				waitForClose: false,
 			},
@@ -199,8 +199,8 @@ func TestVolumesCollector_Collect(t *testing.T) {
 			args: args{
 				ctx:          testCtx,
 				namespace:    testNamespace,
-				start:        now,
-				in3:          time.Time{},
+				start:        time.Time{},
+				end:          now,
 				resultChan:   make(chan *domain.VolumeInfo),
 				waitForClose: true,
 			},
@@ -231,7 +231,7 @@ func TestVolumesCollector_Collect(t *testing.T) {
 
 			group, _ := errgroup.WithContext(tt.args.ctx)
 			group.Go(func() error {
-				err := vc.Collect(tt.args.ctx, tt.args.namespace, tt.args.start, tt.args.in3, tt.args.resultChan)
+				err := vc.Collect(tt.args.ctx, tt.args.namespace, tt.args.start, tt.args.end, tt.args.resultChan)
 				return err
 			})
 

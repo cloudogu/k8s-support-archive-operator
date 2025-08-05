@@ -24,7 +24,7 @@ func (vc *VolumesCollector) Name() string {
 	return string(domain.CollectorTypVolumeInfo)
 }
 
-func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, start, _ time.Time, resultChan chan<- *domain.VolumeInfo) error {
+func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, _, end time.Time, resultChan chan<- *domain.VolumeInfo) error {
 	list, err := vc.coreV1Interface.PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing pvcs: %w", err)
@@ -35,10 +35,10 @@ func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, start
 		return nil
 	}
 
-	result := &domain.VolumeInfo{Name: pvcVolumeMetricName, Timestamp: start, Items: make([]domain.VolumeInfoItem, 0, len(list.Items))}
+	result := &domain.VolumeInfo{Name: pvcVolumeMetricName, Timestamp: end, Items: make([]domain.VolumeInfoItem, 0, len(list.Items))}
 
 	for _, pvc := range list.Items {
-		i, itemErr := vc.getOutputItem(ctx, pvc.Name, namespace, string(pvc.Status.Phase), start)
+		i, itemErr := vc.getOutputItem(ctx, pvc.Name, namespace, string(pvc.Status.Phase), end)
 		if itemErr != nil {
 			return fmt.Errorf("error getting output item for pvc %s: %w", pvc.Name, itemErr)
 		}
