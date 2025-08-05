@@ -77,7 +77,7 @@ func TestNewOperatorConfig(t *testing.T) {
 		// then
 		require.Error(t, err)
 		require.Nil(t, operatorConfig)
-		assert.ErrorContains(t, err, "failed to parse version: Invalid Semantic Version")
+		assert.ErrorContains(t, err, "failed to parse version: invalid semantic version")
 	})
 	t.Run("fail to read namespace because of non existent env var", func(t *testing.T) {
 		// given
