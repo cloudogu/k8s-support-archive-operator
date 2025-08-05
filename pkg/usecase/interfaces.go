@@ -17,10 +17,6 @@ type baseCollectorRepository interface {
 	Delete(ctx context.Context, id domain.SupportArchiveID) error
 	FinishCollection(ctx context.Context, id domain.SupportArchiveID) error
 	IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error)
-	// Stream streams data to the given stream
-	// It returns a func to finalize the stream which has to be called by the useCase to free up resources and avoid memory exhaustion.
-	// The repository itself cannot do this because it cannot recognize when the data is fully read.
-	// The func may be nil.
 	Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) error
 }
 
@@ -30,6 +26,9 @@ type collectorRepository[DATATYPE domain.CollectorUnionDataType] interface {
 }
 
 type supportArchiveRepository interface {
+	// Create builds the support archive for the provided streams.
+	// The stream itself contains a constructor with a Close Func.
+	// The func must be called by the repository after reading the stream or when an error occurs to avoid resource exhaustion.
 	Create(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]*domain.Stream) (url string, err error)
 	Delete(ctx context.Context, id domain.SupportArchiveID) error
 	Exists(ctx context.Context, id domain.SupportArchiveID) (bool, error)
