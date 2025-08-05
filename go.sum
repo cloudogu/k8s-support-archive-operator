@@ -6,8 +6,8 @@ github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM
 github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
-github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250801123845-6dd9800cb007 h1:l6YzTyuVv+IzpSxQnKttTfHyt3a0cacPnp2qA0SMMIg=
-github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250801123845-6dd9800cb007/go.mod h1:xgC9bj8Q0rzefinCb7RScQwF/bxcZ2675Slqff3rZcQ=
+github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250805143327-ebf00aba80a3 h1:O93lSH2ICn4cuMKORAxOg/gScwIsAylJDne25Y/VcwY=
+github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250805143327-ebf00aba80a3/go.mod h1:xgC9bj8Q0rzefinCb7RScQwF/bxcZ2675Slqff3rZcQ=
 github.com/cloudogu/retry-lib v0.1.0 h1:gaAmtyjUqgHbxfCWMeUn0qnGbDH4TtZVSQkbZ1Nq6eI=
 github.com/cloudogu/retry-lib v0.1.0/go.mod h1:iG9y6zx8oJZT5ULtl9koZkYJLRsqam/2mTU+rgjxQ0g=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
