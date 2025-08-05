@@ -15,6 +15,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const (
+	defaultContentTimeFrame = time.Hour * 24 * 4
+)
+
+var (
+	emptyTime = metav1.NewTime(time.Time{})
+)
+
 type CollectorAndRepository struct {
 	// We have to use any here because of the different data types.
 	Collector  any
@@ -91,7 +99,9 @@ func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *lib
 	}
 
 	nextCollector := collectorsToExecute[0]
-	err = c.executeNextCollector(ctx, id, nextCollector, cr.Spec.ContentTimeframe.StartTime, cr.Spec.ContentTimeframe.EndTime)
+
+	start, end := getContentTimeframe(cr)
+	err = c.executeNextCollector(ctx, id, nextCollector, start, end)
 	conditionErr := c.setConditionForCollector(ctx, cr, nextCollector, err)
 	if err != nil {
 		if conditionErr != nil {
@@ -101,6 +111,20 @@ func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *lib
 	}
 
 	return true, nil
+}
+
+func getContentTimeframe(cr *libapi.SupportArchive) (start metav1.Time, end metav1.Time) {
+	now := time.Now()
+	startTime := cr.Spec.ContentTimeframe.StartTime
+	if startTime.Equal(&emptyTime) {
+		startTime = metav1.NewTime(now.Truncate(defaultContentTimeFrame))
+	}
+
+	endTime := cr.Spec.ContentTimeframe.EndTime
+	if endTime.Equal(&emptyTime) {
+		endTime = metav1.NewTime(now)
+	}
+	return startTime, endTime
 }
 
 func (c *CreateArchiveUseCase) deleteUnusedRepositoryData(ctx context.Context, id domain.SupportArchiveID, requiredCollectorMapping CollectorMapping, executedCollectors []domain.CollectorType) {
