@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	v1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
