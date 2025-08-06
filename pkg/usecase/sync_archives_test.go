@@ -29,6 +29,7 @@ func TestSyncArchiveUseCase_SyncArchivesWithInterval(t *testing.T) {
 		supportArchivesInterface    func(t *testing.T) supportArchiveV1Interface
 		supportArchiveRepository    func(t *testing.T) supportArchiveRepository
 		supportArchiveDeleteHandler func(t *testing.T) deleteArchiveHandler
+		syncInterval                time.Duration
 	}
 	tests := []struct {
 		name       string
@@ -36,6 +37,26 @@ func TestSyncArchiveUseCase_SyncArchivesWithInterval(t *testing.T) {
 		wantErr    assert.ErrorAssertionFunc
 		wantEvents []event.GenericEvent
 	}{
+		{
+			name: "should disable sync if interval is set to 0",
+			fields: fields{
+				supportArchivesInterface: func(t *testing.T) supportArchiveV1Interface {
+					m := newMockSupportArchiveV1Interface(t)
+					return m
+				},
+				supportArchiveRepository: func(t *testing.T) supportArchiveRepository {
+					m := newMockSupportArchiveRepository(t)
+					return m
+				},
+				supportArchiveDeleteHandler: func(t *testing.T) deleteArchiveHandler {
+					m := newMockDeleteArchiveHandler(t)
+					return m
+				},
+				syncInterval: time.Duration(0),
+			},
+			wantErr:    assert.NoError,
+			wantEvents: make([]event.GenericEvent, 0),
+		},
 		{
 			name: "should fail to list stored support archives",
 			fields: fields{
@@ -52,6 +73,7 @@ func TestSyncArchiveUseCase_SyncArchivesWithInterval(t *testing.T) {
 					m := newMockDeleteArchiveHandler(t)
 					return m
 				},
+				syncInterval: time.Millisecond,
 			},
 			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorIs(t, err, assert.AnError, i) &&
@@ -78,6 +100,7 @@ func TestSyncArchiveUseCase_SyncArchivesWithInterval(t *testing.T) {
 					m := newMockDeleteArchiveHandler(t)
 					return m
 				},
+				syncInterval: time.Millisecond,
 			},
 			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorIs(t, err, assert.AnError, i) &&
@@ -109,6 +132,7 @@ func TestSyncArchiveUseCase_SyncArchivesWithInterval(t *testing.T) {
 					}
 					return m
 				},
+				syncInterval: time.Millisecond,
 			},
 			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorIs(t, err, assert.AnError, i) &&
@@ -141,6 +165,7 @@ func TestSyncArchiveUseCase_SyncArchivesWithInterval(t *testing.T) {
 					}
 					return m
 				},
+				syncInterval: time.Millisecond,
 			},
 			wantErr:    assert.NoError,
 			wantEvents: createTestEvents(createTestArchiveDescriptors(2, 6)),
@@ -170,6 +195,7 @@ func TestSyncArchiveUseCase_SyncArchivesWithInterval(t *testing.T) {
 					}
 					return m
 				},
+				syncInterval: time.Millisecond,
 			},
 			wantErr:    assert.NoError,
 			wantEvents: createTestEvents(createTestArchiveDescriptors(2, 6)),
@@ -183,10 +209,10 @@ func TestSyncArchiveUseCase_SyncArchivesWithInterval(t *testing.T) {
 				supportArchiveRepository:    tt.fields.supportArchiveRepository(t),
 				supportArchiveDeleteHandler: tt.fields.supportArchiveDeleteHandler(t),
 				namespace:                   testArchiveNamespace,
-				syncInterval:                time.Millisecond,
+				syncInterval:                tt.fields.syncInterval,
 				reconciliationTrigger:       reconciliationTrigger,
 			}
-			ctx, closeFn := context.WithTimeout(context.Background(), time.Millisecond*5)
+			ctx, closeFn := context.WithTimeout(context.Background(), tt.fields.syncInterval*5)
 			defer closeFn()
 
 			// separate channel from ctx.Done() will guarantee that our ticker is done before we stop reading events
