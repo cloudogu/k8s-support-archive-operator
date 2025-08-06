@@ -66,7 +66,7 @@ spec:
         - name: GARBAGE_COLLECTION_INTERVAL
           value: {{ .Values.controllerManager.env.garbageCollectionInterval | default "5m" }}
         - name: GARBAGE_COLLECTION_NUMBER_TO_KEEP
-          value: {{ .Values.controllerManager.env.garbageCollectionNumberToKeep | default "5" }}
+          value: {{ toString .Values.controllerManager.env.garbageCollectionNumberToKeep | default "5" }}
         - name: NAMESPACE
           valueFrom:
             fieldRef:
