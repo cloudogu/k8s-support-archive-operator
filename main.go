@@ -137,9 +137,12 @@ func startOperator(
 	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
 	deleteUseCase := usecase.NewDeleteArchiveUseCase(mapping, supportArchiveRepository)
 	r := adapterK8s.NewSupportArchiveReconciler(v1SupportArchive, createUseCase, deleteUseCase)
+
 	reconciliationTrigger := make(chan event.GenericEvent)
 	syncHandler := usecase.NewSyncArchiveUseCase(v1SupportArchive, supportArchiveRepository, deleteUseCase, operatorConfig.SupportArchiveSyncInterval, operatorConfig.Namespace, reconciliationTrigger)
-	err = configureManager(k8sManager, r, reconciliationTrigger, syncHandler)
+
+	garbageCollectionHandler := usecase.NewGarbageCollectionUseCase(v1SupportArchive.SupportArchives(operatorConfig.Namespace), supportArchiveRepository, operatorConfig.GarbageCollectionInterval, operatorConfig.GarbageCollectionNumberToKeep)
+	err = configureManager(k8sManager, r, reconciliationTrigger, syncHandler, garbageCollectionHandler)
 	if err != nil {
 		return fmt.Errorf("unable to configure manager: %w", err)
 	}
@@ -160,7 +163,7 @@ func NewK8sManager(
 	return ctrl.NewManager(restConfig, options)
 }
 
-func configureManager(k8sManager controllerManager, supportArchiveReconciler *adapterK8s.SupportArchiveReconciler, trigger chan event.GenericEvent, syncHandler *usecase.SyncArchiveUseCase) error {
+func configureManager(k8sManager controllerManager, supportArchiveReconciler *adapterK8s.SupportArchiveReconciler, trigger chan event.GenericEvent, syncHandler *usecase.SyncArchiveUseCase, garbageCollectionHandler *usecase.GarbageCollectionUseCase) error {
 	err := supportArchiveReconciler.SetupWithManager(k8sManager, trigger)
 	if err != nil {
 		return fmt.Errorf("unable to configure reconciler: %w", err)
@@ -171,6 +174,13 @@ func configureManager(k8sManager controllerManager, supportArchiveReconciler *ad
 	}))
 	if err != nil {
 		return fmt.Errorf("unable to add sync archive handler: %w", err)
+	}
+
+	err = k8sManager.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		return garbageCollectionHandler.CollectGarbageWithInterval(ctx)
+	}))
+	if err != nil {
+		return fmt.Errorf("unable to add garbage collection handler: %w", err)
 	}
 
 	err = addChecks(k8sManager)

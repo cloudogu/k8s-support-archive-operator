@@ -85,7 +85,7 @@ func Test_configureManager(t *testing.T) {
 		// given
 
 		// when
-		err := configureManager(nil, nil, nil, nil)
+		err := configureManager(nil, nil, nil, nil, nil)
 
 		// then
 		require.Error(t, err)
@@ -98,7 +98,7 @@ func Test_configureManager(t *testing.T) {
 		managerMock.EXPECT().GetScheme().Return(&runtime.Scheme{})
 
 		// when
-		err := configureManager(managerMock, nil, nil, nil)
+		err := configureManager(managerMock, nil, nil, nil, nil)
 
 		// then
 		require.Error(t, err)

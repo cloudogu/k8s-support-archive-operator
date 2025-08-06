@@ -212,12 +212,12 @@ func TestSyncArchiveUseCase_SyncArchivesWithInterval(t *testing.T) {
 				syncInterval:                tt.fields.syncInterval,
 				reconciliationTrigger:       reconciliationTrigger,
 			}
-			ctx, closeFn := context.WithTimeout(context.Background(), tt.fields.syncInterval*5)
-			defer closeFn()
 
-			// separate channel from ctx.Done() will guarantee that our ticker is done before we stop reading events
-			// otherwise, sending events will block
-			doneCh := make(chan struct{})
+			ctx, cancel := context.WithCancel(testCtx)
+			defer cancel()
+			// separate context because otherwise we will stop receiving events before they are sent and it will block indefinitely
+			timoutCtx, cancelTimeout := context.WithTimeout(ctx, tt.fields.syncInterval*5)
+			defer cancelTimeout()
 
 			// must be in goroutine because otherwise sending events will block
 			go func() {
@@ -225,7 +225,7 @@ func TestSyncArchiveUseCase_SyncArchivesWithInterval(t *testing.T) {
 			loop:
 				for {
 					select {
-					case <-doneCh:
+					case <-ctx.Done():
 						break loop
 					case receivedEvent := <-reconciliationTrigger:
 						receivedEvents = append(receivedEvents, receivedEvent)
@@ -234,8 +234,7 @@ func TestSyncArchiveUseCase_SyncArchivesWithInterval(t *testing.T) {
 				assert.Subset(t, receivedEvents, tt.wantEvents)
 			}()
 
-			tt.wantErr(t, s.SyncArchivesWithInterval(ctx), fmt.Sprintf("SyncArchivesWithInterval(%v)", ctx))
-			doneCh <- struct{}{}
+			tt.wantErr(t, s.SyncArchivesWithInterval(timoutCtx), fmt.Sprintf("SyncArchivesWithInterval(%v)", ctx))
 		})
 	}
 }
@@ -273,8 +272,9 @@ func createTestArchiveDescriptors(from, to int) []libv1.SupportArchive {
 	for i := from; i < to; i++ {
 		archives = append(archives, libv1.SupportArchive{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: testArchiveNamespace,
-				Name:      fmt.Sprintf("%s-%d", testArchiveName, i),
+				Namespace:         testArchiveNamespace,
+				Name:              fmt.Sprintf("%s-%d", testArchiveName, i),
+				CreationTimestamp: metav1.NewTime(time.Unix(1754490135, int64(-i))),
 			},
 		})
 	}
