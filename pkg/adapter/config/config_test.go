@@ -20,6 +20,8 @@ func TestNewOperatorConfig(t *testing.T) {
 		t.Setenv("METRICS_SERVICE_PORT", "8081")
 		t.Setenv("METRICS_SERVICE_PROTOCOL", "http")
 		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
+		t.Setenv("GARBAGE_COLLECTION_INTERVAL", "5m")
+		t.Setenv("GARBAGE_COLLECTION_NUMBER_TO_KEEP", "5")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -40,6 +42,8 @@ func TestNewOperatorConfig(t *testing.T) {
 		t.Setenv("METRICS_SERVICE_PORT", "8081")
 		t.Setenv("METRICS_SERVICE_PROTOCOL", "http")
 		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
+		t.Setenv("GARBAGE_COLLECTION_INTERVAL", "5m")
+		t.Setenv("GARBAGE_COLLECTION_NUMBER_TO_KEEP", "5")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -65,6 +69,45 @@ func TestNewOperatorConfig(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, operatorConfig)
 		assert.ErrorContains(t, err, "failed to get support archive sync interval: failed to parse env var [SUPPORT_ARCHIVE_SYNC_INTERVAL]")
+	})
+	t.Run("should fail to parse garbage collection interval", func(t *testing.T) {
+		// given
+		version := "0.0.0"
+		t.Setenv("NAMESPACE", "ecosystem")
+		t.Setenv("STAGE", "development")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
+		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
+		t.Setenv("GARBAGE_COLLECTION_INTERVAL", "not a time.Duration")
+
+		// when
+		operatorConfig, err := NewOperatorConfig(version)
+
+		// then
+		require.Error(t, err)
+		require.Nil(t, operatorConfig)
+		assert.ErrorContains(t, err, "failed to get garbage collection interval: failed to parse env var [GARBAGE_COLLECTION_INTERVAL]")
+	})
+	t.Run("should fail to parse garbage collection number to keep", func(t *testing.T) {
+		// given
+		version := "0.0.0"
+		t.Setenv("NAMESPACE", "ecosystem")
+		t.Setenv("STAGE", "development")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
+		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
+		t.Setenv("GARBAGE_COLLECTION_INTERVAL", "5m")
+		t.Setenv("GARBAGE_COLLECTION_NUMBER_TO_KEEP", "not a number")
+
+		// when
+		operatorConfig, err := NewOperatorConfig(version)
+
+		// then
+		require.Error(t, err)
+		require.Nil(t, operatorConfig)
+		assert.ErrorContains(t, err, "failed to get garbage collection number to keep: failed to parse env var [GARBAGE_COLLECTION_NUMBER_TO_KEEP]")
 	})
 	t.Run("fail to parse version", func(t *testing.T) {
 		// given
