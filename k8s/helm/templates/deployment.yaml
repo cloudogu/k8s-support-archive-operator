@@ -63,6 +63,10 @@ spec:
           value: {{ quote .Values.webserver.env.downloadService.port | default "8080" }}
         - name: SUPPORT_ARCHIVE_SYNC_INTERVAL
           value: {{ .Values.controllerManager.env.supportArchiveSyncInterval | default "1m" }}
+        - name: GARBAGE_COLLECTION_INTERVAL
+          value: {{ .Values.controllerManager.env.garbageCollectionInterval | default "5m" }}
+        - name: GARBAGE_COLLECTION_NUMBER_TO_KEEP
+          value: {{ .Values.controllerManager.env.garbageCollectionNumberToKeep | default "5" }}
         - name: NAMESPACE
           valueFrom:
             fieldRef:
