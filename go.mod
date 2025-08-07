@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
-	github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250804113354-778ad443943b
+	github.com/cloudogu/k8s-support-archive-lib v0.2.0
 	github.com/go-logr/logr v1.4.2
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
