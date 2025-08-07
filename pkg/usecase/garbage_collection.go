@@ -32,7 +32,7 @@ func (g *GarbageCollectionUseCase) CollectGarbageWithInterval(ctx context.Contex
 	logger.Info("start collecting garbage...")
 
 	if g.interval == 0 {
-		logger.Info(fmt.Sprintf("garbage collection interval set to 0; disabling garbage collection"))
+		logger.Info("garbage collection interval set to 0; disabling garbage collection")
 		return nil
 	}
 
@@ -107,7 +107,7 @@ func (g *GarbageCollectionUseCase) getOldestArchivesExcludingTheOnesToKeep(compl
 	}
 
 	slices.SortFunc(completedArchives, func(a, b libv1.SupportArchive) int {
-		return a.CreationTimestamp.Time.Compare(b.CreationTimestamp.Time)
+		return a.CreationTimestamp.Compare(b.CreationTimestamp.Time)
 	})
 
 	return completedArchives[g.numberToKeep:]
