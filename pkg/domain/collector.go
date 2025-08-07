@@ -16,6 +16,8 @@ func (c CollectorType) GetConditionType() string {
 		return "TODO"
 	case CollectorTypVolumeInfo:
 		return libapi.ConditionVolumeInfoFetched
+	case CollectorTypeNodeInfo:
+		return libapi.ConditionNodeInfoFetched
 	default:
 		return ""
 	}
