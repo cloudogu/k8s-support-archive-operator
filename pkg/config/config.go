@@ -5,14 +5,25 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"strconv"
+	"time"
 )
 
 const (
-	StageDevelopment = "development"
-	StageProduction  = "production"
-	StageEnvVar      = "STAGE"
-	namespaceEnvVar  = "NAMESPACE"
-	logLevelEnvVar   = "LOG_LEVEL"
+	StageDevelopment                           = "development"
+	StageProduction                            = "production"
+	StageEnvVar                                = "STAGE"
+	namespaceEnvVar                            = "NAMESPACE"
+	archiveVolumeDownloadServiceNameEnvVar     = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME"
+	archiveVolumeDownloadServiceProtocolEnvVar = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL"
+	archiveVolumeDownloadServicePortEnvVar     = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT"
+	supportArchiveSyncIntervalEnvVar           = "SUPPORT_ARCHIVE_SYNC_INTERVAL"
+	logLevelEnvVar                             = "LOG_LEVEL"
+	errGetEnvVarFmt                            = "failed to get env var [%s]: %w"
+	errParseEnvVarFmt                          = "failed to parse env var [%s]: %w"
+	metricsServiceNameEnvVar                   = "METRICS_SERVICE_NAME"
+	metricsServicePortEnvVar                   = "METRICS_SERVICE_PORT"
+	metricsServiceProtocolEnvVar               = "METRICS_SERVICE_PROTOCOL"
 )
 
 var log = ctrl.Log.WithName("config")
@@ -24,6 +35,20 @@ type OperatorConfig struct {
 	Version *semver.Version
 	// Namespace specifies the namespace that the operator is deployed to.
 	Namespace string
+	// ArchiveVolumeDownloadServiceName defines the service name for exposed support archives from the share volume.
+	ArchiveVolumeDownloadServiceName string
+	// ArchiveVolumeDownloadServiceProtocol defines the used protocol e.g. http or https.
+	ArchiveVolumeDownloadServiceProtocol string
+	// ArchiveVolumeDownloadServicePort defines the used port for the download service.
+	ArchiveVolumeDownloadServicePort string
+	// SupportArchiveSyncInterval defines the interval in which to resolve the difference between support archive CRDs and the archives on disk.
+	SupportArchiveSyncInterval time.Duration
+	// MetricsServiceName defines the service name for metrics service.
+	MetricsServiceName string
+	// MetricsServicePort defines the service port for metrics service.
+	MetricsServicePort string
+	// MetricsServiceProtocol defines the service protocol for metrics service.
+	MetricsServiceProtocol string
 }
 
 func IsStageDevelopment() bool {
@@ -40,15 +65,65 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	}
 	log.Info(fmt.Sprintf("Version: [%s]", version))
 
-	namespace, err := GetNamespace()
+	namespace, err := getNamespace()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read namespace: %w", err)
 	}
 	log.Info(fmt.Sprintf("Deploying the k8s dogu operator in namespace %s", namespace))
 
+	archiveVolumeDownloadServiceName, err := getArchiveVolumeDownloadServiceName()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get archive volume download service name: %w", err)
+	}
+	log.Info(fmt.Sprintf("Archive volume download service name: %s", archiveVolumeDownloadServiceName))
+
+	archiveVolumeDownloadServiceProtocol, err := getArchiveVolumeDownloadServiceProtocol()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get archive volume download service protocol: %w", err)
+	}
+	log.Info(fmt.Sprintf("Archive volume download service protocol: %s", archiveVolumeDownloadServiceProtocol))
+
+	archiveVolumeDownloadServicePort, err := getArchiveVolumeDownloadServicePort()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get archive volume download service port: %w", err)
+	}
+	log.Info(fmt.Sprintf("Archive volume download service port: %s", archiveVolumeDownloadServicePort))
+
+	supportArchiveSyncInterval, err := getSupportArchiveSyncInterval()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get support archive sync interval: %w", err)
+	}
+	log.Info(fmt.Sprintf("Support archive sync interval: %s", supportArchiveSyncInterval))
+
+	metricsServiceName, err := getEnvVar(metricsServiceNameEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("Metrics service name: %s", metricsServiceName))
+
+	metricsServicePort, err := getEnvVar(metricsServicePortEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("Metrics service port: %s", metricsServicePort))
+
+	metricsServiceProtocol, err := getEnvVar(metricsServiceProtocolEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("Metrics service protocol: %s", metricsServiceProtocol))
+
 	return &OperatorConfig{
-		Version:   parsedVersion,
-		Namespace: namespace,
+		Version:                              parsedVersion,
+		Namespace:                            namespace,
+		ArchiveVolumeDownloadServiceName:     archiveVolumeDownloadServiceName,
+		ArchiveVolumeDownloadServiceProtocol: archiveVolumeDownloadServiceProtocol,
+		ArchiveVolumeDownloadServicePort:     archiveVolumeDownloadServicePort,
+		SupportArchiveSyncInterval:           supportArchiveSyncInterval,
+		// prometheus is optional?
+		MetricsServiceName:     metricsServiceName,
+		MetricsServicePort:     metricsServicePort,
+		MetricsServiceProtocol: metricsServiceProtocol,
 	}, nil
 }
 
@@ -67,19 +142,65 @@ func configureStage() {
 func GetLogLevel() (string, error) {
 	logLevel, err := getEnvVar(logLevelEnvVar)
 	if err != nil {
-		return "", fmt.Errorf("failed to get env var [%s]: %w", logLevelEnvVar, err)
+		return "", fmt.Errorf(errGetEnvVarFmt, logLevelEnvVar, err)
 	}
 
 	return logLevel, nil
 }
 
-func GetNamespace() (string, error) {
+func getNamespace() (string, error) {
 	namespace, err := getEnvVar(namespaceEnvVar)
 	if err != nil {
-		return "", fmt.Errorf("failed to get env var [%s]: %w", namespaceEnvVar, err)
+		return "", fmt.Errorf(errGetEnvVarFmt, namespaceEnvVar, err)
 	}
 
 	return namespace, nil
+}
+
+func getArchiveVolumeDownloadServiceName() (string, error) {
+	envVar, err := getEnvVar(archiveVolumeDownloadServiceNameEnvVar)
+	if err != nil {
+		return "", fmt.Errorf(errGetEnvVarFmt, archiveVolumeDownloadServiceNameEnvVar, err)
+	}
+
+	return envVar, nil
+}
+
+func getArchiveVolumeDownloadServiceProtocol() (string, error) {
+	envVar, err := getEnvVar(archiveVolumeDownloadServiceProtocolEnvVar)
+	if err != nil {
+		return "", fmt.Errorf(errGetEnvVarFmt, archiveVolumeDownloadServiceProtocolEnvVar, err)
+	}
+
+	return envVar, nil
+}
+
+func getArchiveVolumeDownloadServicePort() (string, error) {
+	envVar, err := getEnvVar(archiveVolumeDownloadServicePortEnvVar)
+	if err != nil {
+		return "", fmt.Errorf(errGetEnvVarFmt, archiveVolumeDownloadServicePortEnvVar, err)
+	}
+
+	_, err = strconv.Atoi(envVar)
+	if err != nil {
+		return "", fmt.Errorf(errParseEnvVarFmt, archiveVolumeDownloadServicePortEnvVar, err)
+	}
+
+	return envVar, nil
+}
+
+func getSupportArchiveSyncInterval() (time.Duration, error) {
+	envVar, err := getEnvVar(supportArchiveSyncIntervalEnvVar)
+	if err != nil {
+		return 0, fmt.Errorf(errGetEnvVarFmt, supportArchiveSyncIntervalEnvVar, err)
+	}
+
+	duration, err := time.ParseDuration(envVar)
+	if err != nil {
+		return 0, fmt.Errorf(errParseEnvVarFmt, supportArchiveSyncIntervalEnvVar, err)
+	}
+
+	return duration, nil
 }
 
 func getEnvVar(name string) (string, error) {

@@ -2,8 +2,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ include "helm.fullname" . }}-manager-role
-  labels:
-  {{- include "helm.labels" . | nindent 4 }}
+  labels: {{ include "helm.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - k8s.cloudogu.com
@@ -20,13 +19,20 @@ rules:
       - supportarchives/status
     verbs:
       - get
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - get
+      - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: {{ include "helm.fullname" . }}-manager-rolebinding
-  labels:
-  {{- include "helm.labels" . | nindent 4 }}
+  labels: {{ include "helm.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role

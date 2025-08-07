@@ -1,9 +1,15 @@
 apiVersion: v1
 values:
   images:
-    supportArchiveOperator: cloudogu/k8s-support-archive-operator:0.2.0
+    supportArchiveOperator: cloudogu/k8s-support-archive-operator:0.3.0
+    nginxWebserver: docker.io/nginxinc/nginx-unprivileged:1.28.0-alpine
 patches:
   values.yaml:
+    webserver:
+      image:
+        registry: "{{ registryFrom .images.nginxWebserver }}"
+        repository: "{{ repositoryFrom .images.nginxWebserver }}"
+        tag: "{{ tagFrom .images.nginxWebserver }}"
     controllerManager:
       manager:
         image:

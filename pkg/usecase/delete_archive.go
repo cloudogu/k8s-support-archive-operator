@@ -1,0 +1,60 @@
+package usecase
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+)
+
+type DeleteArchiveUseCase struct {
+	supportArchiveRepository supportArchiveRepository
+	collectorMapping         CollectorMapping
+}
+
+func NewDeleteArchiveUseCase(collectorMapping CollectorMapping, supportArchiveRepository supportArchiveRepository) *DeleteArchiveUseCase {
+	return &DeleteArchiveUseCase{
+		supportArchiveRepository: supportArchiveRepository,
+		collectorMapping:         collectorMapping,
+	}
+}
+
+func (d *DeleteArchiveUseCase) Delete(ctx context.Context, id domain.SupportArchiveID) error {
+	var multiErr []error
+	// Always try to delete all collector files to avoid zombie data.
+	for col := range d.collectorMapping {
+		err := deleteCollectorRepositoryData(ctx, id, col, d.collectorMapping)
+		if err != nil {
+			multiErr = append(multiErr, err)
+		}
+	}
+
+	err := d.supportArchiveRepository.Delete(ctx, id)
+	if err != nil {
+		multiErr = append(multiErr, fmt.Errorf("failed to delete support archive: %w", err))
+	}
+
+	return errors.Join(multiErr...)
+}
+
+func deleteCollectorRepositoryData(ctx context.Context, id domain.SupportArchiveID, col domain.CollectorType, collectorMapping CollectorMapping) error {
+	baseRepo, err := getBaseRepositoryForCollector(col, collectorMapping)
+	if err != nil {
+		return err
+	}
+	err = baseRepo.Delete(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete %s collector repository: %w", col, err)
+	}
+
+	return nil
+}
+
+func getBaseRepositoryForCollector(collectorType domain.CollectorType, collectorMapping CollectorMapping) (baseCollectorRepository, error) {
+	baseRepo, ok := collectorMapping[collectorType].Repository.(baseCollectorRepository)
+	if !ok {
+		return nil, fmt.Errorf("invalid base repository type for collector %s", collectorType)
+	}
+	return baseRepo, nil
+}
