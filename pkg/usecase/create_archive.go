@@ -39,6 +39,9 @@ func (cm CollectorMapping) getRequiredCollectorMapping(cr *libapi.SupportArchive
 	if !cr.Spec.ExcludedContents.VolumeInfo {
 		mapping[domain.CollectorTypVolumeInfo] = cm[domain.CollectorTypVolumeInfo]
 	}
+	if !cr.Spec.ExcludedContents.SystemInfo {
+		mapping[domain.CollectorTypeNodeInfo] = cm[domain.CollectorTypeNodeInfo]
+	}
 
 	return mapping
 }
@@ -156,6 +159,8 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.PodLog](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypVolumeInfo:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.VolumeInfo](errCtx, errGroup, col, c.collectorMapping, id)
+		case domain.CollectorTypeNodeInfo:
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.NodeInfo](errCtx, errGroup, col, c.collectorMapping, id)
 		default:
 			return "", errors.New("invalid collector type")
 		}
@@ -253,6 +258,13 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
 	case domain.CollectorTypVolumeInfo:
 		col, repo, typeErr := getCollectorAndRepositoryForType[domain.VolumeInfo](next, c.collectorMapping)
+		if typeErr != nil {
+			return typeErr
+		}
+
+		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
+	case domain.CollectorTypeNodeInfo:
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.NodeInfo](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}

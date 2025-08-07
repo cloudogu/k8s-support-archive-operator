@@ -7,6 +7,7 @@ type CollectorType string
 const (
 	CollectorTypeLog       CollectorType = "Logs"
 	CollectorTypVolumeInfo CollectorType = "VolumeInfo"
+	CollectorTypeNodeInfo  CollectorType = "NodeInfo"
 )
 
 func (c CollectorType) GetConditionType() string {
@@ -21,5 +22,5 @@ func (c CollectorType) GetConditionType() string {
 }
 
 type CollectorUnionDataType interface {
-	PodLog | VolumeInfo
+	PodLog | VolumeInfo | NodeInfo
 }
