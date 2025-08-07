@@ -17,8 +17,19 @@ type VolumeInfoItem struct {
 }
 
 type NodeInfo struct {
-	NodeCountRange NodeCountRange
-	NodeNameRange  NodeNameRange
+	Name                          NodeNameRange            `json:"name,omitempty"`
+	Count                         NodeCountRange           `json:"count,omitempty"`
+	Storage                       NodeStorageInfo          `json:"storage,omitempty"`
+	StorageFree                   NodeStorageInfo          `json:"storageFree,omitempty"`
+	StorageRelative               NodeStorageInfo          `json:"storageRelative,omitempty"`
+	RAM                           NodeRAMInfo              `json:"ram,omitempty"`
+	RAMFree                       NodeRAMInfo              `json:"ramFree,omitempty"`
+	RAMUsedRelative               NodeRAMInfo              `json:"ramUsedRelative,omitempty"`
+	CPUCores                      NodeCPUInfo              `json:"cpuCores,omitempty"`
+	CPUUsage                      NodeCPUInfo              `json:"cpuUsage,omitempty"`
+	CPUUsageRelative              NodeCPUInfo              `json:"cpuUsageRelative,omitempty"`
+	NetworkContainerBytesReceived NodeContainerNetworkInfo `json:"networkContainerBytesReceived,omitempty"`
+	NetworkContainerBytesSent     NodeContainerNetworkInfo `json:"networkContainerBytesSent,omitempty"`
 }
 
 type NodeNameRange []StringSample
@@ -39,11 +50,11 @@ type Number interface {
 }
 
 type LabeledSamples[n Number] struct {
-	Labels  map[string]string
-	Samples []Sample[n]
+	Labels  map[string]string `json:"labels"`
+	Samples []Sample[n]       `json:"samples"`
 }
 
 type Sample[n Number] struct {
-	Value n
-	Time  time.Time
+	Value n         `json:"value"`
+	Time  time.Time `json:"time"`
 }
