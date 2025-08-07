@@ -46,6 +46,11 @@ func (s *SyncArchiveUseCase) SyncArchivesWithInterval(ctx context.Context) error
 		WithName("support archive sync interval handler")
 	logger.Info(fmt.Sprintf("started regularly syncing support archives with interval %s", s.syncInterval))
 
+	if s.syncInterval == 0 {
+		logger.Info("sync interval set to 0; disabling sync")
+		return nil
+	}
+
 	ticker := time.NewTicker(s.syncInterval)
 	defer ticker.Stop()
 

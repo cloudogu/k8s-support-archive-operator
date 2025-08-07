@@ -31,6 +31,8 @@ controllerManager:
     logLevel: debug
     stage: development
     supportArchiveSyncInterval: 1m
+    garbageCollectionInterval: 5m
+    garbageCollectionNumberToKeep: 5
   imagePullPolicy: IfNotPresent
   podSecurityContext:
     fsGroup: 65532
