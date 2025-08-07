@@ -28,7 +28,7 @@ type StringSample struct {
 	Time  time.Time
 }
 
-type NodeCountRange []Sample[int]
+type NodeCountRange []LabeledSamples[int]
 type NodeStorageInfo []LabeledSamples[float64]
 type NodeRAMInfo []LabeledSamples[float64]
 type NodeCPUInfo []LabeledSamples[float64]
