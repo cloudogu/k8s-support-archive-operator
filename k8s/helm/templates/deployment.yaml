@@ -6,6 +6,9 @@ metadata:
     control-plane: controller-manager
   {{- include "helm.labels" . | nindent 4 }}
 spec:
+  # RollingUpdate causes problems because we cannot mount our volume twice.
+  strategy:
+    type: Recreate
   replicas: {{ .Values.controllerManager.replicas }}
   selector:
     matchLabels: {{ include "helm.selectorLabels" . | nindent 6 }}
