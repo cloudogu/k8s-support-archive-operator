@@ -16,6 +16,10 @@ func TestNewOperatorConfig(t *testing.T) {
 		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
 		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
 		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
+		t.Setenv("METRICS_SERVICE_NAME", "metrics")
+		t.Setenv("METRICS_SERVICE_PORT", "8081")
+		t.Setenv("METRICS_SERVICE_PROTOCOL", "http")
+		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -32,6 +36,10 @@ func TestNewOperatorConfig(t *testing.T) {
 		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
 		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
 		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
+		t.Setenv("METRICS_SERVICE_NAME", "metrics")
+		t.Setenv("METRICS_SERVICE_PORT", "8081")
+		t.Setenv("METRICS_SERVICE_PROTOCOL", "http")
+		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -39,6 +47,24 @@ func TestNewOperatorConfig(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, operatorConfig)
+	})
+	t.Run("should fail to parse sync interval", func(t *testing.T) {
+		// given
+		version := "0.0.0"
+		t.Setenv("NAMESPACE", "ecosystem")
+		t.Setenv("STAGE", "development")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
+		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "not a time.Duration")
+
+		// when
+		operatorConfig, err := NewOperatorConfig(version)
+
+		// then
+		require.Error(t, err)
+		require.Nil(t, operatorConfig)
+		assert.ErrorContains(t, err, "failed to get support archive sync interval: failed to parse env var [SUPPORT_ARCHIVE_SYNC_INTERVAL]")
 	})
 	t.Run("fail to parse version", func(t *testing.T) {
 		// given
@@ -51,7 +77,7 @@ func TestNewOperatorConfig(t *testing.T) {
 		// then
 		require.Error(t, err)
 		require.Nil(t, operatorConfig)
-		assert.ErrorContains(t, err, "failed to parse version: Invalid Semantic Version")
+		assert.ErrorContains(t, err, "failed to parse version: invalid semantic version")
 	})
 	t.Run("fail to read namespace because of non existent env var", func(t *testing.T) {
 		// given
@@ -88,6 +114,8 @@ func TestGetLogLevel(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.want != "" {
 				t.Setenv(logLevelEnvVar, tt.want)
+			} else {
+				require.NoError(t, os.Unsetenv(logLevelEnvVar))
 			}
 			got, err := GetLogLevel()
 			if !tt.wantErr(t, err, fmt.Sprintf("GetLogLevel()")) {

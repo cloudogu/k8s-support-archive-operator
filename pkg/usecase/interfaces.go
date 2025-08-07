@@ -2,13 +2,14 @@ package usecase
 
 import (
 	"context"
+	"time"
+
 	libclient "github.com/cloudogu/k8s-support-archive-lib/client/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"time"
 )
 
-type collector[DATATYPE any] interface {
-	Collect(ctx context.Context, startTime, endTime time.Time, resultChan chan<- *DATATYPE) error
+type collector[DATATYPE domain.CollectorUnionDataType] interface {
+	Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *DATATYPE) error
 	Name() string
 }
 
@@ -16,26 +17,30 @@ type baseCollectorRepository interface {
 	Delete(ctx context.Context, id domain.SupportArchiveID) error
 	FinishCollection(ctx context.Context, id domain.SupportArchiveID) error
 	IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error)
+	Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) error
 }
 
-type collectorRepository[DATATYPE any] interface {
+type collectorRepository[DATATYPE domain.CollectorUnionDataType] interface {
 	baseCollectorRepository
 	Create(ctx context.Context, id domain.SupportArchiveID, data <-chan *DATATYPE) error
-	// Stream streams data to the given stream
-	// It returns a func to finalize the stream which has to be called by the useCase to free up resources and avoid memory exhaustion.
-	// The repository itself cannot do this because it cannot recognize when the data is fully read.
-	// The func may be nil.
-	Stream(ctx context.Context, id domain.SupportArchiveID, stream domain.Stream) (func() error, error)
 }
 
 type supportArchiveRepository interface {
-	Create(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]domain.Stream) (url string, err error)
+	// Create builds the support archive for the provided streams.
+	// The stream itself contains a constructor with a Close Func.
+	// The func must be called by the repository after reading the stream or when an error occurs to avoid resource exhaustion.
+	Create(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]*domain.Stream) (url string, err error)
 	Delete(ctx context.Context, id domain.SupportArchiveID) error
 	Exists(ctx context.Context, id domain.SupportArchiveID) (bool, error)
+	List(ctx context.Context) ([]domain.SupportArchiveID, error)
 }
 
 type supportArchiveV1Interface interface {
 	libclient.SupportArchiveV1Interface
+}
+
+type deleteArchiveHandler interface {
+	Delete(ctx context.Context, id domain.SupportArchiveID) error
 }
 
 //nolint:unused

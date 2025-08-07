@@ -5,12 +5,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
+
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"io"
-	"os"
-	"path/filepath"
+
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -40,7 +44,7 @@ func NewZipFileArchiveRepository(archivesPath string, zipCreator zipCreator, con
 	}
 }
 
-func (z *ZipFileArchiveRepository) Create(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]domain.Stream) (string, error) {
+func (z *ZipFileArchiveRepository) Create(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]*domain.Stream) (string, error) {
 	logger := log.FromContext(ctx).WithName("ZipFileArchiveRepository.FinishCollection")
 	destinationPath := z.getArchivePath(id)
 
@@ -88,14 +92,30 @@ func (z *ZipFileArchiveRepository) getArchiveURL(id domain.SupportArchiveID) str
 	return fmt.Sprintf("%s://%s.%s.svc.cluster.local:%s/%s/%s.zip", z.archiveVolumeDownloadServiceProtocol, z.archiveVolumeDownloadServiceName, id.Namespace, z.archiveVolumeDownloadServicePort, id.Namespace, id.Name)
 }
 
-func (z *ZipFileArchiveRepository) rangeOverStream(ctx context.Context, collector domain.CollectorType, stream domain.Stream, zipWriter Zipper) error {
+func (z *ZipFileArchiveRepository) rangeOverStream(ctx context.Context, collector domain.CollectorType, stream *domain.Stream, zipWriter Zipper) error {
+	var closeFuncs []domain.CloseStreamFunc
+	defer func() {
+		for _, closeFunc := range closeFuncs {
+			err := closeFunc()
+			if err != nil {
+				log.FromContext(ctx).Error(err, "failed to close file reader")
+			}
+		}
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case data, ok := <-stream.Data:
 			if ok {
-				dataErr := z.copyDataFromStreamToArchive(zipWriter, collector, data.ID, data.Reader)
+				reader, closeReader, err := data.StreamConstructor()
+				if err != nil {
+					return fmt.Errorf("failed to construct reader for file %s: %w", data.ID, err)
+				}
+				closeFuncs = append(closeFuncs, closeReader)
+
+				dataErr := z.copyDataFromStreamToArchive(zipWriter, collector, data.ID, reader)
 				if dataErr != nil {
 					return fmt.Errorf("error streaming data: %w", dataErr)
 				}
@@ -168,6 +188,32 @@ func (z *ZipFileArchiveRepository) Exists(_ context.Context, id domain.SupportAr
 		return false, fmt.Errorf("failed to check if file %s exists: %w", destinationPath, err)
 	}
 	return true, nil
+}
+
+func (z *ZipFileArchiveRepository) List(_ context.Context) ([]domain.SupportArchiveID, error) {
+	archiveMatcher := regexp.MustCompile(fmt.Sprintf("%s/%s", regexp.QuoteMeta(z.archivesPath), `(?P<namespace>[^/]+)/(?P<name>[^/.]+)\.zip`))
+	namespaceIndex := archiveMatcher.SubexpIndex("namespace")
+	nameIndex := archiveMatcher.SubexpIndex("name")
+
+	var list []domain.SupportArchiveID
+	err := z.filesystem.WalkDir(z.archivesPath, func(path string, d fs.DirEntry, err error) error {
+		errs := []error{err}
+		if !d.IsDir() {
+			matches := archiveMatcher.FindStringSubmatch(path)
+			if matches == nil || len(matches) != 3 {
+				errs = append(errs, fmt.Errorf("failed to match path %q: not an archive", path))
+			} else {
+				list = append(list, domain.SupportArchiveID{
+					Namespace: matches[namespaceIndex],
+					Name:      matches[nameIndex],
+				})
+			}
+		}
+
+		return errors.Join(errs...)
+	})
+
+	return list, err
 }
 
 func (z *ZipFileArchiveRepository) getArchivePath(id domain.SupportArchiveID) string {
