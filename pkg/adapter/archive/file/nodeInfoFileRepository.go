@@ -23,7 +23,7 @@ func NewNodeInfoFileRepository(workPath string, fs volumeFs) *NodeInfoRepository
 	return &NodeInfoRepository{
 		workPath:     workPath,
 		filesystem:   fs,
-		baseFileRepo: NewBaseFileRepository(workPath, archiveVolumeInfoDirName, fs),
+		baseFileRepo: NewBaseFileRepository(workPath, archiveNodeInfoDirName, fs),
 	}
 }
 
