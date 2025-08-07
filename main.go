@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus"
+	v1 "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus/v1"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g., Azure, GCP, OIDC, etc.)
@@ -31,8 +33,6 @@ import (
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
 	adapterK8s "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/kubernetes"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus"
-	v1 "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
@@ -130,9 +130,13 @@ func startOperator(
 	volumesCollector := collector.NewVolumesCollector(ecoClientSet.CoreV1(), metricsCollector)
 	volumeRepository := file.NewVolumesFileRepository(workPath, fs)
 
+	secretsCollector := collector.NewSecretCollector(ecoClientSet.CoreV1())
+	secretRepository := file.NewSecretsFileRepository(workPath, fs)
+
 	mapping := make(map[domain.CollectorType]usecase.CollectorAndRepository)
 	mapping[domain.CollectorTypeLog] = usecase.CollectorAndRepository{Collector: logCollector, Repository: logRepository}
 	mapping[domain.CollectorTypVolumeInfo] = usecase.CollectorAndRepository{Collector: volumesCollector, Repository: volumeRepository}
+	mapping[domain.CollectorTypSecret] = usecase.CollectorAndRepository{Collector: secretsCollector, Repository: secretRepository}
 
 	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
 	deleteUseCase := usecase.NewDeleteArchiveUseCase(mapping, supportArchiveRepository)

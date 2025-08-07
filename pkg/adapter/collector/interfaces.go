@@ -20,3 +20,9 @@ type metricsProvider interface {
 type pvcInterface interface {
 	corev1.PersistentVolumeClaimInterface
 }
+
+//nolint:unused
+//goland:noinspection GoUnusedType
+type secretInterface interface {
+	corev1.SecretInterface
+}
