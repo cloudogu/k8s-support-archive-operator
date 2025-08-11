@@ -15,14 +15,27 @@ import (
 )
 
 type GarbageCollectionUseCase struct {
-	supportArchivesInterface supportArchiveInterface
-	supportArchiveRepository supportArchiveRepository
-	interval                 time.Duration
-	numberToKeep             int
+	supportArchivesInterface    supportArchiveInterface
+	supportArchiveRepository    supportArchiveRepository
+	supportArchiveDeleteHandler deleteArchiveHandler
+	interval                    time.Duration
+	numberToKeep                int
 }
 
-func NewGarbageCollectionUseCase(supportArchivesInterface supportArchiveInterface, supportArchiveRepository supportArchiveRepository, interval time.Duration, numberToKeep int) *GarbageCollectionUseCase {
-	return &GarbageCollectionUseCase{supportArchivesInterface: supportArchivesInterface, supportArchiveRepository: supportArchiveRepository, interval: interval, numberToKeep: numberToKeep}
+func NewGarbageCollectionUseCase(
+	supportArchivesInterface supportArchiveInterface,
+	supportArchiveRepository supportArchiveRepository,
+	supportArchiveDeleteHandler deleteArchiveHandler,
+	interval time.Duration,
+	numberToKeep int,
+) *GarbageCollectionUseCase {
+	return &GarbageCollectionUseCase{
+		supportArchivesInterface:    supportArchivesInterface,
+		supportArchiveRepository:    supportArchiveRepository,
+		supportArchiveDeleteHandler: supportArchiveDeleteHandler,
+		interval:                    interval,
+		numberToKeep:                numberToKeep,
+	}
 }
 
 func (g *GarbageCollectionUseCase) CollectGarbageWithInterval(ctx context.Context) error {
@@ -118,7 +131,16 @@ func (g *GarbageCollectionUseCase) deleteArchives(ctx context.Context, toDelete 
 	for _, archive := range toDelete {
 		err := g.supportArchivesInterface.Delete(ctx, archive.Name, metav1.DeleteOptions{})
 		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to delete support archive %s/%s: %w", archive.Namespace, archive.Name, err))
+			errs = append(errs, fmt.Errorf("failed to delete support archive resource %s/%s: %w", archive.Namespace, archive.Name, err))
+			continue
+		}
+
+		err = g.supportArchiveDeleteHandler.Delete(ctx, domain.SupportArchiveID{
+			Namespace: archive.Namespace,
+			Name:      archive.Name,
+		})
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to delete stored support archive %s/%s: %w", archive.Namespace, archive.Name, err))
 		}
 	}
 

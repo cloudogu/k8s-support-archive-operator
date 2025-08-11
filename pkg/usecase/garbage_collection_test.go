@@ -13,7 +13,7 @@ import (
 )
 
 func TestNewGarbageCollectionUseCase(t *testing.T) {
-	result := NewGarbageCollectionUseCase(newMockSupportArchiveInterface(t), newMockSupportArchiveRepository(t), time.Minute, 5)
+	result := NewGarbageCollectionUseCase(newMockSupportArchiveInterface(t), newMockSupportArchiveRepository(t), newMockDeleteArchiveHandler(t), time.Minute, 5)
 	assert.NotEmpty(t, result)
 	assert.NotEmpty(t, result.supportArchivesInterface)
 	assert.NotEmpty(t, result.supportArchiveRepository)
@@ -23,10 +23,11 @@ func TestNewGarbageCollectionUseCase(t *testing.T) {
 
 func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 	type fields struct {
-		supportArchivesInterface func(t *testing.T) supportArchiveInterface
-		supportArchiveRepository func(t *testing.T) supportArchiveRepository
-		interval                 time.Duration
-		numberToKeep             int
+		supportArchivesInterface    func(t *testing.T) supportArchiveInterface
+		supportArchiveRepository    func(t *testing.T) supportArchiveRepository
+		supportArchiveDeleteHandler func(t *testing.T) deleteArchiveHandler
+		interval                    time.Duration
+		numberToKeep                int
 	}
 	tests := []struct {
 		name    string
@@ -44,6 +45,10 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 					m := newMockSupportArchiveRepository(t)
 					return m
 				},
+				supportArchiveDeleteHandler: func(t *testing.T) deleteArchiveHandler {
+					m := newMockDeleteArchiveHandler(t)
+					return m
+				},
 				interval:     0,
 				numberToKeep: 5,
 			},
@@ -59,6 +64,10 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 				},
 				supportArchiveRepository: func(t *testing.T) supportArchiveRepository {
 					m := newMockSupportArchiveRepository(t)
+					return m
+				},
+				supportArchiveDeleteHandler: func(t *testing.T) deleteArchiveHandler {
+					m := newMockDeleteArchiveHandler(t)
 					return m
 				},
 				interval:     time.Millisecond,
@@ -85,6 +94,10 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 					}
 					return m
 				},
+				supportArchiveDeleteHandler: func(t *testing.T) deleteArchiveHandler {
+					m := newMockDeleteArchiveHandler(t)
+					return m
+				},
 				interval:     time.Millisecond,
 				numberToKeep: 5,
 			},
@@ -94,7 +107,7 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 			},
 		},
 		{
-			name: "should fail to delete archives",
+			name: "should fail to delete archive resources",
 			fields: fields{
 				supportArchivesInterface: func(t *testing.T) supportArchiveInterface {
 					m := newMockSupportArchiveInterface(t)
@@ -113,12 +126,52 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 					}
 					return m
 				},
+				supportArchiveDeleteHandler: func(t *testing.T) deleteArchiveHandler {
+					m := newMockDeleteArchiveHandler(t)
+					return m
+				},
 				interval:     time.Millisecond,
 				numberToKeep: 5,
 			},
 			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorIs(t, err, assert.AnError, i) &&
-					createErrContainsForIDs(t, err, createTestArchiveIDs(0, 5), "failed to delete support archive test-namespace/%s", i)
+					createErrContainsForIDs(t, err, createTestArchiveIDs(0, 5), "failed to delete support archive resource test-namespace/%s", i)
+			},
+		},
+		{
+			name: "should fail to delete stored archives",
+			fields: fields{
+				supportArchivesInterface: func(t *testing.T) supportArchiveInterface {
+					m := newMockSupportArchiveInterface(t)
+					descriptors := createTestArchiveDescriptors(0, 10)
+					m.EXPECT().List(mock.Anything, metav1.ListOptions{}).
+						Return(&libv1.SupportArchiveList{Items: descriptors}, nil)
+					for _, descriptor := range descriptors[:5] {
+						m.EXPECT().Delete(mock.Anything, descriptor.Name, metav1.DeleteOptions{}).Return(nil)
+					}
+					return m
+				},
+				supportArchiveRepository: func(t *testing.T) supportArchiveRepository {
+					m := newMockSupportArchiveRepository(t)
+					for _, archive := range createTestArchiveIDs(0, 10) {
+						m.EXPECT().Exists(mock.Anything, archive).Return(true, nil)
+					}
+					return m
+				},
+				supportArchiveDeleteHandler: func(t *testing.T) deleteArchiveHandler {
+					m := newMockDeleteArchiveHandler(t)
+					archives := createTestArchiveIDs(0, 10)
+					for _, archive := range archives[:5] {
+						m.EXPECT().Delete(mock.Anything, archive).Return(assert.AnError)
+					}
+					return m
+				},
+				interval:     time.Millisecond,
+				numberToKeep: 5,
+			},
+			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
+				return assert.ErrorIs(t, err, assert.AnError, i) &&
+					createErrContainsForIDs(t, err, createTestArchiveIDs(0, 5), "failed to delete stored support archive test-namespace/%s", i)
 			},
 		},
 		{
@@ -141,6 +194,14 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 					}
 					return m
 				},
+				supportArchiveDeleteHandler: func(t *testing.T) deleteArchiveHandler {
+					m := newMockDeleteArchiveHandler(t)
+					archives := createTestArchiveIDs(0, 10)
+					for _, archive := range archives[3:5] {
+						m.EXPECT().Delete(mock.Anything, archive).Return(nil)
+					}
+					return m
+				},
 				interval:     time.Millisecond,
 				numberToKeep: 5,
 			},
@@ -150,10 +211,11 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := &GarbageCollectionUseCase{
-				supportArchivesInterface: tt.fields.supportArchivesInterface(t),
-				supportArchiveRepository: tt.fields.supportArchiveRepository(t),
-				interval:                 tt.fields.interval,
-				numberToKeep:             tt.fields.numberToKeep,
+				supportArchivesInterface:    tt.fields.supportArchivesInterface(t),
+				supportArchiveRepository:    tt.fields.supportArchiveRepository(t),
+				supportArchiveDeleteHandler: tt.fields.supportArchiveDeleteHandler(t),
+				interval:                    tt.fields.interval,
+				numberToKeep:                tt.fields.numberToKeep,
 			}
 			ctx, cancel := context.WithTimeout(testCtx, 5*time.Millisecond)
 			defer cancel()
