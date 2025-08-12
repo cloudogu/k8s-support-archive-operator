@@ -36,13 +36,13 @@ func (v *SecretsFileRepository) Create(ctx context.Context, id domain.SupportArc
 // If the CoreSecret file exists, it overrides the existing file.
 func (v *SecretsFileRepository) createCoreSecret(ctx context.Context, id domain.SupportArchiveID, data *v1.SecretList) error {
 	logger := log.FromContext(ctx).WithName("SecretsFileRepository.createCoreSecret")
-	filePath := fmt.Sprintf("%s.yaml", filepath.Join(v.workPath, id.Namespace, id.Name, archiveSecretsInfoDirName))
-	err := v.filesystem.MkdirAll(filepath.Dir(filePath), 0755)
-	if err != nil {
-		return fmt.Errorf("error creating directory for secrets: %w", err)
-	}
 
 	for _, secret := range data.Items {
+		filePath := filepath.Join(v.workPath, id.Namespace, id.Name, archiveSecretsInfoDirName, fmt.Sprintf("%s%s", secret.Name, ".yaml"))
+		err := v.filesystem.MkdirAll(filepath.Dir(filePath), 0755)
+		if err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(filePath), err)
+		}
 		out, err := yaml.Marshal(secret)
 		if err != nil {
 			return fmt.Errorf("error marshalling secrets file: %w", err)

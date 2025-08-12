@@ -10,7 +10,7 @@ type CollectorType string
 const (
 	CollectorTypeLog       CollectorType = "Logs"
 	CollectorTypVolumeInfo CollectorType = "VolumeInfo"
-	CollectorTypSecret     CollectorType = "Secret"
+	CollectorTypSecret     CollectorType = "k8s/core/secrets"
 )
 
 func (c CollectorType) GetConditionType() string {
