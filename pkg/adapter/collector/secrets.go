@@ -14,6 +14,7 @@ import (
 )
 
 const censoredValue = "***"
+const labelSelector = "app=ces"
 
 type SecretCollector struct {
 	coreV1Interface coreV1Interface
@@ -29,12 +30,10 @@ func (sc *SecretCollector) Name() string {
 
 func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ time.Time, resultChan chan<- *domain.SecretYaml) error {
 	logger := log.FromContext(ctx).WithName("SecretCollector.Collect")
-	labelSelector := "app=ces"
 	list, err := sc.coreV1Interface.Secrets(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		return fmt.Errorf("error listing secrets: %w", err)
 	}
-	logger.Info("Fetched all Secrets")
 
 	if len(list.Items) == 0 {
 		logger.Info("Secret list is empty")
@@ -43,24 +42,16 @@ func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ t
 	}
 
 	for _, secret := range list.Items {
-		censored := sc.censorSecret(ctx, secret)
-		for key, val := range censored.Data {
-			logger.Info(fmt.Sprintf("Censored key=%s, val=%s", key, val))
-		}
-		logger.Info(fmt.Sprintf("censored secret: %s", secret.Name))
-
-		logger.Info("write secret into channel")
+		censored := sc.censorSecret(secret)
+		logger.Info(fmt.Sprintf("censored secret: %s and write it into channel", secret.Name))
 		writeSaveToChannel(ctx, censored, resultChan)
 	}
-	logger.Info("censored all secrets")
 
 	close(resultChan)
-
-	logger.Info("secret channel is closed")
 	return nil
 }
 
-func (sc *SecretCollector) censorSecret(ctx context.Context, secret v1.Secret) *domain.SecretYaml {
+func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
 	censored := &domain.SecretYaml{
 		ApiVersion: secret.APIVersion,
 		Kind:       secret.Kind,
