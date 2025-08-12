@@ -41,14 +41,11 @@ func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ t
 		return nil
 	}
 
-	//secrets := make([]domain.SecretYaml, 0)
-
 	for _, secret := range list.Items {
 		censored := sc.censorSecret(secret)
 		for key, val := range censored.Data {
 			logger.Info(fmt.Sprintf("Censored key=%s, val=%s", key, val))
 		}
-		//secrets = append(secrets, *censored)
 		logger.Info(fmt.Sprintf("censored secret: %s", secret.Name))
 
 		logger.Info("write secret into channel")
@@ -63,7 +60,7 @@ func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ t
 }
 
 func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
-	censored2 := &domain.SecretYaml{
+	censored := &domain.SecretYaml{
 		ApiVersion: secret.APIVersion,
 		Kind:       secret.Kind,
 		SecretType: string(secret.Type),
@@ -84,7 +81,7 @@ func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
 			censoredJSON := censorJsonSecret(parsed)
 			newVal, err := json.Marshal(censoredJSON)
 			if err == nil {
-				censored2.Data[key] = string(newVal)
+				censored.Data[key] = string(newVal)
 			}
 			continue
 		}
@@ -97,14 +94,14 @@ func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
 			if err != nil {
 				return nil
 			}
-			censored2.Data[key] = string(encoded)
+			censored.Data[key] = string(encoded)
 			continue
 		}
 
 		// Censor key with default censorValue
-		censored2.Data[key] = censoredValue
+		censored.Data[key] = censoredValue
 	}
-	return censored2
+	return censored
 }
 
 func censorJsonSecret(data interface{}) interface{} {

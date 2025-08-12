@@ -36,25 +36,6 @@ func (v *SecretsFileRepository) Create(ctx context.Context, id domain.SupportArc
 func (v *SecretsFileRepository) createCoreSecret(ctx context.Context, id domain.SupportArchiveID, data *domain.SecretYaml) error {
 	logger := log.FromContext(ctx).WithName("SecretsFileRepository.createCoreSecret")
 
-	/*
-		for _, secret := range data.Items {
-			filePath := filepath.Join(v.workPath, id.Namespace, id.Name, archiveSecretsInfoDirName, fmt.Sprintf("%s%s", secret.Name, ".yaml"))
-			err := v.filesystem.MkdirAll(filepath.Dir(filePath), 0755)
-			if err != nil {
-				return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(filePath), err)
-			}
-			out, err := yaml.Marshal(secret)
-			if err != nil {
-				return fmt.Errorf("error marshalling secrets file: %w", err)
-			}
-
-			err = v.filesystem.WriteFile(filePath, out, 0644)
-			if err != nil {
-				return fmt.Errorf("error creating secrets file: %w", err)
-			}
-		}
-	*/
-
 	filePath := filepath.Join(v.workPath, id.Namespace, id.Name, archiveSecretsInfoDirName, fmt.Sprintf("%s%s", data.Metadata.Name, ".yaml"))
 	err := v.filesystem.MkdirAll(filepath.Dir(filePath), 0755)
 	if err != nil {
@@ -70,38 +51,7 @@ func (v *SecretsFileRepository) createCoreSecret(ctx context.Context, id domain.
 		return fmt.Errorf("error creating secrets file: %w", err)
 	}
 
-	/*
-		secret := &v1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Secret",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "my-secret",
-				Namespace: "ecosystem",
-			},
-			Type: v1.SecretTypeOpaque,
-			Data: map[string][]byte{
-				"username": []byte("admin"),
-				"password": []byte("secret"),
-			},
-		}
-
-		yamlBytes, err := yaml.Marshal(secret)
-		if err != nil {
-			return err
-		}
-		filePath := filepath.Join(v.workPath, id.Namespace, id.Name, archiveSecretsInfoDirName, fmt.Sprintf("%s%s", "secret", ".yaml"))
-		err = v.filesystem.MkdirAll(filepath.Dir(filePath), 0755)
-		if err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(filePath), err)
-		}
-		if err := os.WriteFile(filePath, yamlBytes, 0644); err != nil {
-			return err
-		}
-	*/
-
-	logger.Info("created secrets file")
+	logger.Info(fmt.Sprintf("created file for secret: %s", data.Metadata.Name))
 
 	return nil
 }
