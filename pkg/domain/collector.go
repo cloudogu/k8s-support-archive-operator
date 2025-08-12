@@ -10,7 +10,7 @@ type CollectorType string
 const (
 	CollectorTypeLog       CollectorType = "Logs"
 	CollectorTypVolumeInfo CollectorType = "VolumeInfo"
-	CollectorTypSecret     CollectorType = "k8s/core/secrets"
+	CollectorTypSecret     CollectorType = "Resources/Secrets"
 )
 
 func (c CollectorType) GetConditionType() string {
@@ -19,6 +19,8 @@ func (c CollectorType) GetConditionType() string {
 		return "TODO"
 	case CollectorTypVolumeInfo:
 		return libapi.ConditionVolumeInfoFetched
+	case CollectorTypSecret:
+		return libapi.ConditionSecretsFetched
 	default:
 		return ""
 	}
