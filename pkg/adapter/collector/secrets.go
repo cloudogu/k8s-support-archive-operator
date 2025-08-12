@@ -26,7 +26,7 @@ func (sc *SecretCollector) Name() string {
 	return string(domain.CollectorTypSecret)
 }
 
-func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ time.Time, resultChan chan<- *v1.SecretList) error {
+func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ time.Time, resultChan chan<- *domain.SecretYaml) error {
 	logger := log.FromContext(ctx).WithName("SecretCollector.Collect")
 	labelSelector := "app=ces"
 	list, err := sc.coreV1Interface.Secrets(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
@@ -41,28 +41,41 @@ func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ t
 		return nil
 	}
 
-	secrets := make([]v1.Secret, 0)
+	//secrets := make([]domain.SecretYaml, 0)
 
 	for _, secret := range list.Items {
 		censored := sc.censorSecret(secret)
 		for key, val := range censored.Data {
 			logger.Info(fmt.Sprintf("Censored key=%s, val=%s", key, val))
 		}
-		secrets = append(secrets, *censored)
+		//secrets = append(secrets, *censored)
 		logger.Info(fmt.Sprintf("censored secret: %s", secret.Name))
+
+		logger.Info("write secret into channel")
+		writeSaveToChannel(ctx, censored, resultChan)
 	}
 	logger.Info("censored all secrets")
 
-	logger.Info("write all secrets into channel")
-	writeSaveToChannel(ctx, &v1.SecretList{Items: secrets}, resultChan)
 	close(resultChan)
 
 	logger.Info("secret channel is closed")
 	return nil
 }
 
-func (sc *SecretCollector) censorSecret(secret v1.Secret) *v1.Secret {
-	censored := secret.DeepCopy()
+func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
+	censored2 := &domain.SecretYaml{
+		ApiVersion: secret.APIVersion,
+		Kind:       secret.Kind,
+		SecretType: string(secret.Type),
+		Data:       map[string]string{},
+		Metadata: domain.SecretYamlMetaData{
+			Name:              secret.Name,
+			Namespace:         secret.Namespace,
+			UID:               string(secret.UID),
+			CreationTimestamp: secret.CreationTimestamp.String(),
+			Labels:            secret.Labels,
+		},
+	}
 	for key, val := range secret.Data {
 		// Try json parse
 		var parsed interface{}
@@ -71,7 +84,7 @@ func (sc *SecretCollector) censorSecret(secret v1.Secret) *v1.Secret {
 			censoredJSON := censorJsonSecret(parsed)
 			newVal, err := json.Marshal(censoredJSON)
 			if err == nil {
-				censored.Data[key] = newVal
+				censored2.Data[key] = string(newVal)
 			}
 			continue
 		}
@@ -84,14 +97,14 @@ func (sc *SecretCollector) censorSecret(secret v1.Secret) *v1.Secret {
 			if err != nil {
 				return nil
 			}
-			censored.Data[key] = encoded
+			censored2.Data[key] = string(encoded)
 			continue
 		}
 
 		// Censor key with default censorValue
-		censored.Data[key] = []byte(censoredValue)
+		censored2.Data[key] = censoredValue
 	}
-	return censored
+	return censored2
 }
 
 func censorJsonSecret(data interface{}) interface{} {

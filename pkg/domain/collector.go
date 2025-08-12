@@ -25,5 +25,5 @@ func (c CollectorType) GetConditionType() string {
 }
 
 type CollectorUnionDataType interface {
-	PodLog | VolumeInfo | v1.SecretList
+	PodLog | VolumeInfo | v1.SecretList | SecretYaml
 }

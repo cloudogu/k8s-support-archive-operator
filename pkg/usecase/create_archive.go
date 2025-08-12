@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/sync/errgroup"
-	v1 "k8s.io/api/core/v1"
 	"time"
 
 	libapi "github.com/cloudogu/k8s-support-archive-lib/api/v1"
@@ -161,7 +160,7 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 		case domain.CollectorTypVolumeInfo:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.VolumeInfo](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypSecret:
-			stream, err = fetchRepoAndStreamWithErrorGroup[v1.SecretList](errCtx, errGroup, col, c.collectorMapping, id)
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.SecretYaml](errCtx, errGroup, col, c.collectorMapping, id)
 		default:
 			return "", errors.New("invalid collector type")
 		}
@@ -265,7 +264,7 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 
 		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
 	case domain.CollectorTypSecret:
-		col, repo, typeErr := getCollectorAndRepositoryForType[v1.SecretList](next, c.collectorMapping)
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.SecretYaml](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}
