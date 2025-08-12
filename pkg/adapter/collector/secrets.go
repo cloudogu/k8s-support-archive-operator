@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"strings"
 	"time"
 )
 
@@ -42,7 +43,7 @@ func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ t
 	}
 
 	for _, secret := range list.Items {
-		censored := sc.censorSecret(secret)
+		censored := sc.censorSecret(ctx, secret)
 		for key, val := range censored.Data {
 			logger.Info(fmt.Sprintf("Censored key=%s, val=%s", key, val))
 		}
@@ -59,7 +60,7 @@ func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ t
 	return nil
 }
 
-func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
+func (sc *SecretCollector) censorSecret(ctx context.Context, secret v1.Secret) *domain.SecretYaml {
 	censored := &domain.SecretYaml{
 		ApiVersion: secret.APIVersion,
 		Kind:       secret.Kind,
@@ -74,6 +75,11 @@ func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
 		},
 	}
 	for key, val := range secret.Data {
+		if !strings.Contains(string(val), "\n") {
+			// Censor key with default censorValue
+			censored.Data[key] = censoredValue
+			continue
+		}
 		// Try json parse
 		var parsed interface{}
 		err := json.Unmarshal(val, &parsed)
@@ -97,9 +103,6 @@ func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
 			censored.Data[key] = string(encoded)
 			continue
 		}
-
-		// Censor key with default censorValue
-		censored.Data[key] = censoredValue
 	}
 	return censored
 }
