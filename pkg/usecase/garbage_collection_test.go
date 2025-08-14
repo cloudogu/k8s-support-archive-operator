@@ -114,7 +114,7 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 					descriptors := createTestArchiveDescriptors(0, 10)
 					m.EXPECT().List(mock.Anything, metav1.ListOptions{}).
 						Return(&libv1.SupportArchiveList{Items: descriptors}, nil)
-					for _, descriptor := range descriptors[0:5] {
+					for _, descriptor := range descriptors[5:] {
 						m.EXPECT().Delete(mock.Anything, descriptor.Name, metav1.DeleteOptions{}).Return(assert.AnError)
 					}
 					return m
@@ -135,7 +135,7 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 			},
 			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorIs(t, err, assert.AnError, i) &&
-					createErrContainsForIDs(t, err, createTestArchiveIDs(0, 5), "failed to delete support archive resource test-namespace/%s", i)
+					createErrContainsForIDs(t, err, createTestArchiveIDs(5, 10), "failed to delete support archive resource test-namespace/%s", i)
 			},
 		},
 		{
@@ -146,7 +146,7 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 					descriptors := createTestArchiveDescriptors(0, 10)
 					m.EXPECT().List(mock.Anything, metav1.ListOptions{}).
 						Return(&libv1.SupportArchiveList{Items: descriptors}, nil)
-					for _, descriptor := range descriptors[:5] {
+					for _, descriptor := range descriptors[5:] {
 						m.EXPECT().Delete(mock.Anything, descriptor.Name, metav1.DeleteOptions{}).Return(nil)
 					}
 					return m
@@ -161,7 +161,7 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 				supportArchiveDeleteHandler: func(t *testing.T) deleteArchiveHandler {
 					m := newMockDeleteArchiveHandler(t)
 					archives := createTestArchiveIDs(0, 10)
-					for _, archive := range archives[:5] {
+					for _, archive := range archives[5:] {
 						m.EXPECT().Delete(mock.Anything, archive).Return(assert.AnError)
 					}
 					return m
@@ -171,7 +171,7 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 			},
 			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorIs(t, err, assert.AnError, i) &&
-					createErrContainsForIDs(t, err, createTestArchiveIDs(0, 5), "failed to delete stored support archive test-namespace/%s", i)
+					createErrContainsForIDs(t, err, createTestArchiveIDs(5, 10), "failed to delete stored support archive test-namespace/%s", i)
 			},
 		},
 		{
@@ -182,7 +182,7 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 					descriptors := createTestArchiveDescriptors(0, 10)
 					m.EXPECT().List(mock.Anything, metav1.ListOptions{}).
 						Return(&libv1.SupportArchiveList{Items: descriptors}, nil)
-					for _, descriptor := range descriptors[3:5] {
+					for _, descriptor := range descriptors[8:] {
 						m.EXPECT().Delete(mock.Anything, descriptor.Name, metav1.DeleteOptions{}).Return(nil)
 					}
 					return m
@@ -197,7 +197,7 @@ func TestGarbageCollectionUseCase_CollectGarbageWithInterval(t *testing.T) {
 				supportArchiveDeleteHandler: func(t *testing.T) deleteArchiveHandler {
 					m := newMockDeleteArchiveHandler(t)
 					archives := createTestArchiveIDs(0, 10)
-					for _, archive := range archives[3:5] {
+					for _, archive := range archives[8:] {
 						m.EXPECT().Delete(mock.Anything, archive).Return(nil)
 					}
 					return m

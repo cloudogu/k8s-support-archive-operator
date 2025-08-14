@@ -123,7 +123,8 @@ func (g *GarbageCollectionUseCase) getOldestArchivesExcludingTheOnesToKeep(compl
 		return a.CreationTimestamp.Compare(b.CreationTimestamp.Time)
 	})
 
-	return completedArchives[g.numberToKeep:]
+	// After sorting ascending (oldest first), delete the oldest ones and keep the newest g.numberToKeep
+	return completedArchives[:len(completedArchives)-g.numberToKeep]
 }
 
 func (g *GarbageCollectionUseCase) deleteArchives(ctx context.Context, toDelete []libv1.SupportArchive) error {
