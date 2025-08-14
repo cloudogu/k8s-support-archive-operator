@@ -15,7 +15,6 @@ type collector[DATATYPE domain.CollectorUnionDataType] interface {
 
 type baseCollectorRepository interface {
 	Delete(ctx context.Context, id domain.SupportArchiveID) error
-	FinishCollection(ctx context.Context, id domain.SupportArchiveID) error
 	IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error)
 	Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) error
 }

@@ -70,11 +70,11 @@ func (_c *mockBaseCollectorRepository_Delete_Call) RunAndReturn(run func(context
 }
 
 // FinishCollection provides a mock function with given fields: ctx, id
-func (_m *mockBaseCollectorRepository) FinishCollection(ctx context.Context, id domain.SupportArchiveID) error {
+func (_m *mockBaseCollectorRepository) finishCollection(ctx context.Context, id domain.SupportArchiveID) error {
 	ret := _m.Called(ctx, id)
 
 	if len(ret) == 0 {
-		panic("no return value specified for FinishCollection")
+		panic("no return value specified for finishCollection")
 	}
 
 	var r0 error
@@ -87,7 +87,7 @@ func (_m *mockBaseCollectorRepository) FinishCollection(ctx context.Context, id 
 	return r0
 }
 
-// mockBaseCollectorRepository_FinishCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FinishCollection'
+// mockBaseCollectorRepository_FinishCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'finishCollection'
 type mockBaseCollectorRepository_FinishCollection_Call struct {
 	*mock.Call
 }
@@ -96,7 +96,7 @@ type mockBaseCollectorRepository_FinishCollection_Call struct {
 //   - ctx context.Context
 //   - id domain.SupportArchiveID
 func (_e *mockBaseCollectorRepository_Expecter) FinishCollection(ctx interface{}, id interface{}) *mockBaseCollectorRepository_FinishCollection_Call {
-	return &mockBaseCollectorRepository_FinishCollection_Call{Call: _e.mock.On("FinishCollection", ctx, id)}
+	return &mockBaseCollectorRepository_FinishCollection_Call{Call: _e.mock.On("finishCollection", ctx, id)}
 }
 
 func (_c *mockBaseCollectorRepository_FinishCollection_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID)) *mockBaseCollectorRepository_FinishCollection_Call {

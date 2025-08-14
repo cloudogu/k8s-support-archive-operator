@@ -72,7 +72,7 @@ func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *lib
 		Name:      cr.GetName(),
 	}
 	requiredCollectorMapping := c.collectorMapping.getRequiredCollectorMapping(cr)
-	completedCollectorList, err := c.getAlreadyExecutedCollectors(ctx, id)
+	completedCollectorList, err := c.getAlreadyExecutedCollectors(ctx, id, requiredCollectorMapping)
 	if err != nil {
 		return true, fmt.Errorf("could not get already executed collectors: %w", err)
 	}
@@ -160,7 +160,7 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 		case domain.CollectorTypVolumeInfo:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.VolumeInfo](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypeNodeInfo:
-			stream, err = fetchRepoAndStreamWithErrorGroup[domain.NodeInfo](errCtx, errGroup, col, c.collectorMapping, id)
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.LabeledSample](errCtx, errGroup, col, c.collectorMapping, id)
 		default:
 			return "", errors.New("invalid collector type")
 		}
@@ -264,7 +264,7 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 
 		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
 	case domain.CollectorTypeNodeInfo:
-		col, repo, typeErr := getCollectorAndRepositoryForType[domain.NodeInfo](next, c.collectorMapping)
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.LabeledSample](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}
@@ -318,11 +318,11 @@ func startCollector[DATATYPE domain.CollectorUnionDataType](ctx context.Context,
 	return nil
 }
 
-func (c *CreateArchiveUseCase) getAlreadyExecutedCollectors(ctx context.Context, id domain.SupportArchiveID) ([]domain.CollectorType, error) {
+func (c *CreateArchiveUseCase) getAlreadyExecutedCollectors(ctx context.Context, id domain.SupportArchiveID, requiredCollectors CollectorMapping) ([]domain.CollectorType, error) {
 	logger := log.FromContext(ctx).WithName("GetAlreadyExecutedCollectors.getAlreadyExecutedCollectors")
 	var completedCollectorList []domain.CollectorType
 	// Get actual state
-	for colType := range c.collectorMapping {
+	for colType := range requiredCollectors {
 		baseRepo, err := getBaseRepositoryForCollector(colType, c.collectorMapping)
 		if err != nil {
 			return nil, err

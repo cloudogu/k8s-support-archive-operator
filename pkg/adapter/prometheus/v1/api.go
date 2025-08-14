@@ -14,29 +14,7 @@ import (
 )
 
 const (
-	capacityBytesQueryFmt = "kubelet_volume_stats_capacity_bytes{namespace=\"%s\", persistentvolumeclaim=\"%s\"}"
-	usedBytesQueryFmt     = "kubelet_volume_stats_used_bytes{namespace=\"%s\", persistentvolumeclaim=\"%s\"}"
-
-	nodeCountQuery               = "count(kube_node_info)"
-	nodeNameQuery                = "count(kube_node_info) by (node)"
-	nodeStorageQuery             = "node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}"
-	nodeStorageFreeQuery         = "node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}"
-	nodeStorageFreeRelativeQuery = "100 - ((node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"} * 100) / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"})"
-
-	nodeRAMQuery             = "machine_memory_bytes"
-	nodeRAMFreeQuery         = "avg_over_time(node_memory_MemFree_bytes[5m]) + avg_over_time(node_memory_Cached_bytes[10m]) + avg_over_time(node_memory_Buffers_bytes[5m])"
-	nodeRAMUsedRelativeQuery = "100 * (1- ((avg_over_time(node_memory_MemFree_bytes[5m]) + avg_over_time(node_memory_Cached_bytes[10m]) + avg_over_time(node_memory_Buffers_bytes[5m])) / avg_over_time(node_memory_MemTotal_bytes[5m])))"
-
-	nodeCPUCoresQuery    = "machine_cpu_cores"
-	nodeCPUUsage         = "sum(rate (container_cpu_usage_seconds_total{id=~\"/.*\"}[2m])) by (node)"
-	nodeCPUUsageRelative = "100 * avg(1 - rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) by (node)"
-
-	nodeNetworkContainerBytesReceived = "sum (rate (container_network_receive_bytes_total[2m])) by (node)"
-	nodeNetworkContainerBytesSent     = "sum (rate (container_network_transmit_bytes_total[2m])) by (node)"
-)
-
-var (
-	convertMatrixErr = errors.New("failed to convert values to matrix model")
+	maxSamples = 11000 // TODO make configurable. depends on prometheus instance
 )
 
 type PrometheusMetricsV1API struct {
@@ -59,155 +37,56 @@ func (p *PrometheusMetricsV1API) GetUsedBytesForPVC(ctx context.Context, namespa
 	return p.queryInt64(ctx, query, ts)
 }
 
-func (p *PrometheusMetricsV1API) GetNodeCount(ctx context.Context, start, end time.Time) (domain.NodeCountRange, error) {
-	matrix, err := p.queryRangeForMatrix(ctx, nodeCountQuery, start, end, time.Hour)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseMatrix[int](matrix), nil
+func (p *PrometheusMetricsV1API) GetNodeCount(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
+	return p.queryRange(ctx, nodeCountMetric, start, end, step, resultChan)
 }
 
-func (p *PrometheusMetricsV1API) GetNodeNames(ctx context.Context, start, end time.Time) (domain.NodeNameRange, error) {
-	values, err := p.queryRange(ctx, nodeNameQuery, start, end, time.Hour)
-	if err != nil {
-		return nil, err
-	}
-
-	matrix, ok := values.(model.Matrix)
-	if !ok {
-		return nil, convertMatrixErr
-	}
-
-	var result domain.NodeNameRange
-
-	for _, sampleStream := range matrix {
-		value := string(sampleStream.Metric["node"])
-
-		for _, sample := range sampleStream.Values {
-			entry := domain.StringSample{
-				Value: value,
-				Time:  sample.Timestamp.Time(),
-			}
-
-			result = append(result, entry)
-		}
-	}
-
-	return result, nil
+func (p *PrometheusMetricsV1API) GetNodeNames(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
+	return p.queryRange(ctx, nodeNameMetric, start, end, step, resultChan)
 }
 
-func (p *PrometheusMetricsV1API) GetNodeStorage(ctx context.Context, start, end time.Time) (domain.NodeStorageInfo, error) {
-	matrix, err := p.queryRangeForMatrix(ctx, nodeStorageQuery, start, end, time.Hour)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseMatrix[float64](matrix), nil
+func (p *PrometheusMetricsV1API) GetNodeStorage(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
+	return p.queryRange(ctx, nodeStorageMetric, start, end, step, resultChan)
 }
 
-func (p *PrometheusMetricsV1API) GetNodeFreeStorage(ctx context.Context, start, end time.Time) (domain.NodeStorageInfo, error) {
-	matrix, err := p.queryRangeForMatrix(ctx, nodeStorageFreeQuery, start, end, time.Hour)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseMatrix[float64](matrix), nil
+func (p *PrometheusMetricsV1API) GetNodeStorageFree(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
+	return p.queryRange(ctx, nodeStorageFreeMetric, start, end, step, resultChan)
 }
 
-func (p *PrometheusMetricsV1API) GetNodeFreeRelativeStorage(ctx context.Context, start, end time.Time) (domain.NodeStorageInfo, error) {
-	matrix, err := p.queryRangeForMatrix(ctx, nodeStorageFreeRelativeQuery, start, end, time.Hour)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseMatrix[float64](matrix), nil
+func (p *PrometheusMetricsV1API) GetNodeStorageFreeRelative(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
+	return p.queryRange(ctx, nodeStorageFreeRelativeMetric, start, end, step, resultChan)
 }
 
-func (p *PrometheusMetricsV1API) GetNodeRAM(ctx context.Context, start, end time.Time) (domain.NodeRAMInfo, error) {
-	matrix, err := p.queryRangeForMatrix(ctx, nodeRAMQuery, start, end, time.Hour)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseMatrix[float64](matrix), nil
+func (p *PrometheusMetricsV1API) GetNodeRAM(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
+	return p.queryRange(ctx, nodeRAMMetric, start, end, step, resultChan)
 }
 
-func (p *PrometheusMetricsV1API) GetNodeRAMFree(ctx context.Context, start, end time.Time) (domain.NodeRAMInfo, error) {
-	matrix, err := p.queryRangeForMatrix(ctx, nodeRAMFreeQuery, start, end, time.Hour)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseMatrix[float64](matrix), nil
+func (p *PrometheusMetricsV1API) GetNodeRAMFree(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
+	return p.queryRange(ctx, nodeRAMFreeMetric, start, end, step, resultChan)
 }
 
-func (p *PrometheusMetricsV1API) GetNodeRAMUsedRelative(ctx context.Context, start, end time.Time) (domain.NodeRAMInfo, error) {
-	matrix, err := p.queryRangeForMatrix(ctx, nodeRAMUsedRelativeQuery, start, end, time.Hour)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseMatrix[float64](matrix), nil
+func (p *PrometheusMetricsV1API) GetNodeRAMUsedRelative(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
+	return p.queryRange(ctx, nodeRAMUsedRelativeMetric, start, end, step, resultChan)
 }
 
-func (p *PrometheusMetricsV1API) GetNodeCPUCores(ctx context.Context, start, end time.Time) (domain.NodeCPUInfo, error) {
-	matrix, err := p.queryRangeForMatrix(ctx, nodeCPUCoresQuery, start, end, time.Hour)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseMatrix[float64](matrix), nil
+func (p *PrometheusMetricsV1API) GetNodeCPUCores(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
+	return p.queryRange(ctx, nodeCPUCoresMetric, start, end, step, resultChan)
 }
 
-func (p *PrometheusMetricsV1API) GetNodeCPUUsage(ctx context.Context, start, end time.Time) (domain.NodeCPUInfo, error) {
-	matrix, err := p.queryRangeForMatrix(ctx, nodeCPUUsage, start, end, time.Hour)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseMatrix[float64](matrix), nil
+func (p *PrometheusMetricsV1API) GetNodeCPUUsage(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
+	return p.queryRange(ctx, nodeCPUUsageMetric, start, end, step, resultChan)
 }
 
-func (p *PrometheusMetricsV1API) GetNodeCPUUsageRelative(ctx context.Context, start, end time.Time) (domain.NodeCPUInfo, error) {
-	matrix, err := p.queryRangeForMatrix(ctx, nodeCPUUsageRelative, start, end, time.Hour)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseMatrix[float64](matrix), nil
+func (p *PrometheusMetricsV1API) GetNodeCPUUsageRelative(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
+	return p.queryRange(ctx, nodeCPUUsageRelativeMetric, start, end, step, resultChan)
 }
 
-func (p *PrometheusMetricsV1API) GetNodeNetworkContainerBytesReceived(ctx context.Context, start, end time.Time) (domain.NodeContainerNetworkInfo, error) {
-	matrix, err := p.queryRangeForMatrix(ctx, nodeNetworkContainerBytesReceived, start, end, time.Hour)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseMatrix[int](matrix), nil
+func (p *PrometheusMetricsV1API) GetNodeNetworkContainerBytesReceived(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
+	return p.queryRange(ctx, nodeNetworkContainerBytesReceivedMetric, start, end, step, resultChan)
 }
 
-func (p *PrometheusMetricsV1API) GetNodeNetworkContainerBytesSend(ctx context.Context, start, end time.Time) (domain.NodeContainerNetworkInfo, error) {
-	matrix, err := p.queryRangeForMatrix(ctx, nodeNetworkContainerBytesSent, start, end, time.Hour)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseMatrix[int](matrix), nil
-}
-
-func (p *PrometheusMetricsV1API) queryRangeForMatrix(ctx context.Context, query string, start, end time.Time, step time.Duration) (*model.Matrix, error) {
-	values, err := p.queryRange(ctx, query, start, end, step)
-	if err != nil {
-		return nil, err
-	}
-
-	matrix, ok := values.(model.Matrix)
-	if !ok {
-		return nil, convertMatrixErr
-	}
-
-	return &matrix, nil
+func (p *PrometheusMetricsV1API) GetNodeNetworkContainerBytesSend(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
+	return p.queryRange(ctx, nodeNetworkContainerBytesSentMetric, start, end, step, resultChan)
 }
 
 func (p *PrometheusMetricsV1API) queryInt64(ctx context.Context, query string, ts time.Time) (int64, error) {
@@ -240,21 +119,76 @@ func (p *PrometheusMetricsV1API) query(ctx context.Context, query string, ts tim
 	return parseValue(value, logger, query)
 }
 
-func (p *PrometheusMetricsV1API) queryRange(ctx context.Context, query string, start, end time.Time, step time.Duration) (model.Value, error) {
+func (p *PrometheusMetricsV1API) queryRange(ctx context.Context, metric metric, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
 	logger := log.FromContext(ctx).WithName("PrometheusMetricsV1API.queryRange")
-	r := v1.Range{
-		Start: start,
-		End:   end,
-		Step:  step,
-	}
-	values, warnings, err := p.QueryRange(ctx, query, r)
-	if err != nil {
-		return nil, err
+
+	pageStart := start
+	pageEnd := end
+	lastPage := false
+	pageIndex := 1
+
+	for {
+		pageEnd = pageStart.Add(maxSamples * step)
+
+		if pageEnd.After(end) {
+			pageEnd = end
+			lastPage = true
+		}
+
+		r := v1.Range{
+			Start: pageStart,
+			End:   pageEnd,
+			Step:  step,
+		}
+
+		query, err := metric.getQuery()
+		if err != nil {
+			return err
+		}
+		logger.Info("do range query", "query", query, "start", start, "end", end, "step", step, "pageIndex", pageIndex, "lastPage", lastPage)
+		value, warnings, pageErr := p.QueryRange(ctx, query, r)
+		if pageErr != nil {
+			return fmt.Errorf("metric range error: %w", pageErr)
+		}
+		logWarnings(logger, warnings)
+
+		// write to channel
+		err = writeMatrixToChannel(value, metric, resultChan)
+		if err != nil {
+			return err
+		}
+
+		if lastPage {
+			break
+		}
+
+		pageIndex++
+		pageStart = pageEnd
 	}
 
-	logWarnings(logger, warnings)
+	return nil
+}
 
-	return values, nil
+func writeMatrixToChannel(value model.Value, metric metric, ch chan<- *domain.LabeledSample) error {
+	matrix, ok := value.(model.Matrix)
+	if !ok {
+		return fmt.Errorf("invalid value type: %T", value)
+	}
+
+	for _, sampleStream := range matrix {
+		labels := sampleStream.Metric.String()
+
+		for _, sample := range sampleStream.Values {
+			ch <- &domain.LabeledSample{
+				Name:   string(metric),
+				Labels: labels,
+				Value:  float64(sample.Value),
+				Time:   sample.Timestamp.Time(),
+			}
+		}
+	}
+
+	return nil
 }
 
 func parseValue(value model.Value, logger logr.Logger, query string) (string, error) {
@@ -276,33 +210,6 @@ func parseValue(value model.Value, logger logr.Logger, query string) (string, er
 	default:
 		return "", errors.New("unknown prometheus return type")
 	}
-}
-
-func parseMatrix[n domain.Number](matrix *model.Matrix) []domain.LabeledSamples[n] {
-	var result []domain.LabeledSamples[n]
-
-	for _, sampleStream := range *matrix {
-		labels := make(map[string]string, len(sampleStream.Metric))
-		for k, v := range sampleStream.Metric {
-			labels[string(k)] = string(v)
-		}
-		samples := make([]domain.Sample[n], len(sampleStream.Values))
-		entry := domain.LabeledSamples[n]{
-			Labels:  labels,
-			Samples: samples,
-		}
-
-		for i, sample := range sampleStream.Values {
-			samples[i] = domain.Sample[n]{
-				Time:  sample.Timestamp.Time(),
-				Value: n(sample.Value),
-			}
-
-		}
-		result = append(result, entry)
-	}
-
-	return result
 }
 
 func logWarnings(logger logr.Logger, warnings []string) {

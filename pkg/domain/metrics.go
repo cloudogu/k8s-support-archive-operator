@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"strconv"
+	"time"
+)
 
 type VolumeInfo struct {
 	Name      string
@@ -16,45 +19,17 @@ type VolumeInfoItem struct {
 	Phase           string `yaml:"phase"`
 }
 
-type NodeInfo struct {
-	Name                          NodeNameRange            `json:"name,omitempty"`
-	Count                         NodeCountRange           `json:"count,omitempty"`
-	Storage                       NodeStorageInfo          `json:"storage,omitempty"`
-	StorageFree                   NodeStorageInfo          `json:"storageFree,omitempty"`
-	StorageRelative               NodeStorageInfo          `json:"storageRelative,omitempty"`
-	RAM                           NodeRAMInfo              `json:"ram,omitempty"`
-	RAMFree                       NodeRAMInfo              `json:"ramFree,omitempty"`
-	RAMUsedRelative               NodeRAMInfo              `json:"ramUsedRelative,omitempty"`
-	CPUCores                      NodeCPUInfo              `json:"cpuCores,omitempty"`
-	CPUUsage                      NodeCPUInfo              `json:"cpuUsage,omitempty"`
-	CPUUsageRelative              NodeCPUInfo              `json:"cpuUsageRelative,omitempty"`
-	NetworkContainerBytesReceived NodeContainerNetworkInfo `json:"networkContainerBytesReceived,omitempty"`
-	NetworkContainerBytesSent     NodeContainerNetworkInfo `json:"networkContainerBytesSent,omitempty"`
+type LabeledSample struct {
+	Name   string
+	Labels string
+	Value  float64
+	Time   time.Time
 }
 
-type NodeNameRange []StringSample
-
-type StringSample struct {
-	Value string
-	Time  time.Time
+func (ls *LabeledSample) GetHeader() []string {
+	return []string{"label", "value", "time"}
 }
 
-type NodeCountRange []LabeledSamples[int]
-type NodeStorageInfo []LabeledSamples[float64]
-type NodeRAMInfo []LabeledSamples[float64]
-type NodeCPUInfo []LabeledSamples[float64]
-type NodeContainerNetworkInfo []LabeledSamples[int]
-
-type Number interface {
-	int | float64
-}
-
-type LabeledSamples[n Number] struct {
-	Labels  map[string]string `json:"labels"`
-	Samples []Sample[n]       `json:"samples"`
-}
-
-type Sample[n Number] struct {
-	Value n         `json:"value"`
-	Time  time.Time `json:"time"`
+func (ls *LabeledSample) GetRow() []string {
+	return []string{ls.Labels, strconv.FormatFloat(ls.Value, 'f', 2, 64), ls.Time.Format("2006-01-02T15:04:05-07:00")}
 }

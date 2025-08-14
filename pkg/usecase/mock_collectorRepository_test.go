@@ -118,11 +118,11 @@ func (_c *mockCollectorRepository_Delete_Call[DATATYPE]) RunAndReturn(run func(c
 }
 
 // FinishCollection provides a mock function with given fields: ctx, id
-func (_m *mockCollectorRepository[DATATYPE]) FinishCollection(ctx context.Context, id domain.SupportArchiveID) error {
+func (_m *mockCollectorRepository[DATATYPE]) finishCollection(ctx context.Context, id domain.SupportArchiveID) error {
 	ret := _m.Called(ctx, id)
 
 	if len(ret) == 0 {
-		panic("no return value specified for FinishCollection")
+		panic("no return value specified for finishCollection")
 	}
 
 	var r0 error
@@ -135,7 +135,7 @@ func (_m *mockCollectorRepository[DATATYPE]) FinishCollection(ctx context.Contex
 	return r0
 }
 
-// mockCollectorRepository_FinishCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FinishCollection'
+// mockCollectorRepository_FinishCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'finishCollection'
 type mockCollectorRepository_FinishCollection_Call[DATATYPE domain.CollectorUnionDataType] struct {
 	*mock.Call
 }
@@ -144,7 +144,7 @@ type mockCollectorRepository_FinishCollection_Call[DATATYPE domain.CollectorUnio
 //   - ctx context.Context
 //   - id domain.SupportArchiveID
 func (_e *mockCollectorRepository_Expecter[DATATYPE]) FinishCollection(ctx interface{}, id interface{}) *mockCollectorRepository_FinishCollection_Call[DATATYPE] {
-	return &mockCollectorRepository_FinishCollection_Call[DATATYPE]{Call: _e.mock.On("FinishCollection", ctx, id)}
+	return &mockCollectorRepository_FinishCollection_Call[DATATYPE]{Call: _e.mock.On("finishCollection", ctx, id)}
 }
 
 func (_c *mockCollectorRepository_FinishCollection_Call[DATATYPE]) Run(run func(ctx context.Context, id domain.SupportArchiveID)) *mockCollectorRepository_FinishCollection_Call[DATATYPE] {

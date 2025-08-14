@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+const (
+	// defaultUsageMetricStep is used to identify resource usage spikes like cpu or ram usage.
+	// Since metrics are already calculated over (intersect over time) it is not necessary to use a low duration, e.g., one second here.
+	defaultUsageMetricStep = time.Second * 30 // TODO configurable
+	// defaultHardwareMetricStep is used to identify changes in the underlying hardware like increasing ram or add a new node.
+	defaultHardwareMetricStep = time.Minute * 30
+)
+
 type NodeInfoCollector struct {
 	metricsProvider metricsProvider
 }
@@ -18,88 +26,72 @@ func (nic *NodeInfoCollector) Name() string {
 	return string(domain.CollectorTypeNodeInfo)
 }
 
-func (nic *NodeInfoCollector) Collect(ctx context.Context, _ string, start, end time.Time, resultChan chan<- *domain.NodeInfo) error {
-	nodeInfo := &domain.NodeInfo{}
-
-	name, err := nic.metricsProvider.GetNodeNames(ctx, start, end)
+func (nic *NodeInfoCollector) Collect(ctx context.Context, _ string, start, end time.Time, resultChan chan<- *domain.LabeledSample) error {
+	err := nic.metricsProvider.GetNodeNames(ctx, start, end, defaultHardwareMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
-	nodeInfo.Name = name
 
-	count, err := nic.metricsProvider.GetNodeCount(ctx, start, end)
+	err = nic.metricsProvider.GetNodeCount(ctx, start, end, defaultHardwareMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
-	nodeInfo.Count = count
 
-	storage, err := nic.metricsProvider.GetNodeStorage(ctx, start, end)
+	err = nic.metricsProvider.GetNodeStorage(ctx, start, end, defaultHardwareMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
-	nodeInfo.Storage = storage
 
-	storageFree, err := nic.metricsProvider.GetNodeFreeStorage(ctx, start, end)
+	err = nic.metricsProvider.GetNodeStorageFree(ctx, start, end, defaultUsageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
-	nodeInfo.StorageFree = storageFree
 
-	storageFreeRelative, err := nic.metricsProvider.GetNodeFreeRelativeStorage(ctx, start, end)
+	err = nic.metricsProvider.GetNodeStorageFreeRelative(ctx, start, end, defaultUsageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
-	nodeInfo.StorageFree = storageFreeRelative
 
-	cpuCores, err := nic.metricsProvider.GetNodeCPUCores(ctx, start, end)
+	err = nic.metricsProvider.GetNodeCPUCores(ctx, start, end, defaultHardwareMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
-	nodeInfo.CPUCores = cpuCores
 
-	cpuUsage, err := nic.metricsProvider.GetNodeCPUUsage(ctx, start, end)
+	err = nic.metricsProvider.GetNodeCPUUsage(ctx, start, end, defaultUsageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
-	nodeInfo.CPUUsage = cpuUsage
 
-	cpuUsageRelative, err := nic.metricsProvider.GetNodeCPUUsageRelative(ctx, start, end)
+	err = nic.metricsProvider.GetNodeCPUUsageRelative(ctx, start, end, defaultUsageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
-	nodeInfo.CPUUsageRelative = cpuUsageRelative
 
-	ram, err := nic.metricsProvider.GetNodeRAM(ctx, start, end)
+	err = nic.metricsProvider.GetNodeRAM(ctx, start, end, defaultHardwareMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
-	nodeInfo.RAM = ram
 
-	ramFree, err := nic.metricsProvider.GetNodeRAMFree(ctx, start, end)
+	err = nic.metricsProvider.GetNodeRAMFree(ctx, start, end, defaultUsageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
-	nodeInfo.RAMFree = ramFree
 
-	ramUsedRelative, err := nic.metricsProvider.GetNodeRAMUsedRelative(ctx, start, end)
+	err = nic.metricsProvider.GetNodeRAMUsedRelative(ctx, start, end, defaultUsageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
-	nodeInfo.RAMUsedRelative = ramUsedRelative
 
-	writeSaveToChannel(ctx, nodeInfo, resultChan)
+	err = nic.metricsProvider.GetNodeNetworkContainerBytesReceived(ctx, start, end, defaultHardwareMetricStep, resultChan)
+	if err != nil {
+		return err
+	}
+
+	err = nic.metricsProvider.GetNodeNetworkContainerBytesReceived(ctx, start, end, defaultHardwareMetricStep, resultChan)
+	if err != nil {
+		return err
+	}
+
 	close(resultChan)
 	return nil
-}
-
-func debugprint[t domain.NodeStorageInfo | domain.NodeCPUInfo | domain.NodeRAMInfo](m t) {
-	for _, sample := range m {
-		for i, v := range sample.Labels {
-			println("Label: ", i, v)
-		}
-		for _, s := range sample.Samples {
-			println("Value: ", s.Value, "Time: ", s.Time.Format(time.RFC3339))
-		}
-
-	}
 }

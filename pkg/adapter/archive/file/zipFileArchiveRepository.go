@@ -45,7 +45,7 @@ func NewZipFileArchiveRepository(archivesPath string, zipCreator zipCreator, con
 }
 
 func (z *ZipFileArchiveRepository) Create(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]*domain.Stream) (string, error) {
-	logger := log.FromContext(ctx).WithName("ZipFileArchiveRepository.FinishCollection")
+	logger := log.FromContext(ctx).WithName("ZipFileArchiveRepository.finishCollection")
 	destinationPath := z.getArchivePath(id)
 
 	err := z.filesystem.MkdirAll(filepath.Dir(destinationPath), 0755)

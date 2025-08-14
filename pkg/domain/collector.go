@@ -24,5 +24,5 @@ func (c CollectorType) GetConditionType() string {
 }
 
 type CollectorUnionDataType interface {
-	PodLog | VolumeInfo | NodeInfo
+	PodLog | VolumeInfo | LabeledSample
 }

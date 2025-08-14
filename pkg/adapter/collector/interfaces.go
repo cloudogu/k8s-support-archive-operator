@@ -14,19 +14,19 @@ type coreV1Interface interface {
 type metricsProvider interface {
 	GetCapacityBytesForPVC(ctx context.Context, namespace, pvcName string, ts time.Time) (int64, error)
 	GetUsedBytesForPVC(ctx context.Context, namespace, pvcName string, ts time.Time) (int64, error)
-	GetNodeCount(ctx context.Context, start, end time.Time) (domain.NodeCountRange, error)
-	GetNodeNames(ctx context.Context, start, end time.Time) (domain.NodeNameRange, error)
-	GetNodeStorage(ctx context.Context, start, end time.Time) (domain.NodeStorageInfo, error)
-	GetNodeFreeStorage(ctx context.Context, start, end time.Time) (domain.NodeStorageInfo, error)
-	GetNodeFreeRelativeStorage(ctx context.Context, start, end time.Time) (domain.NodeStorageInfo, error)
-	GetNodeRAM(ctx context.Context, start, end time.Time) (domain.NodeRAMInfo, error)
-	GetNodeRAMFree(ctx context.Context, start, end time.Time) (domain.NodeRAMInfo, error)
-	GetNodeRAMUsedRelative(ctx context.Context, start, end time.Time) (domain.NodeRAMInfo, error)
-	GetNodeCPUCores(ctx context.Context, start, end time.Time) (domain.NodeCPUInfo, error)
-	GetNodeCPUUsage(ctx context.Context, start, end time.Time) (domain.NodeCPUInfo, error)
-	GetNodeCPUUsageRelative(ctx context.Context, start, end time.Time) (domain.NodeCPUInfo, error)
-	GetNodeNetworkContainerBytesReceived(ctx context.Context, start, end time.Time) (domain.NodeContainerNetworkInfo, error)
-	GetNodeNetworkContainerBytesSend(ctx context.Context, start, end time.Time) (domain.NodeContainerNetworkInfo, error)
+	GetNodeCount(ctx context.Context, start, end time.Time, steps time.Duration, resultChan chan<- *domain.LabeledSample) error
+	GetNodeNames(ctx context.Context, start, end time.Time, steps time.Duration, resultChan chan<- *domain.LabeledSample) error
+	GetNodeStorage(ctx context.Context, start, end time.Time, steps time.Duration, resultChan chan<- *domain.LabeledSample) error
+	GetNodeStorageFree(ctx context.Context, start, end time.Time, steps time.Duration, resultChan chan<- *domain.LabeledSample) error
+	GetNodeStorageFreeRelative(ctx context.Context, start, end time.Time, steps time.Duration, resultChan chan<- *domain.LabeledSample) error
+	GetNodeRAM(ctx context.Context, start, end time.Time, steps time.Duration, resultChan chan<- *domain.LabeledSample) error
+	GetNodeRAMFree(ctx context.Context, start, end time.Time, steps time.Duration, resultChan chan<- *domain.LabeledSample) error
+	GetNodeRAMUsedRelative(ctx context.Context, start, end time.Time, steps time.Duration, resultChan chan<- *domain.LabeledSample) error
+	GetNodeCPUCores(ctx context.Context, start, end time.Time, steps time.Duration, resultChan chan<- *domain.LabeledSample) error
+	GetNodeCPUUsage(ctx context.Context, start, end time.Time, steps time.Duration, resultChan chan<- *domain.LabeledSample) error
+	GetNodeCPUUsageRelative(ctx context.Context, start, end time.Time, steps time.Duration, resultChan chan<- *domain.LabeledSample) error
+	GetNodeNetworkContainerBytesReceived(ctx context.Context, start, end time.Time, steps time.Duration, resultChan chan<- *domain.LabeledSample) error
+	GetNodeNetworkContainerBytesSend(ctx context.Context, start, end time.Time, steps time.Duration, resultChan chan<- *domain.LabeledSample) error
 }
 
 //nolint:unused

@@ -70,11 +70,11 @@ func (_c *mockBaseFileRepo_Delete_Call) RunAndReturn(run func(context.Context, d
 }
 
 // FinishCollection provides a mock function with given fields: ctx, id
-func (_m *mockBaseFileRepo) FinishCollection(ctx context.Context, id domain.SupportArchiveID) error {
+func (_m *mockBaseFileRepo) finishCollection(ctx context.Context, id domain.SupportArchiveID) error {
 	ret := _m.Called(ctx, id)
 
 	if len(ret) == 0 {
-		panic("no return value specified for FinishCollection")
+		panic("no return value specified for finishCollection")
 	}
 
 	var r0 error
@@ -87,7 +87,7 @@ func (_m *mockBaseFileRepo) FinishCollection(ctx context.Context, id domain.Supp
 	return r0
 }
 
-// mockBaseFileRepo_FinishCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FinishCollection'
+// mockBaseFileRepo_FinishCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'finishCollection'
 type mockBaseFileRepo_FinishCollection_Call struct {
 	*mock.Call
 }
@@ -96,7 +96,7 @@ type mockBaseFileRepo_FinishCollection_Call struct {
 //   - ctx context.Context
 //   - id domain.SupportArchiveID
 func (_e *mockBaseFileRepo_Expecter) FinishCollection(ctx interface{}, id interface{}) *mockBaseFileRepo_FinishCollection_Call {
-	return &mockBaseFileRepo_FinishCollection_Call{Call: _e.mock.On("FinishCollection", ctx, id)}
+	return &mockBaseFileRepo_FinishCollection_Call{Call: _e.mock.On("finishCollection", ctx, id)}
 }
 
 func (_c *mockBaseFileRepo_FinishCollection_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID)) *mockBaseFileRepo_FinishCollection_Call {

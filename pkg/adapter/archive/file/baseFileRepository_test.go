@@ -140,7 +140,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 				collectorDir: tt.fields.collectorDir,
 				filesystem:   tt.fields.filesystem(t),
 			}
-			tt.wantErr(t, l.FinishCollection(tt.args.ctx, tt.args.id))
+			tt.wantErr(t, l.finishCollection(tt.args.ctx, tt.args.id))
 		})
 	}
 }
@@ -488,10 +488,8 @@ func Test_baseFileRepository_Stream(t *testing.T) {
 				go func() {
 					<-timer.C
 					defer func() {
-						println("defer")
 						// recover panic if the channel is closed correctly from the test
 						if r := recover(); r != nil {
-							println("recovered from panic")
 							tt.args.stream.Data <- domain.StreamData{ID: "timeout"}
 							return
 						}
