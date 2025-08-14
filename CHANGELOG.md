@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.0] - 2025-08-07
 ### Added
 - [#5] Adds initial logic for the operator
     - Archive creation
@@ -15,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Nginx sidecar to expose create archives
 - [#9] Collect volume information from prometheus
 - Regularly sync archives with cluster state to avoid finalizers
+- [#10] Add network policies to all deny ingress
 
 ## [v0.2.0] - 2025-07-18
 ### Added
