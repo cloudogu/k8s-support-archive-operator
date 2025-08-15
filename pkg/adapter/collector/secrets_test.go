@@ -1,58 +1,31 @@
 package collector
 
 import (
+	"context"
 	_ "embed"
+	"testing"
+	"time"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
-	"time"
+	"sigs.k8s.io/yaml"
 )
 
-func createTestSecrets() *corev1.SecretList {
-	secrets := make([]corev1.Secret, 0)
-	jsonContent := "|2-\n"
-	yamlContent := "|\n"
-	jsonDataMap := make(map[string][]byte)
-	yamlDataMap := make(map[string][]byte)
-	flatDataMap := make(map[string][]byte)
-	// TODO decode
-	jsonDataMap["config.json"] = []byte(jsonContent)
-	yamlDataMap["config.yaml"] = []byte(yamlContent)
-	flatDataMap["username"] = []byte("admin")
-	flatDataMap["password"] = []byte("admin")
+//go:embed testdata/secrets/secret.yaml
+var secretYamlValuesBytes []byte
 
-	yamlDataSecret := &corev1.Secret{
-		Type: corev1.SecretTypeOpaque,
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "yaml-content-secret",
-		},
-		Data: yamlDataMap,
-	}
-	jsonDataSecret := &corev1.Secret{
-		Type: corev1.SecretTypeOpaque,
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "json-content-secret",
-		},
-		Data: jsonDataMap,
-	}
-	flatDataSecret := &corev1.Secret{
-		Type: corev1.SecretTypeOpaque,
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "flat-content-secret",
-		},
-		Data: flatDataMap,
-	}
-	secrets = append(secrets, *yamlDataSecret)
-	secrets = append(secrets, *jsonDataSecret)
-	secrets = append(secrets, *flatDataSecret)
-	return &corev1.SecretList{Items: secrets}
-}
+//go:embed testdata/secrets/yaml-secret.yaml
+var yamlSecretYamlValuesBytes []byte
+
+//go:embed testdata/secrets/json-secret.yaml
+var jsonSecretYamlValuesBytes []byte
+
+//go:embed testdata/secrets/nested-secret-with-json-and-yaml-arrays.yaml
+var nestedSecretYamlValuesBytes []byte
 
 func TestSecretCollector_NewSecretCollector(t *testing.T) {
 	// given
@@ -74,98 +47,217 @@ func TestSecretCollector_Name(t *testing.T) {
 	name := sc.Name()
 
 	// then
-	assert.Equal(t, "Secret", name)
+	assert.Equal(t, "Resources/Secrets", name)
 }
 
-func TestSecretCollector_Collect(t *testing.T) {
+func TestSecretsCollector_Collect(t *testing.T) {
+	now := time.Now()
+
+	type fields struct {
+		coreV1Interface func(t *testing.T) coreV1Interface
+	}
+	type args struct {
+		ctx          context.Context
+		namespace    string
+		start        time.Time
+		end          time.Time
+		resultChan   chan *domain.SecretYaml
+		waitForClose bool
+	}
 	tests := []struct {
-		name              string
-		coreV1InterfaceFn func(t *testing.T) coreV1Interface
-		resultChanFn      func(t *testing.T) chan *corev1.SecretList
-		wantData          *corev1.Secret
-		waitForClose      bool
-		wantErr           func(t *testing.T, err error)
+		name     string
+		fields   fields
+		args     args
+		wantErr  func(t *testing.T, err error)
+		wantData *domain.SecretYaml
 	}{
 		{
 			name: "should fail to list secrets",
-			coreV1InterfaceFn: func(t *testing.T) coreV1Interface {
-				clientMock := newMockSecretInterface(t)
-				clientMock.EXPECT().List(testCtx, metav1.ListOptions{LabelSelector: "app=ces"}).Return(nil, assert.AnError)
-
-				interfaceMock := newMockCoreV1Interface(t)
-				interfaceMock.EXPECT().Secrets(testNamespace).Return(clientMock)
-
-				return interfaceMock
+			fields: fields{
+				coreV1Interface: func(t *testing.T) coreV1Interface {
+					return createSecretInterfaceMock(t, [][]byte{}, assert.AnError)
+				},
 			},
-			resultChanFn: func(t *testing.T) chan *corev1.SecretList {
-				return make(chan *corev1.SecretList)
+			args: args{
+				ctx:        testCtx,
+				namespace:  testNamespace,
+				start:      time.Time{},
+				end:        time.Time{},
+				resultChan: make(chan *domain.SecretYaml),
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
-				require.ErrorIs(t, err, assert.AnError)
-				require.ErrorContains(t, err, "error listing secrets")
+				assert.ErrorIs(t, err, assert.AnError)
+				assert.ErrorContains(t, err, "error listing secrets")
 			},
 		},
 		{
-			name: "should return an empty channel of secrets",
-			coreV1InterfaceFn: func(t *testing.T) coreV1Interface {
-				clientMock := newMockSecretInterface(t)
-				clientMock.EXPECT().List(testCtx, metav1.ListOptions{LabelSelector: "app=ces"}).Return(&corev1.SecretList{Items: make([]corev1.Secret, 0)}, nil)
-
-				interfaceMock := newMockCoreV1Interface(t)
-				interfaceMock.EXPECT().Secrets(testNamespace).Return(clientMock)
-
-				return interfaceMock
+			name: "should just close the channel if no secrets are fetched",
+			fields: fields{
+				coreV1Interface: func(t *testing.T) coreV1Interface {
+					return createSecretInterfaceMock(t, [][]byte{}, nil)
+				},
 			},
-			resultChanFn: func(t *testing.T) chan *corev1.SecretList {
-				return make(chan *corev1.SecretList)
+			args: args{
+				ctx:        testCtx,
+				namespace:  testNamespace,
+				start:      time.Time{},
+				end:        time.Time{},
+				resultChan: make(chan *domain.SecretYaml),
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
 		},
 		{
-			name: "successfully censor all types of secrets",
-			coreV1InterfaceFn: func(t *testing.T) coreV1Interface {
-				secrets := createTestSecrets()
-				clientMock := newMockSecretInterface(t)
-				clientMock.EXPECT().List(testCtx, metav1.ListOptions{LabelSelector: "app=ces"}).Return(secrets, nil)
-
-				interfaceMock := newMockCoreV1Interface(t)
-				interfaceMock.EXPECT().Secrets(testNamespace).Return(clientMock)
-
-				return interfaceMock
+			name: "should write flat secret to channel and close",
+			fields: fields{
+				coreV1Interface: func(t *testing.T) coreV1Interface {
+					return createSecretInterfaceMock(t, [][]byte{secretYamlValuesBytes}, nil)
+				},
 			},
-			resultChanFn: func(t *testing.T) chan *corev1.SecretList {
-				return make(chan *corev1.SecretList)
+			args: args{
+				ctx:          testCtx,
+				namespace:    testNamespace,
+				start:        time.Time{},
+				end:          now,
+				resultChan:   make(chan *domain.SecretYaml),
+				waitForClose: true,
 			},
-			waitForClose: true,
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
-			wantData: &corev1.Secret{},
+			wantData: &domain.SecretYaml{
+				ApiVersion: "v1",
+				Kind:       "Secret",
+				SecretType: "Opaque",
+				Data:       map[string]string{"password": "***", "username": "***"},
+				Metadata: domain.SecretYamlMetaData{
+					Name:              "sensitive-config",
+					Namespace:         "default",
+					CreationTimestamp: "2025-08-11 16:16:25 +0200 CEST",
+					UID:               "c8d6e45f-3e41-4829-86ac-1227a7c2f112",
+					Labels:            map[string]string{"app": "ces", "dogu.name": "test-dogu"},
+				},
+			},
+		},
+		{
+			name: "should write yaml Secret to channel and close",
+			fields: fields{
+				coreV1Interface: func(t *testing.T) coreV1Interface {
+					return createSecretInterfaceMock(t, [][]byte{yamlSecretYamlValuesBytes}, nil)
+				},
+			},
+			args: args{
+				ctx:          testCtx,
+				namespace:    testNamespace,
+				start:        time.Time{},
+				end:          now,
+				resultChan:   make(chan *domain.SecretYaml),
+				waitForClose: true,
+			},
+			wantErr: func(t *testing.T, err error) {
+				require.NoError(t, err)
+			},
+			wantData: &domain.SecretYaml{
+				ApiVersion: "v1",
+				Kind:       "Secret",
+				SecretType: "Opaque",
+				Data:       map[string]string{"config.yaml": "sa-dogu:\n    password: '***'\n    username: '***'\n"},
+				Metadata: domain.SecretYamlMetaData{
+					Name:              "sensitive-config",
+					Namespace:         "default",
+					CreationTimestamp: "2025-08-11 16:16:25 +0200 CEST",
+					UID:               "f4c9b4c2-73a8-48a5-bd92-fd4e5c236c87",
+					Labels:            map[string]string{"app": "ces", "dogu.name": "test-dogu"},
+				},
+			},
+		},
+		{
+			name: "should write json secret to channel and close",
+			fields: fields{
+				coreV1Interface: func(t *testing.T) coreV1Interface {
+					return createSecretInterfaceMock(t, [][]byte{jsonSecretYamlValuesBytes}, nil)
+				},
+			},
+			args: args{
+				ctx:          testCtx,
+				namespace:    testNamespace,
+				start:        time.Time{},
+				end:          now,
+				resultChan:   make(chan *domain.SecretYaml),
+				waitForClose: true,
+			},
+			wantErr: func(t *testing.T, err error) {
+				require.NoError(t, err)
+			},
+			wantData: &domain.SecretYaml{
+				ApiVersion: "v1",
+				Kind:       "Secret",
+				SecretType: "Opaque",
+				Data:       map[string]string{"config.json": "{\"auths\":{\"localhost\":{\"password\":\"***\",\"username\":\"***\"}}}"},
+				Metadata: domain.SecretYamlMetaData{
+					Name:              "sensitive-config",
+					Namespace:         "default",
+					CreationTimestamp: "2025-08-11 16:16:25 +0200 CEST",
+					UID:               "8b1a8a6e-bd7a-4e7f-9a51-f5b9a6cfc20b",
+					Labels:            map[string]string{"app": "ces", "dogu.name": "test-dogu"},
+				},
+			},
+		},
+		{
+			name: "should write nested secret to channel and close",
+			fields: fields{
+				coreV1Interface: func(t *testing.T) coreV1Interface {
+					return createSecretInterfaceMock(t, [][]byte{nestedSecretYamlValuesBytes}, nil)
+				},
+			},
+			args: args{
+				ctx:          testCtx,
+				namespace:    testNamespace,
+				start:        time.Time{},
+				end:          now,
+				resultChan:   make(chan *domain.SecretYaml),
+				waitForClose: true,
+			},
+			wantErr: func(t *testing.T, err error) {
+				require.NoError(t, err)
+			},
+			wantData: &domain.SecretYaml{
+				ApiVersion: "v1",
+				Kind:       "Secret",
+				SecretType: "Opaque",
+				Data:       map[string]string{"config.json": "{\"groups\":[{\"name\":\"***\",\"rule\":\"***\"},{\"name\":\"***\",\"rule\":\"***\"},{\"name\":\"***\",\"rule\":\"***\"}]}", "config.yaml": "groups:\n    - name: '***'\n      rule: '***'\n    - name: '***'\n      rule: '***'\n    - name: '***'\n      rule: '***'\n", "password": "***", "username": "***"},
+				Metadata: domain.SecretYamlMetaData{
+					Name:              "sensitive-config",
+					Namespace:         "default",
+					UID:               "0f1e4b3c-9d89-4b28-94b4-1df1e5e0cb5c",
+					CreationTimestamp: "2025-08-11 16:16:25 +0200 CEST",
+					Labels:            map[string]string{"app": "ces", "dogu.name": "test-dogu"},
+				},
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sc := &SecretCollector{
-				coreV1Interface: tt.coreV1InterfaceFn(t),
+				coreV1Interface: tt.fields.coreV1Interface(t),
 			}
-			timestamp := time.Time{}
-			group, _ := errgroup.WithContext(testCtx)
+
+			group, _ := errgroup.WithContext(tt.args.ctx)
 			group.Go(func() error {
-				err := sc.Collect(testCtx, testNamespace, timestamp, timestamp, tt.resultChanFn(t))
+				err := sc.Collect(tt.args.ctx, tt.args.namespace, tt.args.start, tt.args.end, tt.args.resultChan)
 				return err
 			})
 
-			if tt.waitForClose {
+			if tt.args.waitForClose {
 				timer := time.NewTimer(time.Second * 2)
 				group.Go(func() error {
 					<-timer.C
 					defer func() {
 						// recover panic if the channel is closed correctly from the test
 						if r := recover(); r != nil {
-							tt.resultChanFn(t) <- nil
+							tt.args.resultChan <- nil
 							return
 						}
 					}()
@@ -173,7 +265,7 @@ func TestSecretCollector_Collect(t *testing.T) {
 					return nil
 				})
 
-				v, open := <-tt.resultChanFn(t)
+				v, open := <-tt.args.resultChan
 				if v == nil && open {
 					t.Fatal("test timed out")
 				}
@@ -187,4 +279,27 @@ func TestSecretCollector_Collect(t *testing.T) {
 			tt.wantErr(t, err)
 		})
 	}
+}
+
+func createSecretInterfaceMock(t *testing.T, secretsBytes [][]byte, expectedError error) coreV1Interface {
+	secrets := make([]corev1.Secret, 0)
+	for _, secretsByte := range secretsBytes {
+		var secret corev1.Secret
+		err := yaml.Unmarshal(secretsByte, &secret)
+		require.NoError(t, err)
+		secrets = append(secrets, secret)
+	}
+	secretList := &corev1.SecretList{
+		Items: secrets,
+	}
+
+	labelSelector := "app=ces"
+
+	clientMock := newMockSecretInterface(t)
+	clientMock.EXPECT().List(testCtx, metav1.ListOptions{LabelSelector: labelSelector}).Return(secretList, expectedError)
+
+	interfaceMock := newMockCoreV1Interface(t)
+	interfaceMock.EXPECT().Secrets(testNamespace).Return(clientMock)
+
+	return interfaceMock
 }
