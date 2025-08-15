@@ -61,7 +61,7 @@ func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
 			Name:              secret.Name,
 			Namespace:         secret.Namespace,
 			UID:               string(secret.UID),
-			CreationTimestamp: secret.CreationTimestamp.String(),
+			CreationTimestamp: secret.CreationTimestamp.Format(time.RFC3339),
 			Labels:            secret.Labels,
 		},
 	}

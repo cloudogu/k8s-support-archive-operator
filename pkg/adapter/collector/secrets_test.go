@@ -161,7 +161,7 @@ func TestSecretsCollector_Collect(t *testing.T) {
 				Metadata: domain.SecretYamlMetaData{
 					Name:              "sensitive-config",
 					Namespace:         "default",
-					CreationTimestamp: "2025-08-11 16:16:25 +0200 CEST",
+					CreationTimestamp: createCreationTime(),
 					UID:               "c8d6e45f-3e41-4829-86ac-1227a7c2f112",
 					Labels:            map[string]string{"app": "ces", "dogu.name": "test-dogu"},
 				},
@@ -193,7 +193,7 @@ func TestSecretsCollector_Collect(t *testing.T) {
 				Metadata: domain.SecretYamlMetaData{
 					Name:              "sensitive-config",
 					Namespace:         "default",
-					CreationTimestamp: "2025-08-11 16:16:25 +0200 CEST",
+					CreationTimestamp: createCreationTime(),
 					UID:               "f4c9b4c2-73a8-48a5-bd92-fd4e5c236c87",
 					Labels:            map[string]string{"app": "ces", "dogu.name": "test-dogu"},
 				},
@@ -225,7 +225,7 @@ func TestSecretsCollector_Collect(t *testing.T) {
 				Metadata: domain.SecretYamlMetaData{
 					Name:              "sensitive-config",
 					Namespace:         "default",
-					CreationTimestamp: "2025-08-11 16:16:25 +0200 CEST",
+					CreationTimestamp: createCreationTime(),
 					UID:               "8b1a8a6e-bd7a-4e7f-9a51-f5b9a6cfc20b",
 					Labels:            map[string]string{"app": "ces", "dogu.name": "test-dogu"},
 				},
@@ -258,7 +258,7 @@ func TestSecretsCollector_Collect(t *testing.T) {
 					Name:              "sensitive-config",
 					Namespace:         "default",
 					UID:               "0f1e4b3c-9d89-4b28-94b4-1df1e5e0cb5c",
-					CreationTimestamp: "2025-08-11 16:16:25 +0200 CEST",
+					CreationTimestamp: createCreationTime(),
 					Labels:            map[string]string{"app": "ces", "dogu.name": "test-dogu"},
 				},
 			},
@@ -305,6 +305,10 @@ func TestSecretsCollector_Collect(t *testing.T) {
 			tt.wantErr(t, err)
 		})
 	}
+}
+
+func createCreationTime() string {
+	return time.Date(2025, time.August, 11, 16, 16, 25, 0, time.Local).Format(time.RFC3339)
 }
 
 func createSecretInterfaceMock(t *testing.T, secrets []corev1.Secret, expectedError error) coreV1Interface {
