@@ -11,7 +11,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	k8scloudogucomv1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
-	"github.com/cloudogu/k8s-support-archive-lib/client"
 	k8scloudoguclient "github.com/cloudogu/k8s-support-archive-lib/client"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -62,7 +61,7 @@ func init() {
 
 type ecosystemClientSet struct {
 	kubernetes.Interface
-	client.SupportArchiveEcosystemInterface
+	k8scloudoguclient.SupportArchiveEcosystemInterface
 }
 
 // nolint:gocyclo
