@@ -3,9 +3,10 @@ package file
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"gopkg.in/yaml.v3"
-	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -16,10 +17,10 @@ const (
 type SecretsFileRepository struct {
 	baseFileRepo
 	workPath   string
-	filesystem volumeFs
+	filesystem secretFs
 }
 
-func NewSecretsFileRepository(workPath string, fs volumeFs) *SecretsFileRepository {
+func NewSecretsFileRepository(workPath string, fs secretFs) *SecretsFileRepository {
 	return &SecretsFileRepository{
 		workPath:     workPath,
 		filesystem:   fs,

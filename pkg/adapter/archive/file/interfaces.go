@@ -35,3 +35,7 @@ type baseFileRepo interface {
 	Delete(ctx context.Context, id domain.SupportArchiveID) error
 	Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) error
 }
+
+type secretFs interface {
+	filesystem.Filesystem
+}
