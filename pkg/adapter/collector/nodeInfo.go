@@ -82,12 +82,12 @@ func (nic *NodeInfoCollector) Collect(ctx context.Context, _ string, start, end 
 		return err
 	}
 
-	err = nic.metricsProvider.GetNodeNetworkContainerBytesReceived(ctx, start, end, defaultHardwareMetricStep, resultChan)
+	err = nic.metricsProvider.GetNodeNetworkContainerBytesReceived(ctx, start, end, defaultUsageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
 
-	err = nic.metricsProvider.GetNodeNetworkContainerBytesReceived(ctx, start, end, defaultHardwareMetricStep, resultChan)
+	err = nic.metricsProvider.GetNodeNetworkContainerBytesSend(ctx, start, end, defaultUsageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}

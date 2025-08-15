@@ -69,53 +69,6 @@ func (_c *mockBaseCollectorRepository_Delete_Call) RunAndReturn(run func(context
 	return _c
 }
 
-// FinishCollection provides a mock function with given fields: ctx, id
-func (_m *mockBaseCollectorRepository) finishCollection(ctx context.Context, id domain.SupportArchiveID) error {
-	ret := _m.Called(ctx, id)
-
-	if len(ret) == 0 {
-		panic("no return value specified for finishCollection")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, domain.SupportArchiveID) error); ok {
-		r0 = rf(ctx, id)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// mockBaseCollectorRepository_FinishCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'finishCollection'
-type mockBaseCollectorRepository_FinishCollection_Call struct {
-	*mock.Call
-}
-
-// FinishCollection is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id domain.SupportArchiveID
-func (_e *mockBaseCollectorRepository_Expecter) FinishCollection(ctx interface{}, id interface{}) *mockBaseCollectorRepository_FinishCollection_Call {
-	return &mockBaseCollectorRepository_FinishCollection_Call{Call: _e.mock.On("finishCollection", ctx, id)}
-}
-
-func (_c *mockBaseCollectorRepository_FinishCollection_Call) Run(run func(ctx context.Context, id domain.SupportArchiveID)) *mockBaseCollectorRepository_FinishCollection_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(domain.SupportArchiveID))
-	})
-	return _c
-}
-
-func (_c *mockBaseCollectorRepository_FinishCollection_Call) Return(_a0 error) *mockBaseCollectorRepository_FinishCollection_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *mockBaseCollectorRepository_FinishCollection_Call) RunAndReturn(run func(context.Context, domain.SupportArchiveID) error) *mockBaseCollectorRepository_FinishCollection_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // IsCollected provides a mock function with given fields: ctx, id
 func (_m *mockBaseCollectorRepository) IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error) {
 	ret := _m.Called(ctx, id)
