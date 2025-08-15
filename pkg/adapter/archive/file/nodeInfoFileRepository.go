@@ -112,5 +112,5 @@ func (v *NodeInfoRepository) close(_ context.Context, id domain.SupportArchiveID
 		}
 	}
 
-	return nil
+	return errors.Join(multiErr...)
 }
