@@ -4,8 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus"
-	v1 "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus/v1"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g., Azure, GCP, OIDC, etc.)
@@ -36,7 +34,6 @@ import (
 	adapterK8s "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/kubernetes"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus"
 	v1 "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus/v1"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
 )
