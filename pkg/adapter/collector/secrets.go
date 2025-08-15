@@ -3,14 +3,14 @@ package collector
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"strings"
-	"time"
 )
 
 const censoredValue = "***"
@@ -65,16 +65,11 @@ func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
 			Labels:            secret.Labels,
 		},
 	}
+
 	for key, val := range secret.Data {
-		if !strings.Contains(string(val), "\n") {
-			// Censor key with default censorValue
-			censored.Data[key] = censoredValue
-			continue
-		}
 		// Try json parse
 		var parsed interface{}
-		err := json.Unmarshal(val, &parsed)
-		if err == nil {
+		if err := json.Unmarshal(val, &parsed); err == nil {
 			censoredJSON := censorJsonSecret(parsed)
 			newVal, err := json.Marshal(censoredJSON)
 			if err == nil {
@@ -86,12 +81,15 @@ func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
 		// Try yaml parse
 		var yamlNode yaml.Node
 		if err := yaml.Unmarshal(val, &yamlNode); err == nil {
+			if isSingleScalarNode(&yamlNode) {
+				censored.Data[key] = censoredValue
+				continue
+			}
 			censorYaml(&yamlNode)
 			encoded, err := yaml.Marshal(&yamlNode)
-			if err != nil {
-				return nil
+			if err == nil {
+				censored.Data[key] = string(encoded)
 			}
-			censored.Data[key] = string(encoded)
 			continue
 		}
 	}
@@ -133,4 +131,8 @@ func censorYaml(node *yaml.Node) {
 	case yaml.ScalarNode:
 		node.Value = censoredValue
 	}
+}
+
+func isSingleScalarNode(node *yaml.Node) bool {
+	return node.Kind == yaml.ScalarNode || (node.Kind == yaml.DocumentNode && len(node.Content) == 1 && node.Content[0].Kind == yaml.ScalarNode)
 }
