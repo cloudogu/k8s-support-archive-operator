@@ -64,7 +64,7 @@ func NewCreateArchiveUseCase(supportArchivesInterface supportArchiveV1Interface,
 // It reads the actual state and executes the next data collector.
 // If there are remaining collectors after execution, the method returns (true, nil) to indicate a necessary requeue.
 // If there are no remaining collectors, the method returns (false, nil).
-func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *libapi.SupportArchive) (bool, error) {
+func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *libapi.SupportArchive) (time.Duration, error) {
 	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase.HandleArchiveRequest")
 
 	id := domain.SupportArchiveID{
@@ -74,7 +74,7 @@ func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *lib
 	requiredCollectorMapping := c.collectorMapping.getRequiredCollectorMapping(cr)
 	completedCollectorList, err := c.getAlreadyExecutedCollectors(ctx, id)
 	if err != nil {
-		return true, fmt.Errorf("could not get already executed collectors: %w", err)
+		return 0, fmt.Errorf("could not get already executed collectors: %w", err)
 	}
 	// If the user changes required collectors, we have to clean up old unused data.
 	c.deleteUnusedRepositoryData(ctx, id, requiredCollectorMapping, completedCollectorList)
@@ -82,23 +82,23 @@ func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *lib
 	collectorsToExecute := getCollectorTypesToExecute(requiredCollectorMapping, completedCollectorList)
 	exists, err := c.supportArchiveRepository.Exists(ctx, id)
 	if err != nil {
-		return true, fmt.Errorf("could not check if the support archive exists: %w", err)
+		return 0, fmt.Errorf("could not check if the support archive exists: %w", err)
 	}
 	if len(collectorsToExecute) == 0 && !exists {
 		logger.Info("all collectors are executed")
 		url, createErr := c.createArchive(ctx, id, requiredCollectorMapping)
 		if createErr != nil {
-			return true, fmt.Errorf("could not create archive: %w", createErr)
+			return 0, fmt.Errorf("could not create archive: %w", createErr)
 		}
 		statusErr := c.updateFinalStatus(ctx, cr, url)
 		if statusErr != nil {
-			return true, fmt.Errorf("could not update status: %w", statusErr)
+			return 0, fmt.Errorf("could not update status: %w", statusErr)
 		}
 
-		return false, nil
+		return 0, nil
 	} else if len(collectorsToExecute) == 0 {
 		logger.Info("archive exists")
-		return false, nil
+		return 0, nil
 	}
 
 	nextCollector := collectorsToExecute[0]
@@ -110,10 +110,10 @@ func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *lib
 		if conditionErr != nil {
 			logger.Error(err, "could not add collector condition")
 		}
-		return true, fmt.Errorf("could not execute next collector: %w", err)
+		return 0, fmt.Errorf("could not execute next collector: %w", err)
 	}
 
-	return true, nil
+	return time.Nanosecond, nil
 }
 
 func getContentTimeframe(cr *libapi.SupportArchive) (start metav1.Time, end metav1.Time) {

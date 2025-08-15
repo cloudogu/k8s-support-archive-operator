@@ -125,7 +125,7 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
 		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(archiveCr, nil)
 		archiveHandlerMock := newMockCreateArchiveHandler(t)
-		archiveHandlerMock.EXPECT().HandleArchiveRequest(testCtx, archiveCr).Return(true, nil)
+		archiveHandlerMock.EXPECT().HandleArchiveRequest(testCtx, archiveCr).Return(time.Nanosecond, nil)
 
 		sut := &SupportArchiveReconciler{
 			client:        mockV1Interface,
@@ -137,7 +137,7 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		assert.Equal(t, ctrl.Result{Requeue: true}, actual)
+		assert.Equal(t, ctrl.Result{RequeueAfter: time.Nanosecond}, actual)
 	})
 
 	t.Run("should not requeue if archive handler completed archive creation", func(t *testing.T) {
@@ -148,7 +148,7 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		mockV1Interface.EXPECT().SupportArchives(testNamespace).Return(mockInterface)
 		mockInterface.EXPECT().Get(testCtx, testSupportArchive, metav1.GetOptions{}).Return(archiveCr, nil)
 		archiveHandlerMock := newMockCreateArchiveHandler(t)
-		archiveHandlerMock.EXPECT().HandleArchiveRequest(testCtx, archiveCr).Return(false, nil)
+		archiveHandlerMock.EXPECT().HandleArchiveRequest(testCtx, archiveCr).Return(0, nil)
 
 		sut := &SupportArchiveReconciler{
 			client:        mockV1Interface,
@@ -160,7 +160,7 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		assert.Equal(t, ctrl.Result{Requeue: false}, actual)
+		assert.Equal(t, ctrl.Result{}, actual)
 	})
 
 	t.Run("should cleanup if the request is not found", func(t *testing.T) {
@@ -183,7 +183,7 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		assert.Equal(t, ctrl.Result{Requeue: false}, actual)
+		assert.Equal(t, ctrl.Result{}, actual)
 	})
 
 	t.Run("should cleanup if deletion timestamp is set", func(t *testing.T) {
@@ -206,10 +206,10 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		assert.Equal(t, ctrl.Result{Requeue: false}, actual)
+		assert.Equal(t, ctrl.Result{}, actual)
 	})
 
-	t.Run("should requeue and not block on cleanup errors", func(t *testing.T) {
+	t.Run("should not requeue on cleanup errors", func(t *testing.T) {
 		// given
 		request := ctrl.Request{NamespacedName: types.NamespacedName{Name: testSupportArchive, Namespace: testNamespace}}
 		mockV1Interface := newMockSupportArchiveV1Interface(t)
@@ -228,8 +228,7 @@ func TestSupportArchiveReconciler_Reconcile(t *testing.T) {
 		actual, err := sut.Reconcile(testCtx, request)
 
 		// then
-		require.Error(t, err)
-		assert.ErrorIs(t, err, assert.AnError)
+		require.NoError(t, err)
 		assert.Equal(t, ctrl.Result{}, actual)
 	})
 }
