@@ -17,15 +17,41 @@ import (
 
 //go:embed testdata/secrets/secret.yaml
 var secretYamlValuesBytes []byte
+var secret corev1.Secret
 
 //go:embed testdata/secrets/yaml-secret.yaml
 var yamlSecretYamlValuesBytes []byte
+var yamlSecret corev1.Secret
 
 //go:embed testdata/secrets/json-secret.yaml
 var jsonSecretYamlValuesBytes []byte
+var jsonSecret corev1.Secret
 
 //go:embed testdata/secrets/nested-secret-with-json-and-yaml-arrays.yaml
 var nestedSecretYamlValuesBytes []byte
+var nestedSecret corev1.Secret
+
+func init() {
+	err := yaml.Unmarshal(secretYamlValuesBytes, &secret)
+	if err != nil {
+		panic(err)
+	}
+
+	err = yaml.Unmarshal(yamlSecretYamlValuesBytes, &yamlSecret)
+	if err != nil {
+		panic(err)
+	}
+
+	err = yaml.Unmarshal(jsonSecretYamlValuesBytes, &jsonSecret)
+	if err != nil {
+		panic(err)
+	}
+
+	err = yaml.Unmarshal(nestedSecretYamlValuesBytes, &nestedSecret)
+	if err != nil {
+		panic(err)
+	}
+}
 
 func TestSecretCollector_NewSecretCollector(t *testing.T) {
 	// given
@@ -75,7 +101,7 @@ func TestSecretsCollector_Collect(t *testing.T) {
 			name: "should fail to list secrets",
 			fields: fields{
 				coreV1Interface: func(t *testing.T) coreV1Interface {
-					return createSecretInterfaceMock(t, [][]byte{}, assert.AnError)
+					return createSecretInterfaceMock(t, []corev1.Secret{}, assert.AnError)
 				},
 			},
 			args: args{
@@ -95,7 +121,7 @@ func TestSecretsCollector_Collect(t *testing.T) {
 			name: "should just close the channel if no secrets are fetched",
 			fields: fields{
 				coreV1Interface: func(t *testing.T) coreV1Interface {
-					return createSecretInterfaceMock(t, [][]byte{}, nil)
+					return createSecretInterfaceMock(t, []corev1.Secret{}, nil)
 				},
 			},
 			args: args{
@@ -113,7 +139,7 @@ func TestSecretsCollector_Collect(t *testing.T) {
 			name: "should write flat secret to channel and close",
 			fields: fields{
 				coreV1Interface: func(t *testing.T) coreV1Interface {
-					return createSecretInterfaceMock(t, [][]byte{secretYamlValuesBytes}, nil)
+					return createSecretInterfaceMock(t, []corev1.Secret{secret}, nil)
 				},
 			},
 			args: args{
@@ -145,7 +171,7 @@ func TestSecretsCollector_Collect(t *testing.T) {
 			name: "should write yaml Secret to channel and close",
 			fields: fields{
 				coreV1Interface: func(t *testing.T) coreV1Interface {
-					return createSecretInterfaceMock(t, [][]byte{yamlSecretYamlValuesBytes}, nil)
+					return createSecretInterfaceMock(t, []corev1.Secret{yamlSecret}, nil)
 				},
 			},
 			args: args{
@@ -177,7 +203,7 @@ func TestSecretsCollector_Collect(t *testing.T) {
 			name: "should write json secret to channel and close",
 			fields: fields{
 				coreV1Interface: func(t *testing.T) coreV1Interface {
-					return createSecretInterfaceMock(t, [][]byte{jsonSecretYamlValuesBytes}, nil)
+					return createSecretInterfaceMock(t, []corev1.Secret{jsonSecret}, nil)
 				},
 			},
 			args: args{
@@ -209,7 +235,7 @@ func TestSecretsCollector_Collect(t *testing.T) {
 			name: "should write nested secret to channel and close",
 			fields: fields{
 				coreV1Interface: func(t *testing.T) coreV1Interface {
-					return createSecretInterfaceMock(t, [][]byte{nestedSecretYamlValuesBytes}, nil)
+					return createSecretInterfaceMock(t, []corev1.Secret{nestedSecret}, nil)
 				},
 			},
 			args: args{
@@ -281,14 +307,7 @@ func TestSecretsCollector_Collect(t *testing.T) {
 	}
 }
 
-func createSecretInterfaceMock(t *testing.T, secretsBytes [][]byte, expectedError error) coreV1Interface {
-	secrets := make([]corev1.Secret, 0)
-	for _, secretsByte := range secretsBytes {
-		var secret corev1.Secret
-		err := yaml.Unmarshal(secretsByte, &secret)
-		require.NoError(t, err)
-		secrets = append(secrets, secret)
-	}
+func createSecretInterfaceMock(t *testing.T, secrets []corev1.Secret, expectedError error) coreV1Interface {
 	secretList := &corev1.SecretList{
 		Items: secrets,
 	}
