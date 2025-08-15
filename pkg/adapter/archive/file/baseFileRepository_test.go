@@ -320,6 +320,7 @@ func Test_create(t *testing.T) {
 		createFn   createFn[domain.PodLog]
 		deleteFn   deleteFn
 		finishFn   finishFn
+		closeFn    closeFn
 	}
 	type testCase[DATATYPE domain.CollectorUnionDataType] struct {
 		name    string
@@ -405,7 +406,7 @@ func Test_create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.wantErr(t, create(tt.args.ctx, tt.args.id, tt.args.dataStream, tt.args.createFn, tt.args.deleteFn, tt.args.finishFn))
+			tt.wantErr(t, create(tt.args.ctx, tt.args.id, tt.args.dataStream, tt.args.createFn, tt.args.deleteFn, tt.args.finishFn, tt.args.closeFn))
 		})
 	}
 }

@@ -16,7 +16,7 @@ var (
 		Name:      testArchiveName,
 	}
 
-	testCR = &libapi.SupportArchive{ObjectMeta: metav1.ObjectMeta{Namespace: testArchiveNamespace, Name: testArchiveName}, Spec: libapi.SupportArchiveSpec{ExcludedContents: libapi.ExcludedContents{VolumeInfo: true}}}
+	testLogCR = &libapi.SupportArchive{ObjectMeta: metav1.ObjectMeta{Namespace: testArchiveNamespace, Name: testArchiveName}, Spec: libapi.SupportArchiveSpec{ExcludedContents: libapi.ExcludedContents{VolumeInfo: true, SystemState: true, SensitiveData: true, Events: true, SystemInfo: true}}}
 )
 
 func TestDeleteArchiveUseCase_Delete(t *testing.T) {
