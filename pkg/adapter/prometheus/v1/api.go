@@ -176,14 +176,14 @@ func writeMatrixToChannel(value model.Value, metric metric, ch chan<- *domain.La
 	}
 
 	for _, sampleStream := range matrix {
-		labels := sampleStream.Metric.String()
+		id := sampleStream.Metric["node"]
 
 		for _, sample := range sampleStream.Values {
 			ch <- &domain.LabeledSample{
-				Name:   string(metric),
-				Labels: labels,
-				Value:  float64(sample.Value),
-				Time:   sample.Timestamp.Time(),
+				MetricName: string(metric),
+				ID:         string(id),
+				Value:      float64(sample.Value),
+				Time:       sample.Timestamp.Time(),
 			}
 		}
 	}

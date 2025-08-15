@@ -45,12 +45,12 @@ func (v *NodeInfoRepository) Create(ctx context.Context, id domain.SupportArchiv
 // If the volumeInfo file exists, it overrides the existing file.
 func (v *NodeInfoRepository) createNodeInfo(_ context.Context, id domain.SupportArchiveID, data *domain.LabeledSample) error {
 	idMetric := metricForID{
-		data.Name,
+		data.MetricName,
 		id,
 	}
 
 	if v.nodeInfoFiles[idMetric] == nil {
-		filePath := fmt.Sprintf("%s.csv", filepath.Join(v.workPath, id.Namespace, id.Name, archiveNodeInfoDirName, data.Name))
+		filePath := fmt.Sprintf("%s.csv", filepath.Join(v.workPath, id.Namespace, id.Name, archiveNodeInfoDirName, data.MetricName))
 		err := v.filesystem.MkdirAll(filepath.Dir(filePath), 0755)
 		if err != nil {
 			return fmt.Errorf("error creating directory for volume node info file: %w", err)

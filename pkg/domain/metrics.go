@@ -20,10 +20,10 @@ type VolumeInfoItem struct {
 }
 
 type LabeledSample struct {
-	Name   string
-	Labels string
-	Value  float64
-	Time   time.Time
+	MetricName string
+	ID         string
+	Value      float64
+	Time       time.Time
 }
 
 func (ls *LabeledSample) GetHeader() []string {
@@ -31,5 +31,5 @@ func (ls *LabeledSample) GetHeader() []string {
 }
 
 func (ls *LabeledSample) GetRow() []string {
-	return []string{ls.Labels, strconv.FormatFloat(ls.Value, 'f', 2, 64), ls.Time.Format("2006-01-02T15:04:05-07:00")}
+	return []string{ls.ID, strconv.FormatFloat(ls.Value, 'f', 2, 64), ls.Time.Format("2006-01-02T15:04:05-07:00")}
 }
