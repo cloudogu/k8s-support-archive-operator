@@ -2,12 +2,13 @@ package usecase
 
 import (
 	"context"
+	"testing"
+
 	libapi "github.com/cloudogu/k8s-support-archive-lib/api/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 var (
@@ -16,7 +17,7 @@ var (
 		Name:      testArchiveName,
 	}
 
-	testCR = &libapi.SupportArchive{ObjectMeta: metav1.ObjectMeta{Namespace: testArchiveNamespace, Name: testArchiveName}, Spec: libapi.SupportArchiveSpec{ExcludedContents: libapi.ExcludedContents{VolumeInfo: true}}}
+	testCR = &libapi.SupportArchive{ObjectMeta: metav1.ObjectMeta{Namespace: testArchiveNamespace, Name: testArchiveName}, Spec: libapi.SupportArchiveSpec{ExcludedContents: libapi.ExcludedContents{VolumeInfo: true, SensitiveData: true}}}
 )
 
 func TestDeleteArchiveUseCase_Delete(t *testing.T) {
