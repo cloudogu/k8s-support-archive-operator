@@ -27,6 +27,36 @@ func (nic *NodeInfoCollector) Name() string {
 }
 
 func (nic *NodeInfoCollector) Collect(ctx context.Context, _ string, start, end time.Time, resultChan chan<- *domain.LabeledSample) error {
+	err := nic.getGeneralInfo(ctx, start, end, resultChan)
+	if err != nil {
+		return err
+	}
+
+	err = nic.getStorage(ctx, start, end, resultChan)
+	if err != nil {
+		return err
+	}
+
+	err = nic.getCPU(ctx, start, end, resultChan)
+	if err != nil {
+		return err
+	}
+
+	err = nic.getRAM(ctx, start, end, resultChan)
+	if err != nil {
+		return err
+	}
+
+	err = nic.getNetwork(ctx, start, end, resultChan)
+	if err != nil {
+		return err
+	}
+
+	close(resultChan)
+	return nil
+}
+
+func (nic *NodeInfoCollector) getGeneralInfo(ctx context.Context, start time.Time, end time.Time, resultChan chan<- *domain.LabeledSample) error {
 	err := nic.metricsProvider.GetNodeNames(ctx, start, end, defaultHardwareMetricStep, resultChan)
 	if err != nil {
 		return err
@@ -37,7 +67,11 @@ func (nic *NodeInfoCollector) Collect(ctx context.Context, _ string, start, end 
 		return err
 	}
 
-	err = nic.metricsProvider.GetNodeStorage(ctx, start, end, defaultHardwareMetricStep, resultChan)
+	return err
+}
+
+func (nic *NodeInfoCollector) getStorage(ctx context.Context, start time.Time, end time.Time, resultChan chan<- *domain.LabeledSample) error {
+	err := nic.metricsProvider.GetNodeStorage(ctx, start, end, defaultHardwareMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
@@ -51,8 +85,11 @@ func (nic *NodeInfoCollector) Collect(ctx context.Context, _ string, start, end 
 	if err != nil {
 		return err
 	}
+	return err
+}
 
-	err = nic.metricsProvider.GetNodeCPUCores(ctx, start, end, defaultHardwareMetricStep, resultChan)
+func (nic *NodeInfoCollector) getCPU(ctx context.Context, start time.Time, end time.Time, resultChan chan<- *domain.LabeledSample) error {
+	err := nic.metricsProvider.GetNodeCPUCores(ctx, start, end, defaultHardwareMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
@@ -67,7 +104,11 @@ func (nic *NodeInfoCollector) Collect(ctx context.Context, _ string, start, end 
 		return err
 	}
 
-	err = nic.metricsProvider.GetNodeRAM(ctx, start, end, defaultHardwareMetricStep, resultChan)
+	return err
+}
+
+func (nic *NodeInfoCollector) getRAM(ctx context.Context, start time.Time, end time.Time, resultChan chan<- *domain.LabeledSample) error {
+	err := nic.metricsProvider.GetNodeRAM(ctx, start, end, defaultHardwareMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
@@ -82,7 +123,11 @@ func (nic *NodeInfoCollector) Collect(ctx context.Context, _ string, start, end 
 		return err
 	}
 
-	err = nic.metricsProvider.GetNodeNetworkContainerBytesReceived(ctx, start, end, defaultUsageMetricStep, resultChan)
+	return err
+}
+
+func (nic *NodeInfoCollector) getNetwork(ctx context.Context, start time.Time, end time.Time, resultChan chan<- *domain.LabeledSample) error {
+	err := nic.metricsProvider.GetNodeNetworkContainerBytesReceived(ctx, start, end, defaultUsageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
@@ -92,6 +137,5 @@ func (nic *NodeInfoCollector) Collect(ctx context.Context, _ string, start, end 
 		return err
 	}
 
-	close(resultChan)
-	return nil
+	return err
 }
