@@ -28,11 +28,11 @@ import (
 
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/archive/file"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
 	adapterK8s "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/kubernetes"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus"
 	v1 "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/prometheus/v1"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/usecase"
 )
@@ -118,7 +118,13 @@ func startOperator(
 	logCollector := collector.NewLogCollector()
 	logRepository := file.NewLogFileRepository(workPath, fs)
 
-	address := fmt.Sprintf("%s://%s.%s.svc.cluster.local:%s", operatorConfig.MetricsServiceProtocol, operatorConfig.MetricsServiceName, operatorConfig.Namespace, operatorConfig.MetricsServicePort)
+	address := fmt.Sprintf(
+		"%s://%s.%s.svc.cluster.local:%s",
+		operatorConfig.MetricsServiceProtocol,
+		operatorConfig.MetricsServiceName,
+		operatorConfig.Namespace,
+		operatorConfig.MetricsServicePort,
+	)
 	// TODO Implement ServiceAccount for Prometheus. Create secret in Prometheus Chart and use it?
 	metricsClient, err := prometheus.GetClient(address, "")
 	if err != nil {
@@ -140,9 +146,25 @@ func startOperator(
 	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
 	deleteUseCase := usecase.NewDeleteArchiveUseCase(mapping, supportArchiveRepository)
 	r := adapterK8s.NewSupportArchiveReconciler(v1SupportArchive, createUseCase, deleteUseCase)
+
 	reconciliationTrigger := make(chan event.GenericEvent)
-	syncHandler := usecase.NewSyncArchiveUseCase(v1SupportArchive, supportArchiveRepository, deleteUseCase, operatorConfig.SupportArchiveSyncInterval, operatorConfig.Namespace, reconciliationTrigger)
-	err = configureManager(k8sManager, r, reconciliationTrigger, syncHandler)
+	syncHandler := usecase.NewSyncArchiveUseCase(
+		v1SupportArchive,
+		supportArchiveRepository,
+		deleteUseCase,
+		operatorConfig.SupportArchiveSyncInterval,
+		operatorConfig.Namespace,
+		reconciliationTrigger,
+	)
+
+	garbageCollectionHandler := usecase.NewGarbageCollectionUseCase(
+		v1SupportArchive.SupportArchives(operatorConfig.Namespace),
+		supportArchiveRepository,
+		deleteUseCase,
+		operatorConfig.GarbageCollectionInterval,
+		operatorConfig.GarbageCollectionNumberToKeep,
+	)
+	err = configureManager(k8sManager, r, reconciliationTrigger, syncHandler, garbageCollectionHandler)
 	if err != nil {
 		return fmt.Errorf("unable to configure manager: %w", err)
 	}
@@ -163,7 +185,13 @@ func NewK8sManager(
 	return ctrl.NewManager(restConfig, options)
 }
 
-func configureManager(k8sManager controllerManager, supportArchiveReconciler *adapterK8s.SupportArchiveReconciler, trigger chan event.GenericEvent, syncHandler *usecase.SyncArchiveUseCase) error {
+func configureManager(
+	k8sManager controllerManager,
+	supportArchiveReconciler *adapterK8s.SupportArchiveReconciler,
+	trigger chan event.GenericEvent,
+	syncHandler *usecase.SyncArchiveUseCase,
+	garbageCollectionHandler *usecase.GarbageCollectionUseCase,
+) error {
 	err := supportArchiveReconciler.SetupWithManager(k8sManager, trigger)
 	if err != nil {
 		return fmt.Errorf("unable to configure reconciler: %w", err)
@@ -174,6 +202,13 @@ func configureManager(k8sManager controllerManager, supportArchiveReconciler *ad
 	}))
 	if err != nil {
 		return fmt.Errorf("unable to add sync archive handler: %w", err)
+	}
+
+	err = k8sManager.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		return garbageCollectionHandler.CollectGarbageWithInterval(ctx)
+	}))
+	if err != nil {
+		return fmt.Errorf("unable to add garbage collection handler: %w", err)
 	}
 
 	err = addChecks(k8sManager)

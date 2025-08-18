@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"

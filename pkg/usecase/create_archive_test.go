@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
+	"time"
 )
 
 const (
@@ -33,7 +34,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    bool
+		want    time.Duration
 		wantErr func(t *testing.T, err error)
 	}{
 		{
@@ -57,7 +58,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 				ctx: testCtx,
 				cr:  testLogCR,
 			},
-			want: false,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
@@ -78,7 +79,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 				ctx: testCtx,
 				cr:  testLogCR,
 			},
-			want: true,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
 				assert.ErrorIs(t, err, assert.AnError)
@@ -106,7 +107,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 				ctx: testCtx,
 				cr:  testLogCR,
 			},
-			want: true,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
 				assert.ErrorIs(t, err, assert.AnError)
@@ -152,7 +153,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 				ctx: testCtx,
 				cr:  testLogCR,
 			},
-			want: true,
+			want: time.Nanosecond,
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
@@ -197,7 +198,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 				ctx: testCtx,
 				cr:  testLogCR,
 			},
-			want: true,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "could not execute next collector: failed to execute collector Logs: error from error group Logs")
@@ -249,7 +250,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 				ctx: testCtx,
 				cr:  testLogCR,
 			},
-			want: false,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
