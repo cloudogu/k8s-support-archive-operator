@@ -1,0 +1,10 @@
+apiVersion: 1
+
+# Provisions a single Infinity datasource that can read local CSV files.
+datasources:
+  - name: Infinity
+    type: yesoreyeram-infinity-datasource
+    uid: infinity
+    access: proxy
+    isDefault: true
+    editable: true
