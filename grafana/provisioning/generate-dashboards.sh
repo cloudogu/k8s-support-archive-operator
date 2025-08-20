@@ -147,7 +147,7 @@ PANEL
   "schemaVersion": 38,
   "version": 1,
   "refresh": "",
-  "time": { "from": "now-30d", "to": "now" },
+  "time": { "from": "now-5d", "to": "now" },
   "panels": [
 ${panels}
   ]
