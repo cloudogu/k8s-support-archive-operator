@@ -70,6 +70,10 @@ spec:
           value: {{ .Values.controllerManager.env.garbageCollectionInterval | default "5m" }}
         - name: GARBAGE_COLLECTION_NUMBER_TO_KEEP
           value: {{ quote .Values.controllerManager.env.garbageCollectionNumberToKeep | default "5" }}
+        - name: NODE_INFO_USAGE_METRIC_STEP
+          value: {{ .Values.controllerManager.env.nodeInfoUsageMetricStep | default "30s" }}
+        - name: NODE_INFO_HARDWARE_METRIC_STEP
+          value: {{ .Values.controllerManager.env.nodeInfoHardwareMetricStep | default "30m" }}
         - name: NAMESPACE
           valueFrom:
             fieldRef:

@@ -2,24 +2,23 @@ package collector
 
 import (
 	"context"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"time"
-)
 
-const (
-	// defaultUsageMetricStep is used to identify resource usage spikes like cpu or ram usage.
-	// Since metrics are already calculated over (intersect over time) it is not necessary to use a low duration, e.g., one second here.
-	defaultUsageMetricStep = time.Second * 30 // TODO configurable
-	// defaultHardwareMetricStep is used to identify changes in the underlying hardware like increasing ram or add a new node.
-	defaultHardwareMetricStep = time.Minute * 30
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 )
 
 type NodeInfoCollector struct {
 	metricsProvider metricsProvider
+	// usageMetricStep is used to identify resource usage spikes like cpu or ram usage.
+	// Since metrics are already calculated over (intersect over time) it is not necessary to use a low duration, e.g., one second here.
+	usageMetricStep time.Duration
+	// hardwareMetricStep is used to identify changes in the underlying hardware like increasing ram or add a new node.
+	hardwareMetricStep time.Duration
 }
 
-func NewNodeInfoCollector(provider metricsProvider) *NodeInfoCollector {
-	return &NodeInfoCollector{metricsProvider: provider}
+// NewNodeInfoCollector creates a NodeInfoCollector with configurable steps.
+func NewNodeInfoCollector(provider metricsProvider, usageStep, hardwareStep time.Duration) *NodeInfoCollector {
+	return &NodeInfoCollector{metricsProvider: provider, usageMetricStep: usageStep, hardwareMetricStep: hardwareStep}
 }
 
 func (nic *NodeInfoCollector) Name() string {
@@ -57,12 +56,12 @@ func (nic *NodeInfoCollector) Collect(ctx context.Context, _ string, start, end 
 }
 
 func (nic *NodeInfoCollector) getGeneralInfo(ctx context.Context, start time.Time, end time.Time, resultChan chan<- *domain.LabeledSample) error {
-	err := nic.metricsProvider.GetNodeNames(ctx, start, end, defaultHardwareMetricStep, resultChan)
+	err := nic.metricsProvider.GetNodeNames(ctx, start, end, nic.hardwareMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
 
-	err = nic.metricsProvider.GetNodeCount(ctx, start, end, defaultHardwareMetricStep, resultChan)
+	err = nic.metricsProvider.GetNodeCount(ctx, start, end, nic.hardwareMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
@@ -71,17 +70,17 @@ func (nic *NodeInfoCollector) getGeneralInfo(ctx context.Context, start time.Tim
 }
 
 func (nic *NodeInfoCollector) getStorage(ctx context.Context, start time.Time, end time.Time, resultChan chan<- *domain.LabeledSample) error {
-	err := nic.metricsProvider.GetNodeStorage(ctx, start, end, defaultHardwareMetricStep, resultChan)
+	err := nic.metricsProvider.GetNodeStorage(ctx, start, end, nic.hardwareMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
 
-	err = nic.metricsProvider.GetNodeStorageFree(ctx, start, end, defaultUsageMetricStep, resultChan)
+	err = nic.metricsProvider.GetNodeStorageFree(ctx, start, end, nic.usageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
 
-	err = nic.metricsProvider.GetNodeStorageFreeRelative(ctx, start, end, defaultUsageMetricStep, resultChan)
+	err = nic.metricsProvider.GetNodeStorageFreeRelative(ctx, start, end, nic.usageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
@@ -89,17 +88,17 @@ func (nic *NodeInfoCollector) getStorage(ctx context.Context, start time.Time, e
 }
 
 func (nic *NodeInfoCollector) getCPU(ctx context.Context, start time.Time, end time.Time, resultChan chan<- *domain.LabeledSample) error {
-	err := nic.metricsProvider.GetNodeCPUCores(ctx, start, end, defaultHardwareMetricStep, resultChan)
+	err := nic.metricsProvider.GetNodeCPUCores(ctx, start, end, nic.hardwareMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
 
-	err = nic.metricsProvider.GetNodeCPUUsage(ctx, start, end, defaultUsageMetricStep, resultChan)
+	err = nic.metricsProvider.GetNodeCPUUsage(ctx, start, end, nic.usageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
 
-	err = nic.metricsProvider.GetNodeCPUUsageRelative(ctx, start, end, defaultUsageMetricStep, resultChan)
+	err = nic.metricsProvider.GetNodeCPUUsageRelative(ctx, start, end, nic.usageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
@@ -108,17 +107,17 @@ func (nic *NodeInfoCollector) getCPU(ctx context.Context, start time.Time, end t
 }
 
 func (nic *NodeInfoCollector) getRAM(ctx context.Context, start time.Time, end time.Time, resultChan chan<- *domain.LabeledSample) error {
-	err := nic.metricsProvider.GetNodeRAM(ctx, start, end, defaultHardwareMetricStep, resultChan)
+	err := nic.metricsProvider.GetNodeRAM(ctx, start, end, nic.hardwareMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
 
-	err = nic.metricsProvider.GetNodeRAMFree(ctx, start, end, defaultUsageMetricStep, resultChan)
+	err = nic.metricsProvider.GetNodeRAMFree(ctx, start, end, nic.usageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
 
-	err = nic.metricsProvider.GetNodeRAMUsedRelative(ctx, start, end, defaultUsageMetricStep, resultChan)
+	err = nic.metricsProvider.GetNodeRAMUsedRelative(ctx, start, end, nic.usageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
@@ -127,12 +126,12 @@ func (nic *NodeInfoCollector) getRAM(ctx context.Context, start time.Time, end t
 }
 
 func (nic *NodeInfoCollector) getNetwork(ctx context.Context, start time.Time, end time.Time, resultChan chan<- *domain.LabeledSample) error {
-	err := nic.metricsProvider.GetNodeNetworkContainerBytesReceived(ctx, start, end, defaultUsageMetricStep, resultChan)
+	err := nic.metricsProvider.GetNodeNetworkContainerBytesReceived(ctx, start, end, nic.usageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}
 
-	err = nic.metricsProvider.GetNodeNetworkContainerBytesSend(ctx, start, end, defaultUsageMetricStep, resultChan)
+	err = nic.metricsProvider.GetNodeNetworkContainerBytesSend(ctx, start, end, nic.usageMetricStep, resultChan)
 	if err != nil {
 		return err
 	}

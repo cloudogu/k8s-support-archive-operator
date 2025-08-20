@@ -2,11 +2,12 @@ package config
 
 import (
 	"fmt"
-	"github.com/Masterminds/semver/v3"
 	"os"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"strconv"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
@@ -26,6 +27,8 @@ const (
 	metricsServiceNameEnvVar                   = "METRICS_SERVICE_NAME"
 	metricsServicePortEnvVar                   = "METRICS_SERVICE_PORT"
 	metricsServiceProtocolEnvVar               = "METRICS_SERVICE_PROTOCOL"
+	nodeInfoUsageMetricStepEnvVar              = "NODE_INFO_USAGE_METRIC_STEP"
+	nodeInfoHardwareMetricStepEnvVar           = "NODE_INFO_HARDWARE_METRIC_STEP"
 )
 
 var log = ctrl.Log.WithName("config")
@@ -55,6 +58,10 @@ type OperatorConfig struct {
 	MetricsServicePort string
 	// MetricsServiceProtocol defines the service protocol for metrics service.
 	MetricsServiceProtocol string
+	// NodeInfoUsageMetricStep defines the step width used for usage metrics (cpu/ram/network/storage free).
+	NodeInfoUsageMetricStep time.Duration
+	// NodeInfoHardwareMetricStep defines the step width used for hardware metrics (names, count, cores, capacities).
+	NodeInfoHardwareMetricStep time.Duration
 }
 
 func IsStageDevelopment() bool {
@@ -131,6 +138,18 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	}
 	log.Info(fmt.Sprintf("Metrics service protocol: %s", metricsServiceProtocol))
 
+	nodeInfoUsageMetricStep, err := getDurationEnvVar(nodeInfoUsageMetricStepEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("NodeInfo usage metric step: %s", nodeInfoUsageMetricStep))
+
+	nodeInfoHardwareMetricStep, err := getDurationEnvVar(nodeInfoHardwareMetricStepEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("NodeInfo hardware metric step: %s", nodeInfoHardwareMetricStep))
+
 	return &OperatorConfig{
 		Version:                              parsedVersion,
 		Namespace:                            namespace,
@@ -141,9 +160,11 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 		GarbageCollectionInterval:            garbageCollectionInterval,
 		GarbageCollectionNumberToKeep:        garbageCollectionNumberToKeep,
 		// prometheus is optional?
-		MetricsServiceName:     metricsServiceName,
-		MetricsServicePort:     metricsServicePort,
-		MetricsServiceProtocol: metricsServiceProtocol,
+		MetricsServiceName:         metricsServiceName,
+		MetricsServicePort:         metricsServicePort,
+		MetricsServiceProtocol:     metricsServiceProtocol,
+		NodeInfoUsageMetricStep:    nodeInfoUsageMetricStep,
+		NodeInfoHardwareMetricStep: nodeInfoHardwareMetricStep,
 	}, nil
 }
 

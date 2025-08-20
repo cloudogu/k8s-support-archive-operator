@@ -135,7 +135,11 @@ func startOperator(
 	volumesCollector := collector.NewVolumesCollector(ecoClientSet.CoreV1(), metricsCollector)
 	volumeRepository := file.NewVolumesFileRepository(workPath, fs)
 
-	nodeInfoCollector := collector.NewNodeInfoCollector(metricsCollector)
+	nodeInfoCollector := collector.NewNodeInfoCollectorWithSteps(
+		metricsCollector,
+		operatorConfig.NodeInfoUsageMetricStep,
+		operatorConfig.NodeInfoHardwareMetricStep,
+	)
 	nodeInfoRepository := file.NewNodeInfoFileRepository(workPath, fs)
 
 	mapping := make(map[domain.CollectorType]usecase.CollectorAndRepository)

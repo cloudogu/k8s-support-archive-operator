@@ -33,6 +33,8 @@ controllerManager:
     supportArchiveSyncInterval: 1m
     garbageCollectionInterval: 5m
     garbageCollectionNumberToKeep: 5
+    nodeInfoUsageMetricStep: 30s
+    nodeInfoHardwareMetricStep: 30m
   imagePullPolicy: IfNotPresent
   podSecurityContext:
     fsGroup: 65532
