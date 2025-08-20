@@ -3,12 +3,18 @@ package collector
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
-	"testing"
-	"time"
+)
+
+const (
+	testHardwareMetricStep = time.Minute * 30
+	testUsageMetricStep    = time.Second * 30
 )
 
 func TestNewNodeInfoCollector(t *testing.T) {
@@ -16,11 +22,13 @@ func TestNewNodeInfoCollector(t *testing.T) {
 	metricsProviderMock := newMockMetricsProvider(t)
 
 	// when
-	collector := NewNodeInfoCollector(metricsProviderMock)
+	collector := NewNodeInfoCollector(metricsProviderMock, testUsageMetricStep, testHardwareMetricStep)
 
 	// then
 	require.NotNil(t, collector)
 	assert.Equal(t, metricsProviderMock, collector.metricsProvider)
+	assert.Equal(t, testUsageMetricStep, collector.usageMetricStep)
+	assert.Equal(t, testHardwareMetricStep, collector.hardwareMetricStep)
 }
 
 func TestNodeInfoCollector_Name(t *testing.T) {
@@ -62,7 +70,7 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(assert.AnError)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(assert.AnError)
 					return metricsProviderMock
 				},
 			},
@@ -82,8 +90,8 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(assert.AnError)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, testHardwareMetricStep, testChan).Return(assert.AnError)
 					return metricsProviderMock
 				},
 			},
@@ -103,9 +111,9 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(assert.AnError)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, testHardwareMetricStep, testChan).Return(assert.AnError)
 					return metricsProviderMock
 				},
 			},
@@ -125,10 +133,10 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(assert.AnError)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, testUsageMetricStep, testChan).Return(assert.AnError)
 
 					return metricsProviderMock
 				},
@@ -149,11 +157,11 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(assert.AnError)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(assert.AnError)
 
 					return metricsProviderMock
 				},
@@ -174,12 +182,12 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(assert.AnError)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, testHardwareMetricStep, testChan).Return(assert.AnError)
 
 					return metricsProviderMock
 				},
@@ -200,13 +208,13 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, defaultUsageMetricStep, testChan).Return(assert.AnError)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, testUsageMetricStep, testChan).Return(assert.AnError)
 
 					return metricsProviderMock
 				},
@@ -227,14 +235,14 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(assert.AnError)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(assert.AnError)
 
 					return metricsProviderMock
 				},
@@ -255,15 +263,15 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAM(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(assert.AnError)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAM(testCtx, start, end, testHardwareMetricStep, testChan).Return(assert.AnError)
 
 					return metricsProviderMock
 				},
@@ -284,16 +292,16 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAM(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAMFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(assert.AnError)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAM(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAMFree(testCtx, start, end, testUsageMetricStep, testChan).Return(assert.AnError)
 
 					return metricsProviderMock
 				},
@@ -314,17 +322,17 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAM(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAMFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAMUsedRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(assert.AnError)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAM(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAMFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAMUsedRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(assert.AnError)
 
 					return metricsProviderMock
 				},
@@ -345,18 +353,18 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAM(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAMFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAMUsedRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeNetworkContainerBytesReceived(testCtx, start, end, defaultUsageMetricStep, testChan).Return(assert.AnError)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAM(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAMFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAMUsedRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeNetworkContainerBytesReceived(testCtx, start, end, testUsageMetricStep, testChan).Return(assert.AnError)
 
 					return metricsProviderMock
 				},
@@ -377,19 +385,19 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAM(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAMFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAMUsedRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeNetworkContainerBytesReceived(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeNetworkContainerBytesSend(testCtx, start, end, defaultUsageMetricStep, testChan).Return(assert.AnError)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAM(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAMFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAMUsedRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeNetworkContainerBytesReceived(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeNetworkContainerBytesSend(testCtx, start, end, testUsageMetricStep, testChan).Return(assert.AnError)
 
 					return metricsProviderMock
 				},
@@ -410,19 +418,19 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 			fields: fields{
 				metricsProvider: func(t *testing.T) metricsProvider {
 					metricsProviderMock := newMockMetricsProvider(t)
-					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAM(testCtx, start, end, defaultHardwareMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAMFree(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeRAMUsedRelative(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeNetworkContainerBytesReceived(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
-					metricsProviderMock.EXPECT().GetNodeNetworkContainerBytesSend(testCtx, start, end, defaultUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeNames(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCount(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorage(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeStorageFreeRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUCores(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsage(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeCPUUsageRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAM(testCtx, start, end, testHardwareMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAMFree(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeRAMUsedRelative(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeNetworkContainerBytesReceived(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
+					metricsProviderMock.EXPECT().GetNodeNetworkContainerBytesSend(testCtx, start, end, testUsageMetricStep, testChan).Return(nil)
 
 					return metricsProviderMock
 				},
@@ -441,7 +449,9 @@ func TestNodeInfoCollector_Collect(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nic := &NodeInfoCollector{
-				metricsProvider: tt.fields.metricsProvider(t),
+				metricsProvider:    tt.fields.metricsProvider(t),
+				usageMetricStep:    testUsageMetricStep,
+				hardwareMetricStep: testHardwareMetricStep,
 			}
 
 			group, _ := errgroup.WithContext(tt.args.ctx)

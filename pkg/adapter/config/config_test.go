@@ -2,10 +2,11 @@ package config
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewOperatorConfig(t *testing.T) {
@@ -22,6 +23,8 @@ func TestNewOperatorConfig(t *testing.T) {
 		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
 		t.Setenv("GARBAGE_COLLECTION_INTERVAL", "5m")
 		t.Setenv("GARBAGE_COLLECTION_NUMBER_TO_KEEP", "5")
+		t.Setenv("NODE_INFO_USAGE_METRIC_STEP", "30s")
+		t.Setenv("NODE_INFO_HARDWARE_METRIC_STEP", "30m")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -44,6 +47,8 @@ func TestNewOperatorConfig(t *testing.T) {
 		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
 		t.Setenv("GARBAGE_COLLECTION_INTERVAL", "5m")
 		t.Setenv("GARBAGE_COLLECTION_NUMBER_TO_KEEP", "5")
+		t.Setenv("NODE_INFO_USAGE_METRIC_STEP", "30s")
+		t.Setenv("NODE_INFO_HARDWARE_METRIC_STEP", "30m")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -108,6 +113,58 @@ func TestNewOperatorConfig(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, operatorConfig)
 		assert.ErrorContains(t, err, "failed to get garbage collection number to keep: failed to parse env var [GARBAGE_COLLECTION_NUMBER_TO_KEEP]")
+	})
+
+	t.Run("should fail to parse node info usage metric step", func(t *testing.T) {
+		// given
+		version := "0.0.0"
+		t.Setenv("NAMESPACE", "ecosystem")
+		t.Setenv("STAGE", "development")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
+		t.Setenv("METRICS_SERVICE_NAME", "metrics")
+		t.Setenv("METRICS_SERVICE_PORT", "8081")
+		t.Setenv("METRICS_SERVICE_PROTOCOL", "http")
+		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
+		t.Setenv("GARBAGE_COLLECTION_INTERVAL", "5m")
+		t.Setenv("GARBAGE_COLLECTION_NUMBER_TO_KEEP", "5")
+		t.Setenv("NODE_INFO_USAGE_METRIC_STEP", "not a duration")
+		t.Setenv("NODE_INFO_HARDWARE_METRIC_STEP", "30m")
+
+		// when
+		operatorConfig, err := NewOperatorConfig(version)
+
+		// then
+		require.Error(t, err)
+		require.Nil(t, operatorConfig)
+		assert.ErrorContains(t, err, "failed to parse env var [NODE_INFO_USAGE_METRIC_STEP]")
+	})
+
+	t.Run("should fail to parse node info hardware metric step", func(t *testing.T) {
+		// given
+		version := "0.0.0"
+		t.Setenv("NAMESPACE", "ecosystem")
+		t.Setenv("STAGE", "development")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
+		t.Setenv("METRICS_SERVICE_NAME", "metrics")
+		t.Setenv("METRICS_SERVICE_PORT", "8081")
+		t.Setenv("METRICS_SERVICE_PROTOCOL", "http")
+		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
+		t.Setenv("GARBAGE_COLLECTION_INTERVAL", "5m")
+		t.Setenv("GARBAGE_COLLECTION_NUMBER_TO_KEEP", "5")
+		t.Setenv("NODE_INFO_USAGE_METRIC_STEP", "30s")
+		t.Setenv("NODE_INFO_HARDWARE_METRIC_STEP", "not a duration")
+
+		// when
+		operatorConfig, err := NewOperatorConfig(version)
+
+		// then
+		require.Error(t, err)
+		require.Nil(t, operatorConfig)
+		assert.ErrorContains(t, err, "failed to parse env var [NODE_INFO_HARDWARE_METRIC_STEP]")
 	})
 	t.Run("fail to parse version", func(t *testing.T) {
 		// given
