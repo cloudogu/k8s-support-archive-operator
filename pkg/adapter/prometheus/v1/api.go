@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"strconv"
-	"time"
 )
 
 const (
@@ -119,6 +120,7 @@ func (p *PrometheusMetricsV1API) query(ctx context.Context, query string, ts tim
 	return parseValue(value, logger, query)
 }
 
+//nolint:unparam // ignore that we always set pageSampleSize to maxSamples
 func (p *PrometheusMetricsV1API) queryRange(ctx context.Context, metric metric, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample, pageSampleSize int) error {
 	logger := log.FromContext(ctx).WithName("PrometheusMetricsV1API.queryRange")
 
