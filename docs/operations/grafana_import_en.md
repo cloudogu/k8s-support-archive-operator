@@ -10,4 +10,5 @@ Simply drop your metrics in a subfolder of `grafana/archives` and spin up the do
 docker compose up
 ```
 
+<!-- markdown-link-check-disable-next-line -->
 The dashboards are available at http://localhost:3000, username/password are `admin`/`admin`.
