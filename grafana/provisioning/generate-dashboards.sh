@@ -74,6 +74,12 @@ for folder in "${folders[@]}"; do
       "type": "timeseries",
       "title": "${name_no_ext}",
       "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity" },
+      "gridPos": {
+        "x": $((($panel_index % 2) * 12)),
+        "y": $(($panel_index / 2)),
+        "w": 12,
+        "h": 12
+      },
       "targets": [
         {
           "refId": "A",
