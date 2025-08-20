@@ -33,9 +33,9 @@ func TestLabeledSample_GetRow(t *testing.T) {
 				MetricName: "cpuUsage",
 				ID:         "ces-main",
 				Value:      0.194234,
-				Time:       time.Unix(1755693772, 0),
+				Time:       time.Unix(1755693772, 0).UTC(),
 			},
-			want: []string{"ces-main", "0.19", "2025-08-20T14:42:52+02:00"},
+			want: []string{"ces-main", "0.19", "2025-08-20T12:42:52+00:00"},
 		},
 		{
 			name: "example 2",
@@ -43,9 +43,9 @@ func TestLabeledSample_GetRow(t *testing.T) {
 				MetricName: "cpuUsage",
 				ID:         "ces-worker-0",
 				Value:      0.225234234,
-				Time:       time.Unix(1755693828, 0),
+				Time:       time.Unix(1755693828, 0).UTC(),
 			},
-			want: []string{"ces-worker-0", "0.23", "2025-08-20T14:43:48+02:00"},
+			want: []string{"ces-worker-0", "0.23", "2025-08-20T12:43:48+00:00"},
 		},
 	}
 	for _, tt := range tests {
