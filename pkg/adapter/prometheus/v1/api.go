@@ -48,11 +48,11 @@ func (p *PrometheusMetricsV1API) GetNodeStorage(ctx context.Context, start, end 
 }
 
 func (p *PrometheusMetricsV1API) GetNodeStorageFree(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
-	return p.queryRange(ctx, nodeStorageFreeMetric, start, end, step, resultChan, p.maxSamples)
+	return p.queryRange(ctx, nodeStorageAvailableMetric, start, end, step, resultChan, p.maxSamples)
 }
 
 func (p *PrometheusMetricsV1API) GetNodeStorageFreeRelative(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
-	return p.queryRange(ctx, nodeStorageFreeRelativeMetric, start, end, step, resultChan, p.maxSamples)
+	return p.queryRange(ctx, nodeStorageUsedRelativeMetric, start, end, step, resultChan, p.maxSamples)
 }
 
 func (p *PrometheusMetricsV1API) GetNodeRAM(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
@@ -60,7 +60,7 @@ func (p *PrometheusMetricsV1API) GetNodeRAM(ctx context.Context, start, end time
 }
 
 func (p *PrometheusMetricsV1API) GetNodeRAMFree(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
-	return p.queryRange(ctx, nodeRAMFreeMetric, start, end, step, resultChan, p.maxSamples)
+	return p.queryRange(ctx, nodeRAMAvailableMetric, start, end, step, resultChan, p.maxSamples)
 }
 
 func (p *PrometheusMetricsV1API) GetNodeRAMUsedRelative(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
@@ -72,7 +72,7 @@ func (p *PrometheusMetricsV1API) GetNodeCPUCores(ctx context.Context, start, end
 }
 
 func (p *PrometheusMetricsV1API) GetNodeCPUUsage(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
-	return p.queryRange(ctx, nodeCPUUsageMetric, start, end, step, resultChan, p.maxSamples)
+	return p.queryRange(ctx, nodeCPUUsageCoresMetric, start, end, step, resultChan, p.maxSamples)
 }
 
 func (p *PrometheusMetricsV1API) GetNodeCPUUsageRelative(ctx context.Context, start, end time.Time, step time.Duration, resultChan chan<- *domain.LabeledSample) error {
