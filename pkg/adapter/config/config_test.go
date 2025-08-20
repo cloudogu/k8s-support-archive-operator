@@ -25,6 +25,7 @@ func TestNewOperatorConfig(t *testing.T) {
 		t.Setenv("GARBAGE_COLLECTION_NUMBER_TO_KEEP", "5")
 		t.Setenv("NODE_INFO_USAGE_METRIC_STEP", "30s")
 		t.Setenv("NODE_INFO_HARDWARE_METRIC_STEP", "30m")
+		t.Setenv("METRICS_MAX_SAMPLES", "11000")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -49,6 +50,7 @@ func TestNewOperatorConfig(t *testing.T) {
 		t.Setenv("GARBAGE_COLLECTION_NUMBER_TO_KEEP", "5")
 		t.Setenv("NODE_INFO_USAGE_METRIC_STEP", "30s")
 		t.Setenv("NODE_INFO_HARDWARE_METRIC_STEP", "30m")
+		t.Setenv("METRICS_MAX_SAMPLES", "11000")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -166,6 +168,33 @@ func TestNewOperatorConfig(t *testing.T) {
 		require.Nil(t, operatorConfig)
 		assert.ErrorContains(t, err, "failed to parse env var [NODE_INFO_HARDWARE_METRIC_STEP]")
 	})
+	t.Run("should fail to parse metrics max samples", func(t *testing.T) {
+		// given
+		version := "0.0.0"
+		t.Setenv("NAMESPACE", "ecosystem")
+		t.Setenv("STAGE", "development")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
+		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
+		t.Setenv("METRICS_SERVICE_NAME", "metrics")
+		t.Setenv("METRICS_SERVICE_PORT", "8081")
+		t.Setenv("METRICS_SERVICE_PROTOCOL", "http")
+		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
+		t.Setenv("GARBAGE_COLLECTION_INTERVAL", "5m")
+		t.Setenv("GARBAGE_COLLECTION_NUMBER_TO_KEEP", "5")
+		t.Setenv("NODE_INFO_USAGE_METRIC_STEP", "30s")
+		t.Setenv("NODE_INFO_HARDWARE_METRIC_STEP", "30m")
+		t.Setenv("METRICS_MAX_SAMPLES", "not a number")
+
+		// when
+		operatorConfig, err := NewOperatorConfig(version)
+
+		// then
+		require.Error(t, err)
+		require.Nil(t, operatorConfig)
+		assert.ErrorContains(t, err, "failed to get maximum number of metrics samples")
+	})
+
 	t.Run("fail to parse version", func(t *testing.T) {
 		// given
 		version := "0.0."

@@ -74,6 +74,8 @@ spec:
           value: {{ .Values.controllerManager.env.nodeInfoUsageMetricStep | default "30s" }}
         - name: NODE_INFO_HARDWARE_METRIC_STEP
           value: {{ .Values.controllerManager.env.nodeInfoHardwareMetricStep | default "30m" }}
+        - name: METRICS_MAX_SAMPLES
+          value: {{ quote .Values.controllerManager.env.metricsMaxSamples | default "11000" }}
         - name: NAMESPACE
           valueFrom:
             fieldRef:

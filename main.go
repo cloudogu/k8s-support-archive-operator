@@ -130,7 +130,7 @@ func startOperator(
 	if err != nil {
 		return fmt.Errorf("unable to create prometheus client: %w", err)
 	}
-	metricsCollector := v1.NewPrometheusMetricsV1API(metricsClient)
+	metricsCollector := v1.NewPrometheusMetricsV1API(metricsClient, operatorConfig.MetricsMaxSamples)
 
 	volumesCollector := collector.NewVolumesCollector(ecoClientSet.CoreV1(), metricsCollector)
 	volumeRepository := file.NewVolumesFileRepository(workPath, fs)

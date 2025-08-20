@@ -3,14 +3,15 @@ package v1
 import (
 	"context"
 	"fmt"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"sync"
-	"testing"
-	"time"
 )
 
 const (
@@ -311,10 +312,10 @@ func TestNewPrometheusMetricsV1API(t *testing.T) {
 	clientMock := newMockClient(t)
 
 	// when
-	api := NewPrometheusMetricsV1API(clientMock)
+	api := NewPrometheusMetricsV1API(clientMock, 11000)
 
 	// then
-	require.NotNil(t, api)
+	require.NotEmpty(t, api)
 }
 
 func TestPrometheusMetricsV1API_GetNodeCount(t *testing.T) {
@@ -380,7 +381,8 @@ func TestPrometheusMetricsV1API_GetNodeCount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &PrometheusMetricsV1API{
-				v1API: tt.fields.v1API(t),
+				v1API:      tt.fields.v1API(t),
+				maxSamples: 11000,
 			}
 
 			group := sync.WaitGroup{}

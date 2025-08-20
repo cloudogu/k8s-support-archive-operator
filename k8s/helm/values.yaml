@@ -35,6 +35,7 @@ controllerManager:
     garbageCollectionNumberToKeep: 5
     nodeInfoUsageMetricStep: 30s
     nodeInfoHardwareMetricStep: 30m
+    metricsMaxSamples: 11000
   imagePullPolicy: IfNotPresent
   podSecurityContext:
     fsGroup: 65532

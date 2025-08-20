@@ -29,6 +29,7 @@ const (
 	metricsServiceProtocolEnvVar               = "METRICS_SERVICE_PROTOCOL"
 	nodeInfoUsageMetricStepEnvVar              = "NODE_INFO_USAGE_METRIC_STEP"
 	nodeInfoHardwareMetricStepEnvVar           = "NODE_INFO_HARDWARE_METRIC_STEP"
+	metricsMaxSamplesEnvVar                    = "METRICS_MAX_SAMPLES"
 )
 
 var log = ctrl.Log.WithName("config")
@@ -62,6 +63,8 @@ type OperatorConfig struct {
 	NodeInfoUsageMetricStep time.Duration
 	// NodeInfoHardwareMetricStep defines the step width used for hardware metrics (names, count, cores, capacities).
 	NodeInfoHardwareMetricStep time.Duration
+	// MetricsMaxSamples defines the maximum number of samples the metrics server can serve in a single request.
+	MetricsMaxSamples int
 }
 
 func IsStageDevelopment() bool {
@@ -150,6 +153,12 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	}
 	log.Info(fmt.Sprintf("NodeInfo hardware metric step: %s", nodeInfoHardwareMetricStep))
 
+	metricsMaxSamples, err := getIntEnvVar(metricsMaxSamplesEnvVar)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get maximum number of metrics samples: %w", err)
+	}
+	log.Info(fmt.Sprintf("Maximum number of metrics samples: %d", metricsMaxSamples))
+
 	return &OperatorConfig{
 		Version:                              parsedVersion,
 		Namespace:                            namespace,
@@ -165,6 +174,7 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 		MetricsServiceProtocol:     metricsServiceProtocol,
 		NodeInfoUsageMetricStep:    nodeInfoUsageMetricStep,
 		NodeInfoHardwareMetricStep: nodeInfoHardwareMetricStep,
+		MetricsMaxSamples:          metricsMaxSamples,
 	}, nil
 }
 
