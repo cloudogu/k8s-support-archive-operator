@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	libapi "github.com/cloudogu/k8s-support-archive-lib/api/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"

@@ -2,8 +2,9 @@ package collector
 
 import (
 	"context"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"time"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 )
 
 type LogCollector struct{}

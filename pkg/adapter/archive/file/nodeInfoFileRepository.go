@@ -5,9 +5,10 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"os"
 	"path/filepath"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 )
 
 const (

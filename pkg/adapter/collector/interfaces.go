@@ -2,9 +2,10 @@ package collector
 
 import (
 	"context"
+	"time"
+
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"time"
 )
 
 type coreV1Interface interface {

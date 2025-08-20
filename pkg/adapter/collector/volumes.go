@@ -3,10 +3,11 @@ package collector
 import (
 	"context"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
 	"time"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const pvcVolumeMetricName = "persistentVolumeClaims"
