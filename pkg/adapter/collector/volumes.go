@@ -22,7 +22,7 @@ func NewVolumesCollector(coreV1Interface coreV1Interface, provider metricsProvid
 }
 
 func (vc *VolumesCollector) Name() string {
-	return string(domain.CollectorTypVolumeInfo)
+	return string(domain.CollectorTypeVolumeInfo)
 }
 
 func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, _, end time.Time, resultChan chan<- *domain.VolumeInfo) error {

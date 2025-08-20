@@ -54,7 +54,7 @@ func TestDeleteArchiveUseCase_Delete(t *testing.T) {
 					mapping[domain.CollectorTypeLog] = CollectorAndRepository{
 						Repository: logRepoMock,
 					}
-					mapping[domain.CollectorTypVolumeInfo] = CollectorAndRepository{
+					mapping[domain.CollectorTypeVolumeInfo] = CollectorAndRepository{
 						Repository: volumeRepoMock,
 					}
 
