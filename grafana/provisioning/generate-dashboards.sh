@@ -6,31 +6,69 @@ ARCHIVES_DIR="/var/lib/grafana/archives"
 
 mkdir -p "${GEN_DIR}"
 
-# Generate a simple dashboard JSON for each CSV file found under ARCHIVES_DIR.
-# Each dashboard contains a single time series panel that reads the CSV with Infinity and groups series by the `label` column.
+# Create one dashboard per subfolder under ARCHIVES_DIR, containing
+# one panel per CSV metric file in that subfolder. CSVs directly in ARCHIVES_DIR
+# are grouped into a single "root" dashboard.
 
-index=0
 shopt -s nullglob globstar
-for csv in "${ARCHIVES_DIR}"/**/*.csv "${ARCHIVES_DIR}"/*.csv; do
-  [ -e "$csv" ] || continue
+
+# Collect CSV files
+csv_files=("${ARCHIVES_DIR}"/**/*.csv "${ARCHIVES_DIR}"/*.csv)
+
+if [ ${#csv_files[@]} -eq 0 ]; then
+  echo "[generate-dashboards] No CSV files found under ${ARCHIVES_DIR}."
+  exit 0
+fi
+
+# Build a list of unique folders relative to ARCHIVES_DIR
+folders=()
+declare -A seen
+for csv in "${csv_files[@]}"; do
   rel_path="${csv#${ARCHIVES_DIR}/}"
-  name_no_ext="${rel_path%.csv}"
-  dash_uid="csv_$(echo -n "$name_no_ext" | tr '/.' '__' | tr -cd '[:alnum:]_-' | cut -c1-40)"
-  panel_id=$((100 + index))
+  dir_name="$(dirname "${rel_path}")"
+  if [ "${dir_name}" = "." ]; then
+    dir_name=""  # root
+  fi
+  if [ -z "${seen["$dir_name"]+x}" ]; then
+    folders+=("$dir_name")
+    seen["$dir_name"]=1
+  fi
+done
+
+# Helper to sanitize strings for UID/file names
+sanitize() {
+  tr '/.' '__' | tr -cd '[:alnum:]_-' | cut -c1-40
+}
+
+# Generate one dashboard per folder
+for folder in "${folders[@]}"; do
+  panels=""
+  panel_index=0
+
+  # Dashboard identity
+  folder_label="$folder"
+  if [ -z "$folder_label" ]; then
+    folder_label="root"
+  fi
+  dash_uid="csv_group_$(echo -n "$folder_label" | sanitize)"
   dashboard_json="${GEN_DIR}/${dash_uid}.json"
 
-  cat >"${dashboard_json}" <<JSON
-{
-  "id": null,
-  "uid": "${dash_uid}",
-  "title": "CSV: ${name_no_ext}",
-  "timezone": "browser",
-  "tags": ["csv", "infinity"],
-  "schemaVersion": 38,
-  "version": 1,
-  "refresh": "",
-  "time": { "from": "now-30d", "to": "now" },
-  "panels": [
+  # Build panels for this folder
+  for csv in "${csv_files[@]}"; do
+    rel_path="${csv#${ARCHIVES_DIR}/}"
+    dir_name="$(dirname "${rel_path}")"
+    if [ "${dir_name}" = "." ]; then dir_name=""; fi
+    if [ "$dir_name" != "$folder" ]; then
+      continue
+    fi
+
+    name_no_ext="$(basename "${rel_path}")"
+    name_no_ext="${name_no_ext%.csv}"
+
+    panel_id=$((100 + panel_index))
+
+    # Create JSON for this panel
+    read -r -d '' panel_json <<PANEL || true
     {
       "id": ${panel_id},
       "type": "timeseries",
@@ -44,7 +82,7 @@ for csv in "${ARCHIVES_DIR}"/**/*.csv "${ARCHIVES_DIR}"/*.csv; do
           "format": "timeseries",
           "parser": "backend",
           "url": "http://archives/${rel_path}",
-          "url_options":{ "method": "GET" },
+          "url_options": { "method": "GET" },
           "csv_options": { "delimiter": ",", "header": true }
         }
       ],
@@ -60,23 +98,15 @@ for csv in "${ARCHIVES_DIR}"/**/*.csv "${ARCHIVES_DIR}"/*.csv; do
         },
         {
           "id": "partitionByValues",
-          "options": {
-            "fields": ["label"]
-          }
+          "options": { "fields": ["label"] }
         },
         {
           "id": "renameByRegex",
-          "options": {
-            "regex": "(time).*",
-            "renamePattern": "\$1"
-          }
+          "options": { "regex": "(time).*", "renamePattern": "\$1" }
         },
         {
           "id": "renameByRegex",
-          "options": {
-            "regex": "value(.*)",
-            "renamePattern": "\$1"
-          }
+          "options": { "regex": "value(.*)", "renamePattern": "\$1" }
         }
       ],
       "options": {
@@ -85,13 +115,37 @@ for csv in "${ARCHIVES_DIR}"/**/*.csv "${ARCHIVES_DIR}"/*.csv; do
       },
       "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] }
     }
+PANEL
+
+    if [ -n "$panels" ]; then
+      panels+=","  # add comma separator
+    fi
+    panels+="$panel_json"
+    panel_index=$((panel_index+1))
+  done
+
+  # If folder has no panels (shouldn't happen), skip
+  if [ $panel_index -eq 0 ]; then
+    echo "[generate-dashboards] Skipping empty folder: ${folder_label}"
+    continue
+  fi
+
+  # Write dashboard JSON
+  cat >"${dashboard_json}" <<JSON
+{
+  "id": null,
+  "uid": "${dash_uid}",
+  "title": "CSV: ${folder_label}",
+  "timezone": "browser",
+  "tags": ["csv", "infinity"],
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "",
+  "time": { "from": "now-30d", "to": "now" },
+  "panels": [
+${panels}
   ]
 }
 JSON
-  echo "[generate-dashboards] Generated: ${dashboard_json}"
-  index=$((index+1))
+  echo "[generate-dashboards] Generated: ${dashboard_json} (${panel_index} panels)"
 done
-
-if [ ${index} -eq 0 ]; then
-  echo "[generate-dashboards] No CSV files found under ${ARCHIVES_DIR}."
-fi
