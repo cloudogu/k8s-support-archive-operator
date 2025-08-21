@@ -27,10 +27,6 @@ var yamlSecret corev1.Secret
 var jsonSecretYamlValuesBytes []byte
 var jsonSecret corev1.Secret
 
-//go:embed testdata/secrets/nested-secret-with-json-and-yaml-arrays.yaml
-var nestedSecretYamlValuesBytes []byte
-var nestedSecret corev1.Secret
-
 var creationTimeStamp = metav1.Time{Time: time.Now()}
 var creationTimeStampString = creationTimeStamp.Format(time.RFC3339)
 
@@ -52,12 +48,6 @@ func init() {
 		panic(err)
 	}
 	jsonSecret.CreationTimestamp = creationTimeStamp
-
-	err = yaml.Unmarshal(nestedSecretYamlValuesBytes, &nestedSecret)
-	if err != nil {
-		panic(err)
-	}
-	nestedSecret.CreationTimestamp = creationTimeStamp
 }
 
 func TestSecretCollector_NewSecretCollector(t *testing.T) {
@@ -202,7 +192,7 @@ func TestSecretsCollector_Collect(t *testing.T) {
 					Namespace:         "default",
 					CreationTimestamp: creationTimeStampString,
 					UID:               "f4c9b4c2-73a8-48a5-bd92-fd4e5c236c87",
-					Labels:            map[string]string{"app": "ces", "dogu.name": "test-dogu"},
+					Labels:            map[string]string{"app": "ces", "dogu.name": "test-dogu", "k8s.cloudogu.com/type": "sensitive-config"},
 				},
 			},
 		},
@@ -228,44 +218,12 @@ func TestSecretsCollector_Collect(t *testing.T) {
 				ApiVersion: "v1",
 				Kind:       "Secret",
 				SecretType: "Opaque",
-				Data:       map[string]string{"config.json": "{\"auths\":{\"localhost\":{\"password\":\"***\",\"username\":\"***\"}}}"},
+				Data:       map[string]string{"config.json": "***"},
 				Metadata: domain.SecretYamlMetaData{
 					Name:              "sensitive-config",
 					Namespace:         "default",
 					CreationTimestamp: creationTimeStampString,
 					UID:               "8b1a8a6e-bd7a-4e7f-9a51-f5b9a6cfc20b",
-					Labels:            map[string]string{"app": "ces", "dogu.name": "test-dogu"},
-				},
-			},
-		},
-		{
-			name: "should write nested secret to channel and close",
-			fields: fields{
-				coreV1Interface: func(t *testing.T) coreV1Interface {
-					return createSecretInterfaceMock(t, []corev1.Secret{nestedSecret}, nil)
-				},
-			},
-			args: args{
-				ctx:          testCtx,
-				namespace:    testNamespace,
-				start:        time.Time{},
-				end:          now,
-				resultChan:   make(chan *domain.SecretYaml),
-				waitForClose: true,
-			},
-			wantErr: func(t *testing.T, err error) {
-				require.NoError(t, err)
-			},
-			wantData: &domain.SecretYaml{
-				ApiVersion: "v1",
-				Kind:       "Secret",
-				SecretType: "Opaque",
-				Data:       map[string]string{"config.json": "{\"groups\":[{\"name\":\"***\",\"rule\":\"***\"},{\"name\":\"***\",\"rule\":\"***\"},{\"name\":\"***\",\"rule\":\"***\"}]}", "config.yaml": "groups:\n    - name: '***'\n      rule: '***'\n    - name: '***'\n      rule: '***'\n    - name: '***'\n      rule: '***'\n", "password": "***", "username": "***"},
-				Metadata: domain.SecretYamlMetaData{
-					Name:              "sensitive-config",
-					Namespace:         "default",
-					UID:               "0f1e4b3c-9d89-4b28-94b4-1df1e5e0cb5c",
-					CreationTimestamp: creationTimeStampString,
 					Labels:            map[string]string{"app": "ces", "dogu.name": "test-dogu"},
 				},
 			},

@@ -9,12 +9,14 @@ import (
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const censoredValue = "***"
 const labelSelector = "app=ces"
+const labelConfigTypeKey = "k8s.cloudogu.com/type"
+const labelSensitiveConfigType = "sensitive-config"
+const configYamlKey = "config.yaml"
 
 type SecretCollector struct {
 	coreV1Interface coreV1Interface
@@ -66,51 +68,22 @@ func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
 		},
 	}
 
-	for key, val := range secret.Data {
-		// Try json parse
-		var parsed interface{}
-		if err := json.Unmarshal(val, &parsed); err == nil {
-			censoredJSON := censorJsonSecret(parsed)
-			newVal, err := json.Marshal(censoredJSON)
-			if err == nil {
-				censored.Data[key] = string(newVal)
-			}
-			continue
-		}
-
-		// Try yaml parse
+	if secret.Labels[labelConfigTypeKey] == labelSensitiveConfigType {
 		var yamlNode yaml.Node
-		if err := yaml.Unmarshal(val, &yamlNode); err == nil {
-			if isSingleScalarNode(&yamlNode) {
-				censored.Data[key] = censoredValue
-				continue
-			}
+		if err := yaml.Unmarshal(secret.Data[configYamlKey], &yamlNode); err == nil {
 			censorYaml(&yamlNode)
 			encoded, err := yaml.Marshal(&yamlNode)
 			if err == nil {
-				censored.Data[key] = string(encoded)
+				censored.Data[configYamlKey] = string(encoded)
+				return censored
 			}
-			continue
 		}
+	}
+
+	for key, _ := range secret.Data {
+		censored.Data[key] = censoredValue
 	}
 	return censored
-}
-
-func censorJsonSecret(data interface{}) interface{} {
-	switch v := data.(type) {
-	case map[string]interface{}:
-		for k := range v {
-			v[k] = censorJsonSecret(v[k])
-		}
-		return v
-	case []interface{}:
-		for i := range v {
-			v[i] = censorJsonSecret(v[i])
-		}
-		return v
-	default:
-		return "***"
-	}
 }
 
 func censorYaml(node *yaml.Node) {
@@ -131,8 +104,4 @@ func censorYaml(node *yaml.Node) {
 	case yaml.ScalarNode:
 		node.Value = censoredValue
 	}
-}
-
-func isSingleScalarNode(node *yaml.Node) bool {
-	return node.Kind == yaml.ScalarNode || (node.Kind == yaml.DocumentNode && len(node.Content) == 1 && node.Content[0].Kind == yaml.ScalarNode)
 }
