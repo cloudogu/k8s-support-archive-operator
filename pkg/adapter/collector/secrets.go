@@ -80,7 +80,7 @@ func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
 		}
 	}
 
-	for key, _ := range secret.Data {
+	for key := range secret.Data {
 		censored.Data[key] = censoredValue
 	}
 	return censored
