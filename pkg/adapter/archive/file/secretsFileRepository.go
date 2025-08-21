@@ -29,7 +29,7 @@ func NewSecretsFileRepository(workPath string, fs secretFs) *SecretsFileReposito
 }
 
 func (v *SecretsFileRepository) Create(ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *domain.SecretYaml) error {
-	return create(ctx, id, dataStream, v.createCoreSecret, v.Delete, v.FinishCollection)
+	return create(ctx, id, dataStream, v.createCoreSecret, v.Delete, v.finishCollection, nil)
 }
 
 // createCoreSecret writes the content from data to the volumeInfo file.

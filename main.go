@@ -149,7 +149,7 @@ func startOperator(
 	mapping[domain.CollectorTypeLog] = usecase.CollectorAndRepository{Collector: logCollector, Repository: logRepository}
 	mapping[domain.CollectorTypeVolumeInfo] = usecase.CollectorAndRepository{Collector: volumesCollector, Repository: volumeRepository}
 	mapping[domain.CollectorTypeNodeInfo] = usecase.CollectorAndRepository{Collector: nodeInfoCollector, Repository: nodeInfoRepository}
-	mapping[domain.CollectorTypVolumeInfo] = usecase.CollectorAndRepository{Collector: volumesCollector, Repository: volumeRepository}
+	mapping[domain.CollectorTypeVolumeInfo] = usecase.CollectorAndRepository{Collector: volumesCollector, Repository: volumeRepository}
 	mapping[domain.CollectorTypSecret] = usecase.CollectorAndRepository{Collector: secretsCollector, Repository: secretRepository}
 
 	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
