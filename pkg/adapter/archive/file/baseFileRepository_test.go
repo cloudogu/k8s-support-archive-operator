@@ -140,7 +140,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 				collectorDir: tt.fields.collectorDir,
 				filesystem:   tt.fields.filesystem(t),
 			}
-			tt.wantErr(t, l.FinishCollection(tt.args.ctx, tt.args.id))
+			tt.wantErr(t, l.finishCollection(tt.args.ctx, tt.args.id))
 		})
 	}
 }
@@ -320,6 +320,7 @@ func Test_create(t *testing.T) {
 		createFn   createFn[domain.PodLog]
 		deleteFn   deleteFn
 		finishFn   finishFn
+		closeFn    closeFn
 	}
 	type testCase[DATATYPE domain.CollectorUnionDataType] struct {
 		name    string
@@ -405,7 +406,7 @@ func Test_create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.wantErr(t, create(tt.args.ctx, tt.args.id, tt.args.dataStream, tt.args.createFn, tt.args.deleteFn, tt.args.finishFn))
+			tt.wantErr(t, create(tt.args.ctx, tt.args.id, tt.args.dataStream, tt.args.createFn, tt.args.deleteFn, tt.args.finishFn, tt.args.closeFn))
 		})
 	}
 }
@@ -488,10 +489,8 @@ func Test_baseFileRepository_Stream(t *testing.T) {
 				go func() {
 					<-timer.C
 					defer func() {
-						println("defer")
 						// recover panic if the channel is closed correctly from the test
 						if r := recover(); r != nil {
-							println("recovered from panic")
 							tt.args.stream.Data <- domain.StreamData{ID: "timeout"}
 							return
 						}

@@ -28,7 +28,7 @@ func NewLogFileRepository(workPath string, fs volumeFs) *LogFileRepository {
 }
 
 func (l *LogFileRepository) Create(ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *domain.PodLog) error {
-	return create(ctx, id, dataStream, l.createPodLog, l.Delete, l.FinishCollection)
+	return create(ctx, id, dataStream, l.createPodLog, l.Delete, l.finishCollection, nil)
 }
 
 func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportArchiveID, data *domain.PodLog) error {

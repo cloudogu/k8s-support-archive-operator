@@ -17,7 +17,7 @@ var (
 		Name:      testArchiveName,
 	}
 
-	testCR = &libapi.SupportArchive{ObjectMeta: metav1.ObjectMeta{Namespace: testArchiveNamespace, Name: testArchiveName}, Spec: libapi.SupportArchiveSpec{ExcludedContents: libapi.ExcludedContents{VolumeInfo: true, SensitiveData: true}}}
+	testLogCR = &libapi.SupportArchive{ObjectMeta: metav1.ObjectMeta{Namespace: testArchiveNamespace, Name: testArchiveName}, Spec: libapi.SupportArchiveSpec{ExcludedContents: libapi.ExcludedContents{VolumeInfo: true, SystemState: true, SensitiveData: true, Events: true, SystemInfo: true}}}
 )
 
 func TestDeleteArchiveUseCase_Delete(t *testing.T) {
@@ -55,7 +55,7 @@ func TestDeleteArchiveUseCase_Delete(t *testing.T) {
 					mapping[domain.CollectorTypeLog] = CollectorAndRepository{
 						Repository: logRepoMock,
 					}
-					mapping[domain.CollectorTypVolumeInfo] = CollectorAndRepository{
+					mapping[domain.CollectorTypeVolumeInfo] = CollectorAndRepository{
 						Repository: volumeRepoMock,
 					}
 

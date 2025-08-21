@@ -2,11 +2,12 @@ package config
 
 import (
 	"fmt"
-	"github.com/Masterminds/semver/v3"
 	"os"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"strconv"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
@@ -26,6 +27,9 @@ const (
 	metricsServiceNameEnvVar                   = "METRICS_SERVICE_NAME"
 	metricsServicePortEnvVar                   = "METRICS_SERVICE_PORT"
 	metricsServiceProtocolEnvVar               = "METRICS_SERVICE_PROTOCOL"
+	nodeInfoUsageMetricStepEnvVar              = "NODE_INFO_USAGE_METRIC_STEP"
+	nodeInfoHardwareMetricStepEnvVar           = "NODE_INFO_HARDWARE_METRIC_STEP"
+	metricsMaxSamplesEnvVar                    = "METRICS_MAX_SAMPLES"
 )
 
 var log = ctrl.Log.WithName("config")
@@ -55,6 +59,12 @@ type OperatorConfig struct {
 	MetricsServicePort string
 	// MetricsServiceProtocol defines the service protocol for metrics service.
 	MetricsServiceProtocol string
+	// NodeInfoUsageMetricStep defines the step width used for usage metrics (cpu/ram/network/storage free).
+	NodeInfoUsageMetricStep time.Duration
+	// NodeInfoHardwareMetricStep defines the step width used for hardware metrics (names, count, cores, capacities).
+	NodeInfoHardwareMetricStep time.Duration
+	// MetricsMaxSamples defines the maximum number of samples the metrics server can serve in a single request.
+	MetricsMaxSamples int
 }
 
 func IsStageDevelopment() bool {
@@ -131,6 +141,24 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	}
 	log.Info(fmt.Sprintf("Metrics service protocol: %s", metricsServiceProtocol))
 
+	nodeInfoUsageMetricStep, err := getDurationEnvVar(nodeInfoUsageMetricStepEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("NodeInfo usage metric step: %s", nodeInfoUsageMetricStep))
+
+	nodeInfoHardwareMetricStep, err := getDurationEnvVar(nodeInfoHardwareMetricStepEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("NodeInfo hardware metric step: %s", nodeInfoHardwareMetricStep))
+
+	metricsMaxSamples, err := getIntEnvVar(metricsMaxSamplesEnvVar)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get maximum number of metrics samples: %w", err)
+	}
+	log.Info(fmt.Sprintf("Maximum number of metrics samples: %d", metricsMaxSamples))
+
 	return &OperatorConfig{
 		Version:                              parsedVersion,
 		Namespace:                            namespace,
@@ -141,9 +169,12 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 		GarbageCollectionInterval:            garbageCollectionInterval,
 		GarbageCollectionNumberToKeep:        garbageCollectionNumberToKeep,
 		// prometheus is optional?
-		MetricsServiceName:     metricsServiceName,
-		MetricsServicePort:     metricsServicePort,
-		MetricsServiceProtocol: metricsServiceProtocol,
+		MetricsServiceName:         metricsServiceName,
+		MetricsServicePort:         metricsServicePort,
+		MetricsServiceProtocol:     metricsServiceProtocol,
+		NodeInfoUsageMetricStep:    nodeInfoUsageMetricStep,
+		NodeInfoHardwareMetricStep: nodeInfoHardwareMetricStep,
+		MetricsMaxSamples:          metricsMaxSamples,
 	}, nil
 }
 
