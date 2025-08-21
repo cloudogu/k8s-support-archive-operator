@@ -43,7 +43,7 @@ func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ t
 
 	for _, secret := range list.Items {
 		censored := sc.censorSecret(secret)
-		logger.Info(fmt.Sprintf("censored secret: %s and write it into channel", secret.Name))
+		logger.Info(fmt.Sprintf("censored secret %q and write it into channel", secret.Name))
 		writeSaveToChannel(ctx, censored, resultChan)
 	}
 
