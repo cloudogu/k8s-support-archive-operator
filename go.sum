@@ -10,8 +10,8 @@ github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250805143327-ebf00aba80a3 h
 github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250805143327-ebf00aba80a3/go.mod h1:xgC9bj8Q0rzefinCb7RScQwF/bxcZ2675Slqff3rZcQ=
 github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250805150401-26e842981a16 h1:Um/Z56IyWlnhW1b5CVJLX+KWeiDSFJRSo2IERRSbETk=
 github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250805150401-26e842981a16/go.mod h1:xgC9bj8Q0rzefinCb7RScQwF/bxcZ2675Slqff3rZcQ=
-github.com/cloudogu/k8s-support-archive-lib v0.2.0 h1:Vjt+finSvJo9qAQQ099h6kcPCk0/0g0E/+OYucKEWkw=
-github.com/cloudogu/k8s-support-archive-lib v0.2.0/go.mod h1:xgC9bj8Q0rzefinCb7RScQwF/bxcZ2675Slqff3rZcQ=
+github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250807110836-734963f13a38 h1:p3q0D3hgXMOuqAAAXYesFUBphfDVFXSw4z/eeFaipIY=
+github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250807110836-734963f13a38/go.mod h1:xgC9bj8Q0rzefinCb7RScQwF/bxcZ2675Slqff3rZcQ=
 github.com/cloudogu/retry-lib v0.1.0 h1:gaAmtyjUqgHbxfCWMeUn0qnGbDH4TtZVSQkbZ1Nq6eI=
 github.com/cloudogu/retry-lib v0.1.0/go.mod h1:iG9y6zx8oJZT5ULtl9koZkYJLRsqam/2mTU+rgjxQ0g=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

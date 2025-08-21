@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	libapi "github.com/cloudogu/k8s-support-archive-lib/api/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
@@ -37,7 +38,10 @@ func (cm CollectorMapping) getRequiredCollectorMapping(cr *libapi.SupportArchive
 		mapping[domain.CollectorTypeLog] = cm[domain.CollectorTypeLog]
 	}
 	if !cr.Spec.ExcludedContents.VolumeInfo {
-		mapping[domain.CollectorTypVolumeInfo] = cm[domain.CollectorTypVolumeInfo]
+		mapping[domain.CollectorTypeVolumeInfo] = cm[domain.CollectorTypeVolumeInfo]
+	}
+	if !cr.Spec.ExcludedContents.SystemInfo {
+		mapping[domain.CollectorTypeNodeInfo] = cm[domain.CollectorTypeNodeInfo]
 	}
 
 	return mapping
@@ -69,7 +73,7 @@ func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *lib
 		Name:      cr.GetName(),
 	}
 	requiredCollectorMapping := c.collectorMapping.getRequiredCollectorMapping(cr)
-	completedCollectorList, err := c.getAlreadyExecutedCollectors(ctx, id)
+	completedCollectorList, err := c.getAlreadyExecutedCollectors(ctx, id, requiredCollectorMapping)
 	if err != nil {
 		return 0, fmt.Errorf("could not get already executed collectors: %w", err)
 	}
@@ -154,8 +158,10 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 		switch col {
 		case domain.CollectorTypeLog:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.PodLog](errCtx, errGroup, col, c.collectorMapping, id)
-		case domain.CollectorTypVolumeInfo:
+		case domain.CollectorTypeVolumeInfo:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.VolumeInfo](errCtx, errGroup, col, c.collectorMapping, id)
+		case domain.CollectorTypeNodeInfo:
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.LabeledSample](errCtx, errGroup, col, c.collectorMapping, id)
 		default:
 			return "", errors.New("invalid collector type")
 		}
@@ -251,8 +257,15 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 		}
 
 		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
-	case domain.CollectorTypVolumeInfo:
+	case domain.CollectorTypeVolumeInfo:
 		col, repo, typeErr := getCollectorAndRepositoryForType[domain.VolumeInfo](next, c.collectorMapping)
+		if typeErr != nil {
+			return typeErr
+		}
+
+		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
+	case domain.CollectorTypeNodeInfo:
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.LabeledSample](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}
@@ -306,11 +319,11 @@ func startCollector[DATATYPE domain.CollectorUnionDataType](ctx context.Context,
 	return nil
 }
 
-func (c *CreateArchiveUseCase) getAlreadyExecutedCollectors(ctx context.Context, id domain.SupportArchiveID) ([]domain.CollectorType, error) {
+func (c *CreateArchiveUseCase) getAlreadyExecutedCollectors(ctx context.Context, id domain.SupportArchiveID, requiredCollectors CollectorMapping) ([]domain.CollectorType, error) {
 	logger := log.FromContext(ctx).WithName("GetAlreadyExecutedCollectors.getAlreadyExecutedCollectors")
 	var completedCollectorList []domain.CollectorType
 	// Get actual state
-	for colType := range c.collectorMapping {
+	for colType := range requiredCollectors {
 		baseRepo, err := getBaseRepositoryForCollector(colType, c.collectorMapping)
 		if err != nil {
 			return nil, err

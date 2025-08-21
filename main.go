@@ -10,9 +10,6 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	k8scloudogucomv1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
-	"github.com/cloudogu/k8s-support-archive-lib/client"
-	k8scloudoguclient "github.com/cloudogu/k8s-support-archive-lib/client"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -27,6 +24,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	k8scloudogucomv1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
+	k8scloudoguclient "github.com/cloudogu/k8s-support-archive-lib/client"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/archive/file"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
@@ -62,7 +61,7 @@ func init() {
 
 type ecosystemClientSet struct {
 	kubernetes.Interface
-	client.SupportArchiveEcosystemInterface
+	k8scloudoguclient.SupportArchiveEcosystemInterface
 }
 
 // nolint:gocyclo
@@ -131,14 +130,22 @@ func startOperator(
 	if err != nil {
 		return fmt.Errorf("unable to create prometheus client: %w", err)
 	}
-	metricsCollector := v1.NewPrometheusMetricsV1API(metricsClient)
+	metricsCollector := v1.NewPrometheusMetricsV1API(metricsClient, operatorConfig.MetricsMaxSamples)
 
 	volumesCollector := collector.NewVolumesCollector(ecoClientSet.CoreV1(), metricsCollector)
 	volumeRepository := file.NewVolumesFileRepository(workPath, fs)
 
+	nodeInfoCollector := collector.NewNodeInfoCollector(
+		metricsCollector,
+		operatorConfig.NodeInfoUsageMetricStep,
+		operatorConfig.NodeInfoHardwareMetricStep,
+	)
+	nodeInfoRepository := file.NewNodeInfoFileRepository(workPath, fs)
+
 	mapping := make(map[domain.CollectorType]usecase.CollectorAndRepository)
 	mapping[domain.CollectorTypeLog] = usecase.CollectorAndRepository{Collector: logCollector, Repository: logRepository}
-	mapping[domain.CollectorTypVolumeInfo] = usecase.CollectorAndRepository{Collector: volumesCollector, Repository: volumeRepository}
+	mapping[domain.CollectorTypeVolumeInfo] = usecase.CollectorAndRepository{Collector: volumesCollector, Repository: volumeRepository}
+	mapping[domain.CollectorTypeNodeInfo] = usecase.CollectorAndRepository{Collector: nodeInfoCollector, Repository: nodeInfoRepository}
 
 	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
 	deleteUseCase := usecase.NewDeleteArchiveUseCase(mapping, supportArchiveRepository)

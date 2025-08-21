@@ -29,7 +29,7 @@ func NewVolumesFileRepository(workPath string, fs volumeFs) *VolumesFileReposito
 }
 
 func (v *VolumesFileRepository) Create(ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *domain.VolumeInfo) error {
-	return create(ctx, id, dataStream, v.createVolumeInfo, v.Delete, v.FinishCollection)
+	return create(ctx, id, dataStream, v.createVolumeInfo, v.Delete, v.finishCollection, nil)
 }
 
 // createVolumeInfo writes the content from data to the volumeInfo file.
