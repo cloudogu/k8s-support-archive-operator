@@ -43,6 +43,9 @@ func (cm CollectorMapping) getRequiredCollectorMapping(cr *libapi.SupportArchive
 	if !cr.Spec.ExcludedContents.SystemInfo {
 		mapping[domain.CollectorTypeNodeInfo] = cm[domain.CollectorTypeNodeInfo]
 	}
+	if !cr.Spec.ExcludedContents.SensitiveData {
+		mapping[domain.CollectorTypSecret] = cm[domain.CollectorTypSecret]
+	}
 
 	return mapping
 }
@@ -162,6 +165,8 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.VolumeInfo](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypeNodeInfo:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.LabeledSample](errCtx, errGroup, col, c.collectorMapping, id)
+		case domain.CollectorTypSecret:
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.SecretYaml](errCtx, errGroup, col, c.collectorMapping, id)
 		default:
 			return "", errors.New("invalid collector type")
 		}
@@ -259,6 +264,13 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
 	case domain.CollectorTypeVolumeInfo:
 		col, repo, typeErr := getCollectorAndRepositoryForType[domain.VolumeInfo](next, c.collectorMapping)
+		if typeErr != nil {
+			return typeErr
+		}
+
+		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
+	case domain.CollectorTypSecret:
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.SecretYaml](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}

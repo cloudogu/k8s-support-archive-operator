@@ -8,6 +8,7 @@ const (
 	CollectorTypeLog        CollectorType = "Logs"
 	CollectorTypeVolumeInfo CollectorType = "VolumeInfo"
 	CollectorTypeNodeInfo   CollectorType = "NodeInfo"
+	CollectorTypSecret      CollectorType = "Resources/Secrets"
 )
 
 func (c CollectorType) GetConditionType() string {
@@ -18,11 +19,13 @@ func (c CollectorType) GetConditionType() string {
 		return libapi.ConditionVolumeInfoFetched
 	case CollectorTypeNodeInfo:
 		return libapi.ConditionNodeInfoFetched
+	case CollectorTypSecret:
+		return libapi.ConditionSecretsFetched
 	default:
 		return ""
 	}
 }
 
 type CollectorUnionDataType interface {
-	PodLog | VolumeInfo | LabeledSample
+	PodLog | VolumeInfo | LabeledSample | SecretYaml
 }
