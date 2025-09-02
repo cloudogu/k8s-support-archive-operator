@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	libapi "github.com/cloudogu/k8s-support-archive-lib/api/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
@@ -146,7 +147,6 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 	streamMap := make(map[domain.CollectorType]*domain.Stream)
 
 	errGroup, errCtx := errgroup.WithContext(ctx)
-
 	for col := range requiredCollectors {
 		var stream *domain.Stream
 		var err error
