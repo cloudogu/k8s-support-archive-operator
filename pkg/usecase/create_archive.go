@@ -38,7 +38,13 @@ func (cm CollectorMapping) getRequiredCollectorMapping(cr *libapi.SupportArchive
 		mapping[domain.CollectorTypeLog] = cm[domain.CollectorTypeLog]
 	}
 	if !cr.Spec.ExcludedContents.VolumeInfo {
-		mapping[domain.CollectorTypVolumeInfo] = cm[domain.CollectorTypVolumeInfo]
+		mapping[domain.CollectorTypeVolumeInfo] = cm[domain.CollectorTypeVolumeInfo]
+	}
+	if !cr.Spec.ExcludedContents.SystemInfo {
+		mapping[domain.CollectorTypeNodeInfo] = cm[domain.CollectorTypeNodeInfo]
+	}
+	if !cr.Spec.ExcludedContents.SensitiveData {
+		mapping[domain.CollectorTypSecret] = cm[domain.CollectorTypSecret]
 	}
 
 	return mapping
@@ -62,7 +68,7 @@ func NewCreateArchiveUseCase(supportArchivesInterface supportArchiveV1Interface,
 // It reads the actual state and executes the next data collector.
 // If there are remaining collectors after execution, the method returns (true, nil) to indicate a necessary requeue.
 // If there are no remaining collectors, the method returns (false, nil).
-func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *libapi.SupportArchive) (bool, error) {
+func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *libapi.SupportArchive) (time.Duration, error) {
 	logger := log.FromContext(ctx).WithName("CreateArchiveUseCase.HandleArchiveRequest")
 
 	id := domain.SupportArchiveID{
@@ -70,9 +76,9 @@ func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *lib
 		Name:      cr.GetName(),
 	}
 	requiredCollectorMapping := c.collectorMapping.getRequiredCollectorMapping(cr)
-	completedCollectorList, err := c.getAlreadyExecutedCollectors(ctx, id)
+	completedCollectorList, err := c.getAlreadyExecutedCollectors(ctx, id, requiredCollectorMapping)
 	if err != nil {
-		return true, fmt.Errorf("could not get already executed collectors: %w", err)
+		return 0, fmt.Errorf("could not get already executed collectors: %w", err)
 	}
 	// If the user changes required collectors, we have to clean up old unused data.
 	c.deleteUnusedRepositoryData(ctx, id, requiredCollectorMapping, completedCollectorList)
@@ -80,23 +86,23 @@ func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *lib
 	collectorsToExecute := getCollectorTypesToExecute(requiredCollectorMapping, completedCollectorList)
 	exists, err := c.supportArchiveRepository.Exists(ctx, id)
 	if err != nil {
-		return true, fmt.Errorf("could not check if the support archive exists: %w", err)
+		return 0, fmt.Errorf("could not check if the support archive exists: %w", err)
 	}
 	if len(collectorsToExecute) == 0 && !exists {
 		logger.Info("all collectors are executed")
 		url, createErr := c.createArchive(ctx, id, requiredCollectorMapping)
 		if createErr != nil {
-			return true, fmt.Errorf("could not create archive: %w", createErr)
+			return 0, fmt.Errorf("could not create archive: %w", createErr)
 		}
 		statusErr := c.updateFinalStatus(ctx, cr, url)
 		if statusErr != nil {
-			return true, fmt.Errorf("could not update status: %w", statusErr)
+			return 0, fmt.Errorf("could not update status: %w", statusErr)
 		}
 
-		return false, nil
+		return 0, nil
 	} else if len(collectorsToExecute) == 0 {
 		logger.Info("archive exists")
-		return false, nil
+		return 0, nil
 	}
 
 	nextCollector := collectorsToExecute[0]
@@ -108,10 +114,10 @@ func (c *CreateArchiveUseCase) HandleArchiveRequest(ctx context.Context, cr *lib
 		if conditionErr != nil {
 			logger.Error(err, "could not add collector condition")
 		}
-		return true, fmt.Errorf("could not execute next collector: %w", err)
+		return 0, fmt.Errorf("could not execute next collector: %w", err)
 	}
 
-	return true, nil
+	return time.Nanosecond, nil
 }
 
 func getContentTimeframe(cr *libapi.SupportArchive) (start metav1.Time, end metav1.Time) {
@@ -154,8 +160,12 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 		switch col {
 		case domain.CollectorTypeLog:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.PodLog](errCtx, errGroup, col, c.collectorMapping, id)
-		case domain.CollectorTypVolumeInfo:
+		case domain.CollectorTypeVolumeInfo:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.VolumeInfo](errCtx, errGroup, col, c.collectorMapping, id)
+		case domain.CollectorTypeNodeInfo:
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.LabeledSample](errCtx, errGroup, col, c.collectorMapping, id)
+		case domain.CollectorTypSecret:
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.SecretYaml](errCtx, errGroup, col, c.collectorMapping, id)
 		default:
 			return "", errors.New("invalid collector type")
 		}
@@ -251,8 +261,22 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 		}
 
 		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
-	case domain.CollectorTypVolumeInfo:
+	case domain.CollectorTypeVolumeInfo:
 		col, repo, typeErr := getCollectorAndRepositoryForType[domain.VolumeInfo](next, c.collectorMapping)
+		if typeErr != nil {
+			return typeErr
+		}
+
+		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
+	case domain.CollectorTypSecret:
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.SecretYaml](next, c.collectorMapping)
+		if typeErr != nil {
+			return typeErr
+		}
+
+		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
+	case domain.CollectorTypeNodeInfo:
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.LabeledSample](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}
@@ -306,11 +330,11 @@ func startCollector[DATATYPE domain.CollectorUnionDataType](ctx context.Context,
 	return nil
 }
 
-func (c *CreateArchiveUseCase) getAlreadyExecutedCollectors(ctx context.Context, id domain.SupportArchiveID) ([]domain.CollectorType, error) {
+func (c *CreateArchiveUseCase) getAlreadyExecutedCollectors(ctx context.Context, id domain.SupportArchiveID, requiredCollectors CollectorMapping) ([]domain.CollectorType, error) {
 	logger := log.FromContext(ctx).WithName("GetAlreadyExecutedCollectors.getAlreadyExecutedCollectors")
 	var completedCollectorList []domain.CollectorType
 	// Get actual state
-	for colType := range c.collectorMapping {
+	for colType := range requiredCollectors {
 		baseRepo, err := getBaseRepositoryForCollector(colType, c.collectorMapping)
 		if err != nil {
 			return nil, err

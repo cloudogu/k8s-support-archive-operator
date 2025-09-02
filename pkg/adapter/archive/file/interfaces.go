@@ -31,7 +31,11 @@ type Reader interface {
 
 type baseFileRepo interface {
 	IsCollected(ctx context.Context, id domain.SupportArchiveID) (bool, error)
-	FinishCollection(ctx context.Context, id domain.SupportArchiveID) error
+	finishCollection(ctx context.Context, id domain.SupportArchiveID) error
 	Delete(ctx context.Context, id domain.SupportArchiveID) error
 	Stream(ctx context.Context, id domain.SupportArchiveID, stream *domain.Stream) error
+}
+
+type secretFs interface {
+	filesystem.Filesystem
 }

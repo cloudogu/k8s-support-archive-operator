@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
+	"time"
 )
 
 const (
@@ -33,7 +34,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    bool
+		want    time.Duration
 		wantErr func(t *testing.T, err error)
 	}{
 		{
@@ -55,9 +56,9 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 			},
-			want: false,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
@@ -76,9 +77,9 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 			},
-			want: true,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
 				assert.ErrorIs(t, err, assert.AnError)
@@ -104,9 +105,9 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 			},
-			want: true,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
 				assert.ErrorIs(t, err, assert.AnError)
@@ -136,7 +137,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					interfaceMock := newMockSupportArchiveV1Interface(t)
 					clientMock := newMockSupportArchiveInterface(t)
 					interfaceMock.EXPECT().SupportArchives(testArchiveNamespace).Return(clientMock)
-					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
+					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testLogCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
 						updatedCRStatus := modifyStatusFn(cr.Status)
 						for _, cond := range updatedCRStatus.Conditions {
 							if cond.Type == "TODO" && cond.Status == ("True") {
@@ -150,9 +151,9 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 			},
-			want: true,
+			want: time.Nanosecond,
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
@@ -181,7 +182,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					interfaceMock := newMockSupportArchiveV1Interface(t)
 					clientMock := newMockSupportArchiveInterface(t)
 					interfaceMock.EXPECT().SupportArchives(testArchiveNamespace).Return(clientMock)
-					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
+					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testLogCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
 						updatedCRStatus := modifyStatusFn(cr.Status)
 						for _, cond := range updatedCRStatus.Conditions {
 							if cond.Type == "TODO" && cond.Status == ("False") {
@@ -195,9 +196,9 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 			},
-			want: true,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "could not execute next collector: failed to execute collector Logs: error from error group Logs")
@@ -231,7 +232,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					interfaceMock := newMockSupportArchiveV1Interface(t)
 					clientMock := newMockSupportArchiveInterface(t)
 					interfaceMock.EXPECT().SupportArchives(testArchiveNamespace).Return(clientMock)
-					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
+					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testLogCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
 						updatedCRStatus := modifyStatusFn(cr.Status)
 						assert.Equal(t, testURL, updatedCRStatus.DownloadPath)
 						foundCondition := false
@@ -247,9 +248,9 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 			},
-			want: false,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
@@ -323,13 +324,13 @@ func TestCreateArchiveUseCase_updateFinalStatus(t *testing.T) {
 					clientMock := newMockSupportArchiveInterface(t)
 					interfaceMock.EXPECT().SupportArchives(testArchiveNamespace).Return(clientMock)
 
-					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, assert.AnError)
+					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testLogCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, assert.AnError)
 					return interfaceMock
 				},
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 				url: testURL,
 			},
 			wantErr: func(t *testing.T, err error) {

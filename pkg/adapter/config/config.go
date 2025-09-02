@@ -2,11 +2,12 @@ package config
 
 import (
 	"fmt"
-	"github.com/Masterminds/semver/v3"
 	"os"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"strconv"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
@@ -18,12 +19,17 @@ const (
 	archiveVolumeDownloadServiceProtocolEnvVar = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL"
 	archiveVolumeDownloadServicePortEnvVar     = "ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT"
 	supportArchiveSyncIntervalEnvVar           = "SUPPORT_ARCHIVE_SYNC_INTERVAL"
+	garbageCollectionIntervalEnvVar            = "GARBAGE_COLLECTION_INTERVAL"
+	garbageCollectionNumberToKeepEnvVar        = "GARBAGE_COLLECTION_NUMBER_TO_KEEP"
 	logLevelEnvVar                             = "LOG_LEVEL"
 	errGetEnvVarFmt                            = "failed to get env var [%s]: %w"
 	errParseEnvVarFmt                          = "failed to parse env var [%s]: %w"
 	metricsServiceNameEnvVar                   = "METRICS_SERVICE_NAME"
 	metricsServicePortEnvVar                   = "METRICS_SERVICE_PORT"
 	metricsServiceProtocolEnvVar               = "METRICS_SERVICE_PROTOCOL"
+	nodeInfoUsageMetricStepEnvVar              = "NODE_INFO_USAGE_METRIC_STEP"
+	nodeInfoHardwareMetricStepEnvVar           = "NODE_INFO_HARDWARE_METRIC_STEP"
+	metricsMaxSamplesEnvVar                    = "METRICS_MAX_SAMPLES"
 )
 
 var log = ctrl.Log.WithName("config")
@@ -41,14 +47,24 @@ type OperatorConfig struct {
 	ArchiveVolumeDownloadServiceProtocol string
 	// ArchiveVolumeDownloadServicePort defines the used port for the download service.
 	ArchiveVolumeDownloadServicePort string
-	// SupportArchiveSyncInterval defines the interval in which to resolve the difference between support archive CRDs and the archives on disk.
+	// SupportArchiveSyncInterval defines the interval in which to resolve the difference between support archive CRs and the archives on disk.
 	SupportArchiveSyncInterval time.Duration
+	// GarbageCollectionInterval defines the interval between the cleaning of old support archive CRs.
+	GarbageCollectionInterval time.Duration
+	// GarbageCollectionNumberToKeep defines the number of latest support archive CRs to keep when cleaning them.
+	GarbageCollectionNumberToKeep int
 	// MetricsServiceName defines the service name for metrics service.
 	MetricsServiceName string
 	// MetricsServicePort defines the service port for metrics service.
 	MetricsServicePort string
 	// MetricsServiceProtocol defines the service protocol for metrics service.
 	MetricsServiceProtocol string
+	// NodeInfoUsageMetricStep defines the step width used for usage metrics (cpu/ram/network/storage free).
+	NodeInfoUsageMetricStep time.Duration
+	// NodeInfoHardwareMetricStep defines the step width used for hardware metrics (names, count, cores, capacities).
+	NodeInfoHardwareMetricStep time.Duration
+	// MetricsMaxSamples defines the maximum number of samples the metrics server can serve in a single request.
+	MetricsMaxSamples int
 }
 
 func IsStageDevelopment() bool {
@@ -89,11 +105,23 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	}
 	log.Info(fmt.Sprintf("Archive volume download service port: %s", archiveVolumeDownloadServicePort))
 
-	supportArchiveSyncInterval, err := getSupportArchiveSyncInterval()
+	supportArchiveSyncInterval, err := getDurationEnvVar(supportArchiveSyncIntervalEnvVar)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get support archive sync interval: %w", err)
 	}
 	log.Info(fmt.Sprintf("Support archive sync interval: %s", supportArchiveSyncInterval))
+
+	garbageCollectionInterval, err := getDurationEnvVar(garbageCollectionIntervalEnvVar)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get garbage collection interval: %w", err)
+	}
+	log.Info(fmt.Sprintf("Garbage collection interval: %s", garbageCollectionInterval))
+
+	garbageCollectionNumberToKeep, err := getIntEnvVar(garbageCollectionNumberToKeepEnvVar)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get garbage collection number to keep: %w", err)
+	}
+	log.Info(fmt.Sprintf("Garbage collection number to keep: %d", garbageCollectionNumberToKeep))
 
 	metricsServiceName, err := getEnvVar(metricsServiceNameEnvVar)
 	if err != nil {
@@ -113,6 +141,24 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	}
 	log.Info(fmt.Sprintf("Metrics service protocol: %s", metricsServiceProtocol))
 
+	nodeInfoUsageMetricStep, err := getDurationEnvVar(nodeInfoUsageMetricStepEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("NodeInfo usage metric step: %s", nodeInfoUsageMetricStep))
+
+	nodeInfoHardwareMetricStep, err := getDurationEnvVar(nodeInfoHardwareMetricStepEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("NodeInfo hardware metric step: %s", nodeInfoHardwareMetricStep))
+
+	metricsMaxSamples, err := getIntEnvVar(metricsMaxSamplesEnvVar)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get maximum number of metrics samples: %w", err)
+	}
+	log.Info(fmt.Sprintf("Maximum number of metrics samples: %d", metricsMaxSamples))
+
 	return &OperatorConfig{
 		Version:                              parsedVersion,
 		Namespace:                            namespace,
@@ -120,10 +166,15 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 		ArchiveVolumeDownloadServiceProtocol: archiveVolumeDownloadServiceProtocol,
 		ArchiveVolumeDownloadServicePort:     archiveVolumeDownloadServicePort,
 		SupportArchiveSyncInterval:           supportArchiveSyncInterval,
+		GarbageCollectionInterval:            garbageCollectionInterval,
+		GarbageCollectionNumberToKeep:        garbageCollectionNumberToKeep,
 		// prometheus is optional?
-		MetricsServiceName:     metricsServiceName,
-		MetricsServicePort:     metricsServicePort,
-		MetricsServiceProtocol: metricsServiceProtocol,
+		MetricsServiceName:         metricsServiceName,
+		MetricsServicePort:         metricsServicePort,
+		MetricsServiceProtocol:     metricsServiceProtocol,
+		NodeInfoUsageMetricStep:    nodeInfoUsageMetricStep,
+		NodeInfoHardwareMetricStep: nodeInfoHardwareMetricStep,
+		MetricsMaxSamples:          metricsMaxSamples,
 	}, nil
 }
 
@@ -189,18 +240,32 @@ func getArchiveVolumeDownloadServicePort() (string, error) {
 	return envVar, nil
 }
 
-func getSupportArchiveSyncInterval() (time.Duration, error) {
-	envVar, err := getEnvVar(supportArchiveSyncIntervalEnvVar)
+func getDurationEnvVar(name string) (time.Duration, error) {
+	envVar, err := getEnvVar(name)
 	if err != nil {
-		return 0, fmt.Errorf(errGetEnvVarFmt, supportArchiveSyncIntervalEnvVar, err)
+		return 0, fmt.Errorf(errGetEnvVarFmt, name, err)
 	}
 
 	duration, err := time.ParseDuration(envVar)
 	if err != nil {
-		return 0, fmt.Errorf(errParseEnvVarFmt, supportArchiveSyncIntervalEnvVar, err)
+		return 0, fmt.Errorf(errParseEnvVarFmt, name, err)
 	}
 
 	return duration, nil
+}
+
+func getIntEnvVar(name string) (int, error) {
+	envVar, err := getEnvVar(name)
+	if err != nil {
+		return 0, fmt.Errorf(errGetEnvVarFmt, name, err)
+	}
+
+	intVal, err := strconv.Atoi(envVar)
+	if err != nil {
+		return 0, fmt.Errorf(errParseEnvVarFmt, name, err)
+	}
+
+	return intVal, nil
 }
 
 func getEnvVar(name string) (string, error) {

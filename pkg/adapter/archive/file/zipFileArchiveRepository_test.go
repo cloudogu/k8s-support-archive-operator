@@ -3,7 +3,7 @@ package file
 import (
 	"context"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

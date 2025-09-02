@@ -5,21 +5,27 @@ import libapi "github.com/cloudogu/k8s-support-archive-lib/api/v1"
 type CollectorType string
 
 const (
-	CollectorTypeLog       CollectorType = "Logs"
-	CollectorTypVolumeInfo CollectorType = "VolumeInfo"
+	CollectorTypeLog        CollectorType = "Logs"
+	CollectorTypeVolumeInfo CollectorType = "VolumeInfo"
+	CollectorTypeNodeInfo   CollectorType = "NodeInfo"
+	CollectorTypSecret      CollectorType = "Resources/Secrets"
 )
 
 func (c CollectorType) GetConditionType() string {
 	switch c {
 	case CollectorTypeLog:
 		return "TODO"
-	case CollectorTypVolumeInfo:
+	case CollectorTypeVolumeInfo:
 		return libapi.ConditionVolumeInfoFetched
+	case CollectorTypeNodeInfo:
+		return libapi.ConditionNodeInfoFetched
+	case CollectorTypSecret:
+		return libapi.ConditionSecretsFetched
 	default:
 		return ""
 	}
 }
 
 type CollectorUnionDataType interface {
-	PodLog | VolumeInfo | Events
+	PodLog | VolumeInfo | LabeledSample | SecretYaml | Events
 }

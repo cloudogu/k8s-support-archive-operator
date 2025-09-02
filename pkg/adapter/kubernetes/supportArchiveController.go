@@ -36,7 +36,7 @@ func NewSupportArchiveReconciler(client supportArchiveV1Interface, createHandler
 
 func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	logger.Info(fmt.Sprintf("Reconciler is triggered by resource %q", req.NamespacedName))
+	logger.Info(fmt.Sprintf("Reconciler is triggered by support archive %q", req.NamespacedName))
 
 	archiveInterface := s.client.SupportArchives(req.Namespace)
 	cr, err := archiveInterface.Get(ctx, req.Name, metav1.GetOptions{})
@@ -47,11 +47,14 @@ func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			Namespace: req.Namespace,
 			Name:      req.Name,
 		})
-		return ctrl.Result{}, cleanupErr
+		logger.Error(cleanupErr, fmt.Sprintf("Error deleting support archive %q", req.NamespacedName))
+
+		// returning the error would cause endless reconciliation, sync will clean up later anyway
+		return ctrl.Result{}, nil
 	}
 
-	requeue, err := s.createHandler.HandleArchiveRequest(ctx, cr)
-	return ctrl.Result{Requeue: requeue}, err
+	requeueAfter, err := s.createHandler.HandleArchiveRequest(ctx, cr)
+	return ctrl.Result{RequeueAfter: requeueAfter}, err
 }
 
 // SetupWithManager sets up the controller with the Manager.

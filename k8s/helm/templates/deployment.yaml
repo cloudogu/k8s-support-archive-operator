@@ -6,6 +6,9 @@ metadata:
     control-plane: controller-manager
   {{- include "helm.labels" . | nindent 4 }}
 spec:
+  # RollingUpdate causes problems because we cannot mount our volume twice.
+  strategy:
+    type: Recreate
   replicas: {{ .Values.controllerManager.replicas }}
   selector:
     matchLabels: {{ include "helm.selectorLabels" . | nindent 6 }}
@@ -63,6 +66,16 @@ spec:
           value: {{ quote .Values.webserver.env.downloadService.port | default "8080" }}
         - name: SUPPORT_ARCHIVE_SYNC_INTERVAL
           value: {{ .Values.controllerManager.env.supportArchiveSyncInterval | default "1m" }}
+        - name: GARBAGE_COLLECTION_INTERVAL
+          value: {{ .Values.controllerManager.env.garbageCollectionInterval | default "5m" }}
+        - name: GARBAGE_COLLECTION_NUMBER_TO_KEEP
+          value: {{ quote .Values.controllerManager.env.garbageCollectionNumberToKeep | default "5" }}
+        - name: NODE_INFO_USAGE_METRIC_STEP
+          value: {{ .Values.controllerManager.env.nodeInfoUsageMetricStep | default "30s" }}
+        - name: NODE_INFO_HARDWARE_METRIC_STEP
+          value: {{ .Values.controllerManager.env.nodeInfoHardwareMetricStep | default "30m" }}
+        - name: METRICS_MAX_SAMPLES
+          value: {{ quote .Values.controllerManager.env.metricsMaxSamples | default "11000" }}
         - name: NAMESPACE
           valueFrom:
             fieldRef:

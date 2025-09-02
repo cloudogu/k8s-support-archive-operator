@@ -1,4 +1,7 @@
 global:
+  networkPolicies:
+    enabled: true
+    denyIngress: true
   imagePullSecrets:
     - name: "ces-container-registries"
 controllerManager:
@@ -15,7 +18,7 @@ controllerManager:
     image:
       registry: docker.io
       repository: cloudogu/k8s-support-archive-operator
-      tag: 0.2.0
+      tag: 0.3.0
     resources:
       limits:
         memory: 105M
@@ -28,6 +31,11 @@ controllerManager:
     logLevel: debug
     stage: development
     supportArchiveSyncInterval: 1m
+    garbageCollectionInterval: 5m
+    garbageCollectionNumberToKeep: 5
+    nodeInfoUsageMetricStep: 30s
+    nodeInfoHardwareMetricStep: 30m
+    metricsMaxSamples: 11000
   imagePullPolicy: IfNotPresent
   podSecurityContext:
     fsGroup: 65532

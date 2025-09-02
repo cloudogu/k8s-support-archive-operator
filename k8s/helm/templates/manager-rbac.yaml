@@ -13,6 +13,7 @@ rules:
       - list
       - update
       - watch
+      - delete
   - apiGroups:
       - k8s.cloudogu.com
     resources:
@@ -24,6 +25,13 @@ rules:
       - ""
     resources:
       - persistentvolumeclaims
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
     verbs:
       - get
       - list
