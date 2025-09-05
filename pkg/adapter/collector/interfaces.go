@@ -41,3 +41,8 @@ type pvcInterface interface {
 type secretInterface interface {
 	corev1.SecretInterface
 }
+
+type logsProvider interface {
+	getValuesOfLabel(ctx context.Context, start, end time.Time, label string) ([]string, error)
+	getLogs(ctx context.Context, start, end time.Time, namespace string, kind string) ([]string, error)
+}

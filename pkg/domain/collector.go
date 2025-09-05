@@ -9,6 +9,7 @@ const (
 	CollectorTypeVolumeInfo CollectorType = "VolumeInfo"
 	CollectorTypeNodeInfo   CollectorType = "NodeInfo"
 	CollectorTypSecret      CollectorType = "Resources/Secrets"
+	CollectorTypEvents      CollectorType = "Events"
 )
 
 func (c CollectorType) GetConditionType() string {
