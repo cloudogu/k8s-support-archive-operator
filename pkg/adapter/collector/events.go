@@ -8,14 +8,14 @@ import (
 )
 
 type EventsCollector struct {
-	logsProvider logsProvider
+	logsProvider LogsProvider
 }
 
 func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *domain.Events) error {
 	/*
-		kindValues, _ := ec.logsProvider.getValuesOfLabel(ctx, startTime, endTime, "kind")
+		kindValues, _ := ec.logsProvider.findValuesOfLabel(ctx, startTime, endTime, "kind")
 		for _, kind := range kindValues {
-			logs, _ := ec.logsProvider.getLogs(ctx, startTime, endTime, namespace, kind)
+			logs, _ := ec.logsProvider.findLogs(ctx, startTime, endTime, namespace, kind)
 			events := &domain.Events{
 				Namespace: namespace,
 				Kind:      kind,

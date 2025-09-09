@@ -42,7 +42,7 @@ type secretInterface interface {
 	corev1.SecretInterface
 }
 
-type logsProvider interface {
-	getValuesOfLabel(ctx context.Context, start, end time.Time, label string) ([]string, error)
-	getLogs(ctx context.Context, start, end time.Time, namespace string, kind string) ([]string, error)
+type LogsProvider interface {
+	FindValuesOfLabel(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, label string) ([]string, error)
+	FindLogs(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, namespace string, kind string) ([]string, error)
 }
