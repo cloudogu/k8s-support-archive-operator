@@ -37,7 +37,7 @@ controllerManager:
     nodeInfoHardwareMetricStep: 30m
     metricsMaxSamples: 11000
     systemStateLabelSelector: # empty selects all resources
-      - app: ces
+      app: ces
     systemStateGvkExclusions:
       - group: ""
         version: v1

@@ -77,9 +77,9 @@ spec:
         - name: METRICS_MAX_SAMPLES
           value: {{ quote .Values.controllerManager.env.metricsMaxSamples | default "11000" }}
         - name: SYSTEM_STATE_LABEL_SELECTORS
-          value: {{ .Values.controllerManager.env.resourcesLabelSelector | toYaml | quote }}
+          value: {{ .Values.controllerManager.env.systemStateLabelSelector | toYaml | quote }}
         - name: SYSTEM_STATE_GVK_EXCLUSIONS
-          value: {{ .Values.controllerManager.env.resourcesGvkExclusions | toYaml | quote }}
+          value: {{ .Values.controllerManager.env.systemStateGvkExclusions | toYaml | quote }}
         - name: NAMESPACE
           valueFrom:
             fieldRef:

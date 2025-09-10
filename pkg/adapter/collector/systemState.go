@@ -45,8 +45,8 @@ func NewSystemStateCollector(genericClient k8sClient, discoveryClient discoveryI
 		return nil, err
 	}
 
-	var gvkExclusions []gvkMatcher
-	err = yaml.Unmarshal([]byte(gvkExclusionsYaml), gvkExclusions)
+	gvkExclusions := make([]gvkMatcher, 0)
+	err = yaml.Unmarshal([]byte(gvkExclusionsYaml), &gvkExclusions)
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +132,8 @@ func (rc *SystemStateCollector) listByLabelSelector(ctx context.Context, namespa
 	logger := log.FromContext(ctx)
 
 	gvk := groupVersionKind(resource)
-	for _, gvkMatcher := range excludedGVKs {
-		if gvkMatcher.Matches(gvk) {
+	for _, matcher := range excludedGVKs {
+		if matcher.Matches(gvk) {
 			logger.Info(fmt.Sprintf("skipping resource %s as it is excluded", gvk))
 			return nil, nil
 		}
