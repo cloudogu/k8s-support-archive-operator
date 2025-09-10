@@ -11,15 +11,15 @@ type EventsCollector struct {
 	logsProvider LogsProvider
 }
 
-func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *domain.Events) error {
+func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *domain.EventSet) error {
 	/*
 		kindValues, _ := ec.logsProvider.findValuesOfLabel(ctx, startTime, endTime, "kind")
 		for _, kind := range kindValues {
 			logs, _ := ec.logsProvider.findLogs(ctx, startTime, endTime, namespace, kind)
-			events := &domain.Events{
+			events := &domain.EventSet{
 				Namespace: namespace,
 				Kind:      kind,
-				Logs:      logs,
+				Events:      logs,
 			}
 			writeSaveToChannel(ctx, events, resultChan)
 		}
@@ -28,6 +28,13 @@ func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startT
 	return nil
 
 }
+
+func logLinesToEvents(logLines []LogLine) []domain.Event {
+	// decode LogLine.Value (string to struct Event)
+	// calculate fields year, month, day
+	return []domain.Event{}
+}
+
 func (ec *EventsCollector) Name() string {
 	return string(domain.CollectorTypEvents)
 }

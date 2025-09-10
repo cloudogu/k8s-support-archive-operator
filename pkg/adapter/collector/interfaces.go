@@ -42,7 +42,12 @@ type secretInterface interface {
 	corev1.SecretInterface
 }
 
+type LogLine struct {
+	Timestamp time.Time
+	Value     string
+}
+
 type LogsProvider interface {
 	FindValuesOfLabel(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, label string) ([]string, error)
-	FindLogs(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, namespace string, kind string) ([]string, error)
+	FindLogs(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, namespace string, kind string) ([]LogLine, error)
 }

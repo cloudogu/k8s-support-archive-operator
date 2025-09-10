@@ -3,14 +3,17 @@ package loki
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,24 +27,16 @@ var lokiValuesOfLabelResponseTimeWindow1 []byte
 //go:embed testdata/loki-values-of-label-response-time-window-2.json
 var lokiValuesOfLabelResponseTimeWindow2 []byte
 
+//go:embed testdata/loki-logs-response.json
+var lokiLogsResponse []byte
+
 type httpServerCall struct {
 	reqStartTime int64
 	reqEndTime   int64
 	reqError     error
 }
 
-func TestLokiLogsProvider(t *testing.T) {
-	t.Run("learn how to handle error", func(t *testing.T) {
-		t.Skip("It's just a learning test")
-
-		startTime := time.Now().UnixNano()
-		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
-
-		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, "")
-		_, err := lokiLogsPrv.FindValuesOfLabel(context.TODO(), startTime, endTime, "aKind")
-		assert.NoError(t, err)
-	})
-
+func TestLokiLogsProviderFindValuesOfLabel(t *testing.T) {
 	t.Run("should call API one time if endTime == startTime + maxTimeWindow", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
 		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
@@ -60,7 +55,7 @@ func TestLokiLogsProvider(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL)
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
 
 		_, err := lokiLogsPrv.FindValuesOfLabel(context.TODO(), startTime, endTime, "aKind")
 		require.NoError(t, err)
@@ -92,7 +87,7 @@ func TestLokiLogsProvider(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL)
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
 
 		_, err := lokiLogsPrv.FindValuesOfLabel(context.TODO(), startTime, endTime, "aKind")
 		require.NoError(t, err)
@@ -119,7 +114,7 @@ func TestLokiLogsProvider(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL)
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
 
 		values, err := lokiLogsPrv.FindValuesOfLabel(context.TODO(), startTime, endTime, "aKind")
 		require.NoError(t, err)
@@ -147,7 +142,7 @@ func TestLokiLogsProvider(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL)
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
 
 		values, err := lokiLogsPrv.FindValuesOfLabel(context.TODO(), startTime, endTime, "aKind")
 		require.NoError(t, err)
@@ -158,14 +153,99 @@ func TestLokiLogsProvider(t *testing.T) {
 		assert.Contains(t, values, "Dogu")
 	})
 
-	t.Run("should issue an error if API returns an error", func(t *testing.T) {
-		t.Skip("TODO: concat errors")
+	t.Run("should issue an error if underlying error occurs", func(t *testing.T) {
+		startTime := time.Now().UnixNano()
+		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
 
+		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, "", "", "")
+		_, err := lokiLogsPrv.FindValuesOfLabel(context.TODO(), startTime, endTime, "aKind")
+
+		assert.Error(t, err)
+	})
+
+	t.Run("should not expose underlying implementation errors", func(t *testing.T) {
+		startTime := time.Now().UnixNano()
+		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
+
+		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, "", "", "")
+		_, err := lokiLogsPrv.FindValuesOfLabel(context.TODO(), startTime, endTime, "aKind")
+
+		assert.NoError(t, errors.Unwrap(err))
 	})
 
 	t.Run("should use basic authentification", func(t *testing.T) {
-		t.Skip("TODO")
+		startTime := time.Now().UnixNano()
+		endTime := startTime + daysToNanoSec(10)
+
+		var reqAuthUsername string
+		var reqAuthPassword string
+		var ok bool
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			reqAuthUsername, reqAuthPassword, ok = r.BasicAuth()
+			require.True(t, ok)
+
+			_, err := w.Write(lokiValuesOfLabelResponse)
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "aUser", "aPassword")
+
+		_, err := lokiLogsPrv.FindValuesOfLabel(context.TODO(), startTime, endTime, "aKind")
+		require.NoError(t, err)
+
+		assert.Equal(t, "aUser", reqAuthUsername)
+		assert.Equal(t, "aPassword", reqAuthPassword)
 	})
+
+	t.Run("should issue an error if the time window exceeds the limit", func(t *testing.T) {
+		startTime := time.Now().UnixNano()
+		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays+10)
+
+		responseMessage := "message from response"
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, err := w.Write([]byte(responseMessage))
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+
+		_, err := lokiLogsPrv.FindValuesOfLabel(context.TODO(), startTime, endTime, "aKind")
+
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, responseMessage)
+	})
+}
+
+func TestLokiLogsProviderFindLogs(t *testing.T) {
+	t.Run("should parse response from API", func(t *testing.T) {
+		t.Skip("In Progress")
+		startTime := time.Now().UnixNano()
+		endTime := startTime + daysToNanoSec(10)
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, err := w.Write(lokiLogsResponse)
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+
+		logLines, err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "ecosystem", "Pod")
+		require.NoError(t, err)
+
+		assert.Equal(t, 6, len(logLines))
+
+		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757507346000000000), "\"count\":1280"))
+		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757507084000000000), "\"count\":1259"))
+		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757506748000000000), "\"count\":1243"))
+		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757500152000000000), "\"count\":41"))
+		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757486049000000000), "\"count\":8"))
+		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757484951000000000), "\"count\":4"))
+	})
+
 }
 
 func TestBuildLokiLabelValuesQuery(t *testing.T) {
@@ -259,4 +339,13 @@ func parseStartAndEndTime(r *http.Request) (int64, int64, error) {
 		return 0, 0, err
 	}
 	return start, end, nil
+}
+
+func containsLogLine(logLines []collector.LogLine, timestamp time.Time, valueContains string) bool {
+	for _, ll := range logLines {
+		if ll.Timestamp.Equal(timestamp) && strings.Contains(ll.Value, valueContains) {
+			return true
+		}
+	}
+	return false
 }

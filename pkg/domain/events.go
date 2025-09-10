@@ -1,7 +1,13 @@
 package domain
 
-type Events struct {
+type EventSet struct {
 	Namespace string
 	Kind      string
-	Logs      []string
+	Events    []Event
+}
+
+type Event struct {
+	Kind    string
+	Message string
+	Reason  string
 }
