@@ -26,6 +26,8 @@ func TestNewOperatorConfig(t *testing.T) {
 		t.Setenv("NODE_INFO_USAGE_METRIC_STEP", "30s")
 		t.Setenv("NODE_INFO_HARDWARE_METRIC_STEP", "30m")
 		t.Setenv("METRICS_MAX_SAMPLES", "11000")
+		t.Setenv("SYSTEM_STATE_LABEL_SELECTORS", "app: ces")
+		t.Setenv("SYSTEM_STATE_GVK_EXCLUSIONS", "- group: apps\n  kind: Deployment\n  version: v1")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -51,6 +53,8 @@ func TestNewOperatorConfig(t *testing.T) {
 		t.Setenv("NODE_INFO_USAGE_METRIC_STEP", "30s")
 		t.Setenv("NODE_INFO_HARDWARE_METRIC_STEP", "30m")
 		t.Setenv("METRICS_MAX_SAMPLES", "11000")
+		t.Setenv("SYSTEM_STATE_LABEL_SELECTORS", "app: ces")
+		t.Setenv("SYSTEM_STATE_GVK_EXCLUSIONS", "- group: apps\n  kind: Deployment\n  version: v1")
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
