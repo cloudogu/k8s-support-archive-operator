@@ -30,6 +30,8 @@ const (
 	nodeInfoUsageMetricStepEnvVar              = "NODE_INFO_USAGE_METRIC_STEP"
 	nodeInfoHardwareMetricStepEnvVar           = "NODE_INFO_HARDWARE_METRIC_STEP"
 	metricsMaxSamplesEnvVar                    = "METRICS_MAX_SAMPLES"
+	systemStateLabelSelectorsEnvVar            = "SYSTEM_STATE_LABEL_SELECTORS"
+	systemStateGvkExclusionsEnvVar             = "SYSTEM_STATE_GVK_EXCLUSIONS"
 )
 
 var log = ctrl.Log.WithName("config")
@@ -65,6 +67,10 @@ type OperatorConfig struct {
 	NodeInfoHardwareMetricStep time.Duration
 	// MetricsMaxSamples defines the maximum number of samples the metrics server can serve in a single request.
 	MetricsMaxSamples int
+	// SystemStateLabelSelectors defines a slice of label selectors as string in YAML format.
+	SystemStateLabelSelectors string
+	// SystemStateGvkExclusions defines a slice of group version kind structs as string in YAML format.
+	SystemStateGvkExclusions string
 }
 
 func IsStageDevelopment() bool {
@@ -159,6 +165,17 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	}
 	log.Info(fmt.Sprintf("Maximum number of metrics samples: %d", metricsMaxSamples))
 
+	systemStateLabelsSelectors, err := getEnvVar(systemStateLabelSelectorsEnvVar)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get system state label selectors: %w", err)
+	}
+	log.Info(fmt.Sprintf("System state label selectors: %s", systemStateLabelsSelectors))
+	systemStateGvkExclusions, err := getEnvVar(systemStateGvkExclusionsEnvVar)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get system state gvks to exclude: %w", err)
+	}
+	log.Info(fmt.Sprintf("System state excluded gvks: %s", systemStateGvkExclusions))
+
 	return &OperatorConfig{
 		Version:                              parsedVersion,
 		Namespace:                            namespace,
@@ -175,6 +192,8 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 		NodeInfoUsageMetricStep:    nodeInfoUsageMetricStep,
 		NodeInfoHardwareMetricStep: nodeInfoHardwareMetricStep,
 		MetricsMaxSamples:          metricsMaxSamples,
+		SystemStateLabelSelectors:  systemStateLabelsSelectors,
+		SystemStateGvkExclusions:   systemStateGvkExclusions,
 	}, nil
 }
 

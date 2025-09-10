@@ -2,6 +2,8 @@ package collector
 
 import (
 	"context"
+	"k8s.io/client-go/discovery"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
@@ -40,4 +42,12 @@ type pvcInterface interface {
 //goland:noinspection GoUnusedType
 type secretInterface interface {
 	corev1.SecretInterface
+}
+
+type k8sClient interface {
+	client.Client
+}
+
+type discoveryInterface interface {
+	discovery.DiscoveryInterface
 }

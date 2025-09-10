@@ -36,6 +36,12 @@ controllerManager:
     nodeInfoUsageMetricStep: 30s
     nodeInfoHardwareMetricStep: 30m
     metricsMaxSamples: 11000
+    systemStateLabelSelector: # empty selects all resources
+      - app: ces
+    systemStateGvkExclusions:
+      - group: ""
+        version: v1
+        kind: Secret
   imagePullPolicy: IfNotPresent
   podSecurityContext:
     fsGroup: 65532
