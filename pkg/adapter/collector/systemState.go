@@ -18,7 +18,10 @@ import (
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 )
 
-const listVerb = "list"
+const (
+	listVerb  = "list"
+	coreGroup = "core"
+)
 
 type gvkMatcher schema.GroupVersionKind
 
@@ -86,11 +89,17 @@ func (rc *SystemStateCollector) Collect(ctx context.Context, namespace string, _
 		return fmt.Errorf("failed to list api resources with label selector %q: %w", selector, errors.Join(errs...))
 	}
 
+	println(len(resources))
+
 	for _, resource := range resources {
 		gvk := resource.GroupVersionKind()
+		group := gvk.Group
+		if group == "" {
+			group = coreGroup
+		}
 		resultChan <- &domain.UnstructuredResource{
 			Name:    resource.GetName(),
-			Path:    filepath.Join(gvk.Group, gvk.Version, gvk.Kind),
+			Path:    filepath.Join(group, gvk.Version, gvk.Kind),
 			Content: resource.Object,
 		}
 	}
