@@ -9,26 +9,21 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-//go:embed testdata/loki-values-of-label-response.json
+//go:embed testdata/loki-find-values-of-label-response.json
 var lokiValuesOfLabelResponse []byte
 
-//go:embed testdata/loki-values-of-label-response-time-window-1.json
+//go:embed testdata/loki-find-values-of-label-response-time-window-1.json
 var lokiValuesOfLabelResponseTimeWindow1 []byte
 
-//go:embed testdata/loki-values-of-label-response-time-window-2.json
+//go:embed testdata/loki-find-values-of-label-response-time-window-2.json
 var lokiValuesOfLabelResponseTimeWindow2 []byte
-
-//go:embed testdata/loki-logs-response.json
-var lokiLogsResponse []byte
 
 type httpServerCall struct {
 	reqStartTime int64
@@ -219,41 +214,12 @@ func TestLokiLogsProviderFindValuesOfLabel(t *testing.T) {
 	})
 }
 
-func TestLokiLogsProviderFindLogs(t *testing.T) {
-	t.Run("should parse response from API", func(t *testing.T) {
-		t.Skip("In Progress")
-		startTime := time.Now().UnixNano()
-		endTime := startTime + daysToNanoSec(10)
-
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			_, err := w.Write(lokiLogsResponse)
-			require.NoError(t, err)
-		}))
-		defer server.Close()
-
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
-
-		logLines, err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "ecosystem", "Pod")
-		require.NoError(t, err)
-
-		assert.Equal(t, 6, len(logLines))
-
-		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757507346000000000), "\"count\":1280"))
-		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757507084000000000), "\"count\":1259"))
-		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757506748000000000), "\"count\":1243"))
-		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757500152000000000), "\"count\":41"))
-		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757486049000000000), "\"count\":8"))
-		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757484951000000000), "\"count\":4"))
-	})
-
-}
-
-func TestBuildLokiLabelValuesQuery(t *testing.T) {
+func TestBuildFindValuesOfLabelHttpQuery(t *testing.T) {
 	t.Run("should create url for querying values of a label", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
 		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
 
-		apiUrl, err := buildLokiValuesOfLabelQuery("http://example.com:8080", "aLabel", startTime, endTime)
+		apiUrl, err := buildFindValuesOfLabelHttpQuery("http://example.com:8080", "aLabel", startTime, endTime)
 		require.NoError(t, err)
 
 		parsedApiUrl, err := url.Parse(apiUrl)
@@ -275,7 +241,7 @@ func TestNextTimeWindow(t *testing.T) {
 		var maxTimeWindowInDays = 20
 		maxEndTime := startTime + daysToNanoSec(maxTimeWindowInDays)
 
-		nextStart, nextEnd, hasNext := nextTimeWindow(startTime, maxEndTime, maxTimeWindowInDays)
+		nextStart, nextEnd, hasNext := findValuesOfLabelNextTimeWindow(startTime, maxEndTime, maxTimeWindowInDays)
 
 		assert.Equal(t, startTime, nextStart)
 		assert.Equal(t, maxEndTime, nextEnd)
@@ -287,7 +253,7 @@ func TestNextTimeWindow(t *testing.T) {
 		var maxTimeWindowInDays = 20
 		maxEndTime := startTime + daysToNanoSec(21)
 
-		nextStart, nextEnd, hasNext := nextTimeWindow(startTime, maxEndTime, maxTimeWindowInDays)
+		nextStart, nextEnd, hasNext := findValuesOfLabelNextTimeWindow(startTime, maxEndTime, maxTimeWindowInDays)
 
 		assert.Equal(t, startTime, nextStart)
 		assert.Equal(t, startTime+daysToNanoSec(maxTimeWindowInDays), nextEnd)
@@ -299,8 +265,8 @@ func TestNextTimeWindow(t *testing.T) {
 		var maxTimeWindowInDays = 35
 		maxEndTime := startTime + daysToNanoSec(2*maxTimeWindowInDays)
 
-		nextStart1, nextEnd1, hasNext1 := nextTimeWindow(startTime, maxEndTime, maxTimeWindowInDays)
-		nextStart2, nextEnd2, hasNext2 := nextTimeWindow(nextEnd1, maxEndTime, maxTimeWindowInDays)
+		nextStart1, nextEnd1, hasNext1 := findValuesOfLabelNextTimeWindow(startTime, maxEndTime, maxTimeWindowInDays)
+		nextStart2, nextEnd2, hasNext2 := findValuesOfLabelNextTimeWindow(nextEnd1, maxEndTime, maxTimeWindowInDays)
 
 		assert.Equal(t, startTime, nextStart1)
 		assert.Equal(t, startTime+daysToNanoSec(maxTimeWindowInDays), nextEnd1)
@@ -316,8 +282,8 @@ func TestNextTimeWindow(t *testing.T) {
 		var maxTimeWindowInDays = 20
 		maxEndTime := startTime + daysToNanoSec(2*maxTimeWindowInDays-maxTimeWindowInDays/2)
 
-		nextStart1, nextEnd1, hasNext1 := nextTimeWindow(startTime, maxEndTime, maxTimeWindowInDays)
-		nextStart2, nextEnd2, hasNext2 := nextTimeWindow(nextEnd1, maxEndTime, maxTimeWindowInDays)
+		nextStart1, nextEnd1, hasNext1 := findValuesOfLabelNextTimeWindow(startTime, maxEndTime, maxTimeWindowInDays)
+		nextStart2, nextEnd2, hasNext2 := findValuesOfLabelNextTimeWindow(nextEnd1, maxEndTime, maxTimeWindowInDays)
 
 		assert.Equal(t, startTime, nextStart1)
 		assert.Equal(t, startTime+daysToNanoSec(maxTimeWindowInDays), nextEnd1)
@@ -339,13 +305,4 @@ func parseStartAndEndTime(r *http.Request) (int64, int64, error) {
 		return 0, 0, err
 	}
 	return start, end, nil
-}
-
-func containsLogLine(logLines []collector.LogLine, timestamp time.Time, valueContains string) bool {
-	for _, ll := range logLines {
-		if ll.Timestamp.Equal(timestamp) && strings.Contains(ll.Value, valueContains) {
-			return true
-		}
-	}
-	return false
 }
