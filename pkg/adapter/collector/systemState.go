@@ -89,8 +89,6 @@ func (rc *SystemStateCollector) Collect(ctx context.Context, namespace string, _
 		return fmt.Errorf("failed to list api resources with label selector %q: %w", selector, errors.Join(errs...))
 	}
 
-	println(len(resources))
-
 	for _, resource := range resources {
 		gvk := resource.GroupVersionKind()
 		group := gvk.Group
