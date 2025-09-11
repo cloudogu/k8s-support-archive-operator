@@ -38,7 +38,6 @@ rules:
   - apiGroups: # we need this generic list and get to read the system state.
       - "*"
     resources:
-      #nolint:S6867
       - "*"
     verbs:
       - get
@@ -67,7 +66,6 @@ rules:
   - apiGroups: # we need this generic list and get to read the system state.
       - "*"
     resources:
-      #nolint:S6867
       - "*"
     verbs:
       - get
