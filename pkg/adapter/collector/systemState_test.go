@@ -369,7 +369,7 @@ func Test_resourceCollector_Collect(t *testing.T) {
 			wantChan: func(t *testing.T, resultChan chan *domain.UnstructuredResource) {
 				obj := <-resultChan
 				assert.Equal(t, "test", obj.Name)
-				assert.Equal(t, "v1/Pod", obj.Path)
+				assert.Equal(t, "core/v1/Pod", obj.Path)
 				assert.Equal(t, map[string]interface{}{"apiVersion": "v1", "kind": "Pod", "metadata": map[string]interface{}{"name": "test"}}, obj.Content)
 			},
 		},
