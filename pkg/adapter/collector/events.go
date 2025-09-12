@@ -11,6 +11,12 @@ type EventsCollector struct {
 	logsProvider LogsProvider
 }
 
+func NewEventsCollector(logsProvider LogsProvider) *EventsCollector {
+	return &EventsCollector{
+		logsProvider: logsProvider,
+	}
+}
+
 func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *domain.EventSet) error {
 	/*
 		kindValues, _ := ec.logsProvider.findValuesOfLabel(ctx, startTime, endTime, "kind")
@@ -25,6 +31,7 @@ func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startT
 		}
 		close(resultChan)
 	*/
+
 	return nil
 
 }

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -119,7 +120,32 @@ func TestLokiLogsProviderFindValuesOfLabel(t *testing.T) {
 		assert.Contains(t, values, "PersistentVolumeClaim")
 	})
 
-	t.Run("should remove duplicates after consecutive api calls", func(t *testing.T) {
+	t.Run("should use basic authentification", func(t *testing.T) {
+		startTime := time.Now().UnixNano()
+		endTime := startTime + daysToNanoSec(10)
+
+		var reqAuthUsername string
+		var reqAuthPassword string
+		var ok bool
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			reqAuthUsername, reqAuthPassword, ok = r.BasicAuth()
+			require.True(t, ok)
+
+			_, err := w.Write(lokiValuesOfLabelResponse)
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "aUser", "aPassword")
+
+		_, err := lokiLogsPrv.FindValuesOfLabel(context.TODO(), startTime, endTime, "aKind")
+		require.NoError(t, err)
+
+		assert.Equal(t, "aUser", reqAuthUsername)
+		assert.Equal(t, "aPassword", reqAuthPassword)
+	})
+
+	t.Run("should remove duplicates values", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
 		endTime := startTime + daysToNanoSec(2*maxQueryTimeWindowInDays)
 
@@ -156,41 +182,9 @@ func TestLokiLogsProviderFindValuesOfLabel(t *testing.T) {
 		_, err := lokiLogsPrv.FindValuesOfLabel(context.TODO(), startTime, endTime, "aKind")
 
 		assert.Error(t, err)
-	})
+		assert.ErrorContains(t, err, "find values of label")
+		assert.NoError(t, errors.Unwrap(err)) // not expose implementation details through errors
 
-	t.Run("should not expose underlying implementation errors", func(t *testing.T) {
-		startTime := time.Now().UnixNano()
-		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
-
-		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, "", "", "")
-		_, err := lokiLogsPrv.FindValuesOfLabel(context.TODO(), startTime, endTime, "aKind")
-
-		assert.NoError(t, errors.Unwrap(err))
-	})
-
-	t.Run("should use basic authentification", func(t *testing.T) {
-		startTime := time.Now().UnixNano()
-		endTime := startTime + daysToNanoSec(10)
-
-		var reqAuthUsername string
-		var reqAuthPassword string
-		var ok bool
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			reqAuthUsername, reqAuthPassword, ok = r.BasicAuth()
-			require.True(t, ok)
-
-			_, err := w.Write(lokiValuesOfLabelResponse)
-			require.NoError(t, err)
-		}))
-		defer server.Close()
-
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "aUser", "aPassword")
-
-		_, err := lokiLogsPrv.FindValuesOfLabel(context.TODO(), startTime, endTime, "aKind")
-		require.NoError(t, err)
-
-		assert.Equal(t, "aUser", reqAuthUsername)
-		assert.Equal(t, "aPassword", reqAuthPassword)
 	})
 
 	t.Run("should issue an error if the time window exceeds the limit", func(t *testing.T) {
@@ -211,15 +205,16 @@ func TestLokiLogsProviderFindValuesOfLabel(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, responseMessage)
+		assert.NoError(t, errors.Unwrap(err)) // not expose implementation details through errors
 	})
 }
 
-func TestBuildFindValuesOfLabelHttpQuery(t *testing.T) {
+func TestBuildLabelValuesQuery(t *testing.T) {
 	t.Run("should create url for querying values of a label", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
 		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
 
-		apiUrl, err := buildFindValuesOfLabelHttpQuery("http://example.com:8080", "aLabel", startTime, endTime)
+		apiUrl, err := buildLabelValuesQuery("http://example.com:8080", "aLabel", startTime, endTime)
 		require.NoError(t, err)
 
 		parsedApiUrl, err := url.Parse(apiUrl)
@@ -232,6 +227,13 @@ func TestBuildFindValuesOfLabelHttpQuery(t *testing.T) {
 		assert.Equal(t, 2, len(parsedApiUrl.Query()))
 		assert.Equal(t, fmt.Sprintf("%v", startTime), parsedApiUrl.Query().Get("start"))
 		assert.Equal(t, fmt.Sprintf("%v", endTime), parsedApiUrl.Query().Get("end"))
+	})
+
+	t.Run("should issue an error if service URL can't be parsed", func(t *testing.T) {
+		_, err := buildLabelValuesQuery("\n", "", 0, 0)
+
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "parse service URL")
 	})
 }
 
@@ -292,6 +294,16 @@ func TestNextTimeWindow(t *testing.T) {
 		assert.Equal(t, startTime+daysToNanoSec(maxTimeWindowInDays), nextStart2)
 		assert.Equal(t, maxEndTime, nextEnd2)
 		assert.False(t, hasNext2)
+	})
+}
+
+func TestParseLabelValuesResponse(t *testing.T) {
+	t.Run("should issue an error if content can not be parsed", func(t *testing.T) {
+		content := strings.NewReader("some data")
+		_, err := parseLabelValuesResponse(content)
+
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "parse label values response")
 	})
 }
 

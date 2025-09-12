@@ -15,8 +15,8 @@ import (
 )
 
 const loggerName = "LokiLogsProvider"
-const maxQueryTimeWindowInDays = 30
-const maxQueryResultCount = 2000
+const maxQueryTimeWindowInDays = 30 // Loki's max time range is 30d1h
+const maxQueryResultCount = 2000    // Loki's max entries limit per query is 5000
 
 type LokiLogsProvider struct {
 	serviceURL string
@@ -25,27 +25,27 @@ type LokiLogsProvider struct {
 	password   string
 }
 
-type findValuesOfLabelsHttpResponse struct {
+type labelValuesResponse struct {
 	Status string   `json:"status"`
 	Data   []string `json:"data"`
 }
 
-type queryRangeResponse struct {
-	Status string         `json:"status"`
-	Data   queryRangeData `json:"data"`
+type queryLogsResponse struct {
+	Status string        `json:"status"`
+	Data   queryLogsData `json:"data"`
 }
 
-type queryRangeData struct {
-	ResultType string             `json:"resultType"`
-	Result     []queryRangeResult `json:"result"`
+type queryLogsData struct {
+	ResultType string            `json:"resultType"`
+	Result     []queryLogsResult `json:"result"`
 }
 
-type queryRangeResult struct {
-	Stream queryRangeStream
+type queryLogsResult struct {
+	Stream queryLogsStream
 	Values [][]string `json:"values"`
 }
 
-type queryRangeStream struct {
+type queryLogsStream struct {
 	LogLevel  string `json:"detected_level"`
 	Namespace string `json:"namespace"`
 	Kind      string `json:"kind"`
@@ -67,7 +67,7 @@ func (lp *LokiLogsProvider) FindValuesOfLabel(ctx context.Context, startTimeInNa
 		reqStartTime, reqEndTime, hasNext = findValuesOfLabelNextTimeWindow(reqEndTime, endTimeInNanoSec, maxQueryTimeWindowInDays)
 		resp, err := lp.httpFindValuesOfLabel(ctx, label, reqStartTime, reqEndTime)
 		if err != nil {
-			return []string{}, fmt.Errorf("query loki for values of label \"%s\"; %v", label, err)
+			return []string{}, fmt.Errorf("find values of label \"%s\"; %v", label, err)
 		}
 		result = append(result, resp.Data...)
 	}
@@ -75,17 +75,17 @@ func (lp *LokiLogsProvider) FindValuesOfLabel(ctx context.Context, startTimeInNa
 	return removeDuplicates(result), nil
 }
 
-func (lp *LokiLogsProvider) httpFindValuesOfLabel(ctx context.Context, label string, startTimeInNanoSec int64, endTimeInNanoSec int64) (*findValuesOfLabelsHttpResponse, error) {
+func (lp *LokiLogsProvider) httpFindValuesOfLabel(ctx context.Context, label string, startTimeInNanoSec int64, endTimeInNanoSec int64) (*labelValuesResponse, error) {
 	logger := log.FromContext(ctx).WithName(loggerName)
 
-	query, err := buildFindValuesOfLabelHttpQuery(lp.serviceURL, label, startTimeInNanoSec, endTimeInNanoSec)
+	query, err := buildLabelValuesQuery(lp.serviceURL, label, startTimeInNanoSec, endTimeInNanoSec)
 	if err != nil {
-		return nil, fmt.Errorf("build http query to get values of label \"%s\"; %w", label, err)
+		return nil, fmt.Errorf("build label values query; %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, query, nil)
 	if err != nil {
-		return nil, fmt.Errorf("create new req for query %s; %w", query, err)
+		return nil, fmt.Errorf("create http request; %w", err)
 	}
 	req.SetBasicAuth(lp.username, lp.password)
 
@@ -102,17 +102,13 @@ func (lp *LokiLogsProvider) httpFindValuesOfLabel(ctx context.Context, label str
 	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil || len(body) == 0 {
-			return nil, fmt.Errorf("http request failed with status: %s, body: empty", resp.Status)
-		}
-		return nil, fmt.Errorf("http request failed with status: %s, body: %s", resp.Status, body)
+		return nil, extractErrorFromResponse(resp)
 	}
 
-	return parseFindValuesOfLabelHttpResponse(resp.Body)
+	return parseLabelValuesResponse(resp.Body)
 }
 
-func buildFindValuesOfLabelHttpQuery(serviceURL string, label string, startTimeInNanoSec int64, endTimeInNanoSec int64) (string, error) {
+func buildLabelValuesQuery(serviceURL string, label string, startTimeInNanoSec int64, endTimeInNanoSec int64) (string, error) {
 	baseUrl, err := url.Parse(serviceURL)
 	if err != nil {
 		return "", fmt.Errorf("parse service URL; %w", err)
@@ -129,11 +125,19 @@ func buildFindValuesOfLabelHttpQuery(serviceURL string, label string, startTimeI
 	return baseUrl.String(), nil
 }
 
-func parseFindValuesOfLabelHttpResponse(lokiResp io.Reader) (*findValuesOfLabelsHttpResponse, error) {
-	result := &findValuesOfLabelsHttpResponse{}
+func extractErrorFromResponse(resp *http.Response) error {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil || len(body) == 0 {
+		return fmt.Errorf("http request failed with status: %s, body: empty", resp.Status)
+	}
+	return fmt.Errorf("http request failed with status: %s, body: %s", resp.Status, body)
+}
+
+func parseLabelValuesResponse(lokiResp io.Reader) (*labelValuesResponse, error) {
+	result := &labelValuesResponse{}
 	err := json.NewDecoder(lokiResp).Decode(result)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse label values response; %w", err)
 	}
 	return result, nil
 }
@@ -165,14 +169,15 @@ func (lp *LokiLogsProvider) FindLogs(
 		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, endTimeInNanoSec, maxQueryTimeWindowInDays)
 		httpResp, err := lp.httpFindLogs(ctx, reqStartTime, reqEndTime, namespace, kind)
 		if err != nil {
-			return []col.LogLine{}, err
+			return []col.LogLine{}, fmt.Errorf("find logs; %v", err)
 		}
-		logLines, err := queryRangeResponseToLogLines(httpResp)
+
+		logLines, err := convertQueryLogsResponseToLogLines(httpResp)
 		if err != nil {
-			return []col.LogLine{}, err
+			return []col.LogLine{}, fmt.Errorf("convert http response to LogLines; %v", err)
 		}
 		if len(logLines) == 0 {
-			return result, nil
+			return removeDuplicateLoglines(result), nil
 		}
 		result = append(result, logLines...)
 		reqEndTime = findLatestTimestamp(logLines)
@@ -185,23 +190,23 @@ func (lp *LokiLogsProvider) httpFindLogs(
 	endTimeInNanoSec int64,
 	namespace string,
 	kind string,
-) (*queryRangeResponse, error) {
+) (*queryLogsResponse, error) {
 	logger := log.FromContext(ctx).WithName(loggerName)
 
 	query, err := buildFindLogsHttpQuery(lp.serviceURL, namespace, kind, startTimeInNanoSec, endTimeInNanoSec)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build logs query; %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, query, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create http request for query '%s'; %w", query, err)
 	}
 	req.SetBasicAuth(lp.username, lp.password)
 
 	resp, err := lp.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("call loki http api; %w", err)
 	}
 
 	defer func(body io.ReadCloser) {
@@ -211,7 +216,11 @@ func (lp *LokiLogsProvider) httpFindLogs(
 		}
 	}(resp.Body)
 
-	return parseQueryRangeResponse(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, extractErrorFromResponse(resp)
+	}
+
+	return parseQueryLogsResponse(resp.Body)
 }
 
 func buildFindLogsHttpQuery(
@@ -238,22 +247,22 @@ func buildFindLogsHttpQuery(
 	return baseUrl.String(), nil
 }
 
-func parseQueryRangeResponse(httpRespBody io.Reader) (*queryRangeResponse, error) {
-	result := &queryRangeResponse{}
+func parseQueryLogsResponse(httpRespBody io.Reader) (*queryLogsResponse, error) {
+	result := &queryLogsResponse{}
 	err := json.NewDecoder(httpRespBody).Decode(result)
 	if err != nil {
-		return nil, fmt.Errorf("decode json http response; %w", err)
+		return nil, fmt.Errorf("decode query logs http response; %w", err)
 	}
 	return result, nil
 }
 
-func queryRangeResponseToLogLines(httpResp *queryRangeResponse) ([]col.LogLine, error) {
+func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]col.LogLine, error) {
 	var result []col.LogLine
 	for _, respResult := range httpResp.Data.Result {
 		for _, respValue := range respResult.Values {
 			timestampAsInt, err := strconv.ParseInt(respValue[0], 10, 64)
 			if err != nil {
-				return []col.LogLine{}, err
+				return []col.LogLine{}, fmt.Errorf("parse results timestamp '%s'; %w", respValue[0], err)
 			}
 			result = append(result, col.LogLine{
 				Timestamp: time.Unix(0, timestampAsInt),
@@ -273,6 +282,21 @@ func findLatestTimestamp(loglines []col.LogLine) int64 {
 		}
 	}
 	return latest
+}
+
+func removeDuplicateLoglines(loglines []col.LogLine) []col.LogLine {
+	var uniqueMap = make(map[string]bool)
+	var result []col.LogLine
+	for _, ll := range loglines {
+		key := fmt.Sprintf("%d%s", ll.Timestamp.UnixNano(), ll.Value)
+		if _, mapContainsKey := uniqueMap[key]; mapContainsKey {
+			continue
+		} else {
+			result = append(result, ll)
+			uniqueMap[key] = true
+		}
+	}
+	return result
 }
 
 func findValuesOfLabelNextTimeWindow(startTimeInNanoSec int64, maxEndTimeInNanoSec int64, maxTimeWindowInDays int) (int64, int64, bool) {
