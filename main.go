@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/loki"
+	"net/http"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g., Azure, GCP, OIDC, etc.)
@@ -145,12 +147,17 @@ func startOperator(
 	secretsCollector := collector.NewSecretCollector(ecoClientSet.CoreV1())
 	secretRepository := file.NewSecretsFileRepository(workPath, fs)
 
+	lokiProvider := loki.NewLokiLogsProvider(http.DefaultClient, operatorConfig.LokiGatewayConfig.Url, operatorConfig.LokiGatewayConfig.Username, operatorConfig.LokiGatewayConfig.Password)
+	eventsCollector := collector.NewEventsCollector(lokiProvider)
+	eventsRepository := file.NewEventsRepository(workPath, fs)
+
 	mapping := make(map[domain.CollectorType]usecase.CollectorAndRepository)
 	mapping[domain.CollectorTypeLog] = usecase.CollectorAndRepository{Collector: logCollector, Repository: logRepository}
 	mapping[domain.CollectorTypeVolumeInfo] = usecase.CollectorAndRepository{Collector: volumesCollector, Repository: volumeRepository}
 	mapping[domain.CollectorTypeNodeInfo] = usecase.CollectorAndRepository{Collector: nodeInfoCollector, Repository: nodeInfoRepository}
 	mapping[domain.CollectorTypeVolumeInfo] = usecase.CollectorAndRepository{Collector: volumesCollector, Repository: volumeRepository}
-	mapping[domain.CollectorTypSecret] = usecase.CollectorAndRepository{Collector: secretsCollector, Repository: secretRepository}
+	mapping[domain.CollectorTypeSecret] = usecase.CollectorAndRepository{Collector: secretsCollector, Repository: secretRepository}
+	mapping[domain.CollectorTypeEvents] = usecase.CollectorAndRepository{Collector: eventsCollector, Repository: eventsRepository}
 
 	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
 	deleteUseCase := usecase.NewDeleteArchiveUseCase(mapping, supportArchiveRepository)

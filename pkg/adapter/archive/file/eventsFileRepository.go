@@ -7,13 +7,21 @@ import (
 )
 
 const (
-	archiveEventsDirName = "k8/events"
+	archiveEventsDirName = "Events"
 )
 
 type EventsFileRepository struct {
 	baseFileRepo
 	workPath   string
 	filesystem volumeFs
+}
+
+func NewEventsRepository(workPath string, fs volumeFs) *EventsFileRepository {
+	return &EventsFileRepository{
+		workPath:     workPath,
+		filesystem:   fs,
+		baseFileRepo: NewBaseFileRepository(workPath, archiveEventsDirName, fs),
+	}
 }
 
 func (repo *EventsFileRepository) Create(ctx context.Context, id domain.SupportArchiveID, data <-chan *domain.EventSet) error {
