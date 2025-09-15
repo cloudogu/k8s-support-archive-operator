@@ -8,8 +8,8 @@ const (
 	CollectorTypeLog        CollectorType = "Logs"
 	CollectorTypeVolumeInfo CollectorType = "VolumeInfo"
 	CollectorTypeNodeInfo   CollectorType = "NodeInfo"
-	CollectorTypSecret      CollectorType = "Resources/Secrets"
-	CollectorTypEvents      CollectorType = "Events"
+	CollectorTypeSecret     CollectorType = "Resources/Secrets"
+	CollectorTypeEvents     CollectorType = "Events"
 )
 
 func (c CollectorType) GetConditionType() string {
@@ -20,8 +20,10 @@ func (c CollectorType) GetConditionType() string {
 		return libapi.ConditionVolumeInfoFetched
 	case CollectorTypeNodeInfo:
 		return libapi.ConditionNodeInfoFetched
-	case CollectorTypSecret:
+	case CollectorTypeSecret:
 		return libapi.ConditionSecretsFetched
+	case CollectorTypeEvents:
+		return libapi.ConditionEventsFetched
 	default:
 		return ""
 	}
