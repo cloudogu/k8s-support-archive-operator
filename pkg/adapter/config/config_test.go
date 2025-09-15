@@ -4,28 +4,36 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func setTestEnvVars(t *testing.T) {
+	t.Setenv("NAMESPACE", "ecosystem")
+	t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
+	t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
+	t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
+	t.Setenv("METRICS_SERVICE_NAME", "metrics")
+	t.Setenv("METRICS_SERVICE_PORT", "8081")
+	t.Setenv("METRICS_SERVICE_PROTOCOL", "http")
+	t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
+	t.Setenv("GARBAGE_COLLECTION_INTERVAL", "5m")
+	t.Setenv("GARBAGE_COLLECTION_NUMBER_TO_KEEP", "5")
+	t.Setenv("NODE_INFO_USAGE_METRIC_STEP", "30s")
+	t.Setenv("NODE_INFO_HARDWARE_METRIC_STEP", "30m")
+	t.Setenv("METRICS_MAX_SAMPLES", "11000")
+	t.Setenv("LOKI_GATEWAY_URL", "loki")
+	t.Setenv("LOKI_GATEWAY_USERNAME", "lokiU")
+	t.Setenv("LOKI_GATEWAY_PASSWORD", "lokiP")
+}
+
 func TestNewOperatorConfig(t *testing.T) {
 	t.Run("should succeed", func(t *testing.T) {
 		// given
 		version := "0.0.0"
-		t.Setenv("NAMESPACE", "ecosystem")
-		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
-		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
-		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
-		t.Setenv("METRICS_SERVICE_NAME", "metrics")
-		t.Setenv("METRICS_SERVICE_PORT", "8081")
-		t.Setenv("METRICS_SERVICE_PROTOCOL", "http")
-		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
-		t.Setenv("GARBAGE_COLLECTION_INTERVAL", "5m")
-		t.Setenv("GARBAGE_COLLECTION_NUMBER_TO_KEEP", "5")
-		t.Setenv("NODE_INFO_USAGE_METRIC_STEP", "30s")
-		t.Setenv("NODE_INFO_HARDWARE_METRIC_STEP", "30m")
-		t.Setenv("METRICS_MAX_SAMPLES", "11000")
+		setTestEnvVars(t)
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -33,24 +41,27 @@ func TestNewOperatorConfig(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, operatorConfig)
+		assert.Equal(t, "ecosystem", operatorConfig.Namespace)
+		assert.Equal(t, "service", operatorConfig.ArchiveVolumeDownloadServiceName)
+		assert.Equal(t, "8080", operatorConfig.ArchiveVolumeDownloadServicePort)
+		assert.Equal(t, "http", operatorConfig.ArchiveVolumeDownloadServiceProtocol)
+		assert.Equal(t, "metrics", operatorConfig.MetricsServiceName)
+		assert.Equal(t, "8081", operatorConfig.MetricsServicePort)
+		assert.Equal(t, "http", operatorConfig.MetricsServiceProtocol)
+		assert.Equal(t, time.Minute, operatorConfig.SupportArchiveSyncInterval)
+		assert.Equal(t, time.Minute*5, operatorConfig.GarbageCollectionInterval)
+		assert.Equal(t, time.Second*30, operatorConfig.NodeInfoUsageMetricStep)
+		assert.Equal(t, time.Minute*30, operatorConfig.NodeInfoHardwareMetricStep)
+		assert.Equal(t, 11000, operatorConfig.MetricsMaxSamples)
+		assert.Equal(t, "loki", operatorConfig.LokiGatewayConfig.Url)
+		assert.Equal(t, "lokiU", operatorConfig.LokiGatewayConfig.Username)
+		assert.Equal(t, "lokiP", operatorConfig.LokiGatewayConfig.Password)
 	})
 	t.Run("should succeed with stage set", func(t *testing.T) {
 		// given
 		version := "0.0.0"
-		t.Setenv("NAMESPACE", "ecosystem")
 		t.Setenv("STAGE", "development")
-		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_NAME", "service")
-		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PROTOCOL", "http")
-		t.Setenv("ARCHIVE_VOLUME_DOWNLOAD_SERVICE_PORT", "8080")
-		t.Setenv("METRICS_SERVICE_NAME", "metrics")
-		t.Setenv("METRICS_SERVICE_PORT", "8081")
-		t.Setenv("METRICS_SERVICE_PROTOCOL", "http")
-		t.Setenv("SUPPORT_ARCHIVE_SYNC_INTERVAL", "1m")
-		t.Setenv("GARBAGE_COLLECTION_INTERVAL", "5m")
-		t.Setenv("GARBAGE_COLLECTION_NUMBER_TO_KEEP", "5")
-		t.Setenv("NODE_INFO_USAGE_METRIC_STEP", "30s")
-		t.Setenv("NODE_INFO_HARDWARE_METRIC_STEP", "30m")
-		t.Setenv("METRICS_MAX_SAMPLES", "11000")
+		setTestEnvVars(t)
 
 		// when
 		operatorConfig, err := NewOperatorConfig(version)
@@ -58,6 +69,7 @@ func TestNewOperatorConfig(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, operatorConfig)
+		assert.Equal(t, "development", Stage)
 	})
 	t.Run("should fail to parse sync interval", func(t *testing.T) {
 		// given
@@ -251,6 +263,57 @@ func TestGetLogLevel(t *testing.T) {
 				return
 			}
 			assert.Equalf(t, tt.want, got, "GetLogLevel()")
+		})
+	}
+}
+
+func Test_configureLokiGateway(t *testing.T) {
+	tests := []struct {
+		name      string
+		want      LokiGatewayConfig
+		wantErr   assert.ErrorAssertionFunc
+		envSetter func(t *testing.T)
+	}{
+		{
+			name: "should return error on error reading gateway url",
+			want: LokiGatewayConfig{},
+			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
+				return assert.ErrorContains(t, err, "environment variable LOKI_GATEWAY_URL must be set")
+			},
+		},
+		{
+			name: "should return error on error reading gateway username",
+			want: LokiGatewayConfig{},
+			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
+				return assert.ErrorContains(t, err, "environment variable LOKI_GATEWAY_USERNAME must be set")
+			},
+			envSetter: func(t *testing.T) {
+				t.Setenv(lokiGatewayUrlEnvironmentVariable, "loki")
+			},
+		},
+		{
+			name: "should return error on error reading gateway password",
+			want: LokiGatewayConfig{},
+			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
+				return assert.ErrorContains(t, err, "environment variable LOKI_GATEWAY_PASSWORD must be set")
+			},
+			envSetter: func(t *testing.T) {
+				t.Setenv(lokiGatewayUrlEnvironmentVariable, "loki")
+				t.Setenv(lokiGatewayUsernameEnvironmentVariable, "lokiU")
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envSetter != nil {
+				tt.envSetter(t)
+			}
+
+			got, err := configureLokiGateway()
+			if !tt.wantErr(t, err, fmt.Sprintf("configureLokiGateway()")) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "configureLokiGateway()")
 		})
 	}
 }
