@@ -3,7 +3,7 @@ package domain
 type EventSet struct {
 	Namespace string
 	Kind      string
-	Events    []Event
+	Events    []string
 }
 
 type Event struct {

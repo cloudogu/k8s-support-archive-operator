@@ -2,6 +2,9 @@ package collector
 
 import (
 	"context"
+	"encoding/json"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -13,11 +16,13 @@ import (
 
 func TestCollect(t *testing.T) {
 	t.Run("should send EventSets to result channel", func(t *testing.T) {
-		t.Skip("TODO")
-
 		ctx := context.TODO()
 		startTime := time.Now()
 		endTime := startTime.AddDate(0, 0, 10)
+
+		podTimestamp1 := startTime.AddDate(0, 0, 1)
+		podTimestamp2 := startTime.AddDate(0, 0, 2)
+		doguTimestamp1 := startTime.AddDate(0, 0, 1)
 
 		logPrvMock := NewMockLogsProvider(t)
 		logPrvMock.EXPECT().
@@ -27,8 +32,8 @@ func TestCollect(t *testing.T) {
 			FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", "Pod").
 			Return(
 				[]LogLine{
-					{Timestamp: startTime.AddDate(0, 0, 1), Value: "{msg=\"pod message 1\""},
-					{Timestamp: startTime.AddDate(0, 0, 2), Value: "{msg=\"pod message 2\""},
+					{Timestamp: podTimestamp1, Value: "{\"msg\":\"pod message 1\"}"},
+					{Timestamp: podTimestamp2, Value: "{\"msg\":\"pod message 2\"}"},
 				},
 				nil,
 			)
@@ -36,7 +41,7 @@ func TestCollect(t *testing.T) {
 			FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", "Dogu").
 			Return(
 				[]LogLine{
-					{Timestamp: startTime.AddDate(0, 0, 1), Value: "{msg=\"dogu message 1\""},
+					{Timestamp: doguTimestamp1, Value: "{\"msg\":\"dogu message 1\"}"},
 				},
 				nil,
 			)
@@ -51,29 +56,91 @@ func TestCollect(t *testing.T) {
 
 		assert.Equal(t, 2, len(res.eventSets))
 
+		// EventSet 0: Pod
 		assert.Equal(t, "aNamespace", res.eventSets[0].Namespace)
 		assert.Equal(t, "Pod", res.eventSets[0].Kind)
 
 		assert.Equal(t, 2, len(res.eventSets[0].Events))
-		assert.Equal(t, "pod message 1", res.eventSets[0].Events[0].Message)
-		assert.Equal(t, "pod message 2", res.eventSets[0].Events[1].Message)
 
+		podMsg1, err := valueOfJsonField(res.eventSets[0].Events[0], "msg")
+		require.NoError(t, err)
+		assert.Equal(t, "pod message 1", podMsg1)
+
+		podTimeYear1, err := valueOfJsonFieldInt(res.eventSets[0].Events[0], "time_year")
+		require.NoError(t, err)
+		assert.Equal(t, podTimestamp1.Year(), podTimeYear1)
+
+		podMsg2, err := valueOfJsonField(res.eventSets[0].Events[1], "msg")
+		require.NoError(t, err)
+		assert.Equal(t, "pod message 2", podMsg2)
+
+		podTimeYear2, err := valueOfJsonFieldInt(res.eventSets[0].Events[1], "time_year")
+		require.NoError(t, err)
+		assert.Equal(t, podTimestamp2.Year(), podTimeYear2)
+
+		// EventSet 1: Dogu
 		assert.Equal(t, "aNamespace", res.eventSets[1].Namespace)
-		assert.Equal(t, "Pod", res.eventSets[1].Kind)
+		assert.Equal(t, "Dogu", res.eventSets[1].Kind)
 
-		assert.Equal(t, 1, len(res.eventSets[1].Events))
-		assert.Equal(t, "dogu message 1", res.eventSets[1].Events[0].Message)
+		doguMsg1, err := valueOfJsonField(res.eventSets[1].Events[0], "msg")
+		require.NoError(t, err)
+		assert.Equal(t, "dogu message 1", doguMsg1)
+
+		dogTimeYear1, err := valueOfJsonFieldInt(res.eventSets[1].Events[0], "time_year")
+		require.NoError(t, err)
+		assert.Equal(t, doguTimestamp1.Year(), dogTimeYear1)
 	})
 
-	t.Run("should create new EventSet", func(t *testing.T) {
-		t.Skip("TODO")
+	t.Run("should convert LogLine to Event and add time fields", func(t *testing.T) {
+		aTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
+		logLine := LogLine{
+			Timestamp: aTime,
+			Value:     "{\"msg\": \"dogu message 1\"}",
+		}
+
+		event, err := logLineToEvent(logLine)
+		require.NoError(t, err)
+
+		jsonMsg, err := valueOfJsonField(event, "msg")
+		require.NoError(t, err)
+		assert.Equal(t, "dogu message 1", jsonMsg)
+
+		jsonTime, err := valueOfJsonField(event, "time")
+		require.NoError(t, err)
+		assert.Equal(t, "2009-11-17 20:34:58.651387237 +0000 UTC", jsonTime)
+
+		jsonTimeUnixNano, err := valueOfJsonField(event, "time_unix_nano")
+		require.NoError(t, err)
+		assert.Equal(t, strconv.FormatInt(aTime.UnixNano(), 10), jsonTimeUnixNano)
+
+		jsonTimeYear, err := valueOfJsonFieldInt(event, "time_year")
+		require.NoError(t, err)
+		assert.Equal(t, 2009, jsonTimeYear)
+
+		jsonTimeMonth, err := valueOfJsonFieldInt(event, "time_month")
+		require.NoError(t, err)
+		assert.Equal(t, 11, jsonTimeMonth)
+
+		jsonTimeDay, err := valueOfJsonFieldInt(event, "time_day")
+		require.NoError(t, err)
+		assert.Equal(t, 17, jsonTimeDay)
+
 	})
 
-	t.Run("should convert LogLine to Event", func(t *testing.T) {
-		t.Skip("TODO")
+	t.Run("should encode event as one line", func(t *testing.T) {
+		aTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
+		logLine := LogLine{
+			Timestamp: aTime,
+			Value:     "{\"msg\": \"dogu message 1\"}",
+		}
+
+		event, err := logLineToEvent(logLine)
+		require.NoError(t, err)
+
+		assert.NotContains(t, event, "\n")
 	})
 
-	t.Run("should calculate event's year, month and day fields", func(t *testing.T) {
+	t.Run("error handling", func(t *testing.T) {
 		t.Skip("TODO")
 	})
 
@@ -107,4 +174,41 @@ func (res *result) receive() {
 
 func (res *result) wait() {
 	res.waitGroup.Wait()
+}
+
+func valueOfJsonField(jsonAsString string, field string) (string, error) {
+	jsonDecoder := json.NewDecoder(strings.NewReader(jsonAsString))
+
+	var decodedData map[string]interface{}
+	err := jsonDecoder.Decode(&decodedData)
+	if err != nil {
+		return "", err
+	}
+	value, containsField := decodedData[field]
+	if !containsField {
+		return "", nil
+	}
+	return value.(string), nil
+}
+
+func valueOfJsonFieldInt(jsonAsString string, field string) (int, error) {
+	jsonDecoder := json.NewDecoder(strings.NewReader(jsonAsString))
+	jsonDecoder.UseNumber()
+
+	var decodedData map[string]interface{}
+	err := jsonDecoder.Decode(&decodedData)
+	if err != nil {
+		return 0, err
+	}
+	value, containsField := decodedData[field]
+	if !containsField {
+		return 0, nil
+	}
+
+	valueInt64, err := value.(json.Number).Int64()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(valueInt64), nil
 }
