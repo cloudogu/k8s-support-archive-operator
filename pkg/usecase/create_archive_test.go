@@ -140,7 +140,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testLogCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
 						updatedCRStatus := modifyStatusFn(cr.Status)
 						for _, cond := range updatedCRStatus.Conditions {
-							if cond.Type == "TODO" && cond.Status == ("True") {
+							if cond.Type == "LogsFetched" && cond.Status == ("True") {
 								return
 							}
 						}
@@ -185,7 +185,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testLogCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
 						updatedCRStatus := modifyStatusFn(cr.Status)
 						for _, cond := range updatedCRStatus.Conditions {
-							if cond.Type == "TODO" && cond.Status == ("False") {
+							if cond.Type == "LogsFetched" && cond.Status == ("False") {
 								return
 							}
 						}

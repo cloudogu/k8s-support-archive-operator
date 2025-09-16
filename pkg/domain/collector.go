@@ -15,7 +15,7 @@ const (
 func (c CollectorType) GetConditionType() string {
 	switch c {
 	case CollectorTypeLog:
-		return "TODO"
+		return libapi.ConditionLogsFetched
 	case CollectorTypeVolumeInfo:
 		return libapi.ConditionVolumeInfoFetched
 	case CollectorTypeNodeInfo:

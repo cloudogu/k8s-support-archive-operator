@@ -416,10 +416,7 @@ func getSuccessStream() chan *domain.PodLog {
 
 	go func() {
 		channel <- &domain.PodLog{
-			PodName:   "cas",
-			StartTime: time.Now(),
-			EndTime:   time.Now(),
-			Entries:   []string{"logline1", "logline2"},
+			Value: "logline",
 		}
 
 		close(channel)
@@ -540,12 +537,12 @@ func Test_baseFileRepository_createStreamConstructor(t *testing.T) {
 				workPath: testWorkPath,
 				filesystem: func(t *testing.T) (volumeFs, io.Reader) {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().Open(testWorkCasLog).Return(nil, assert.AnError)
+					fsMock.EXPECT().Open(testWorkLog).Return(nil, assert.AnError)
 					return fsMock, nil
 				},
 			},
 			args: args{
-				path: testWorkCasLog,
+				path: testWorkLog,
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
@@ -560,12 +557,12 @@ func Test_baseFileRepository_createStreamConstructor(t *testing.T) {
 				filesystem: func(t *testing.T) (volumeFs, io.Reader) {
 					fsMock := newMockVolumeFs(t)
 					fileMock := newMockClosableRWFile(t)
-					fsMock.EXPECT().Open(testWorkCasLog).Return(fileMock, nil)
+					fsMock.EXPECT().Open(testWorkLog).Return(fileMock, nil)
 					return fsMock, bufio.NewReader(fileMock)
 				},
 			},
 			args: args{
-				path: testWorkCasLog,
+				path: testWorkLog,
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)

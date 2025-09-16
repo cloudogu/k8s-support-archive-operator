@@ -3,6 +3,7 @@ package file
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
@@ -17,6 +18,7 @@ type LogFileRepository struct {
 	baseFileRepo
 	workPath   string
 	filesystem volumeFs
+	logFiles   map[domain.SupportArchiveID]closableRWFile
 }
 
 func NewLogFileRepository(workPath string, fs volumeFs) *LogFileRepository {
@@ -24,39 +26,51 @@ func NewLogFileRepository(workPath string, fs volumeFs) *LogFileRepository {
 		workPath:     workPath,
 		filesystem:   fs,
 		baseFileRepo: NewBaseFileRepository(workPath, archiveLogDirName, fs),
+		logFiles:     make(map[domain.SupportArchiveID]closableRWFile),
 	}
 }
 
 func (l *LogFileRepository) Create(ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *domain.PodLog) error {
-	return create(ctx, id, dataStream, l.createPodLog, l.Delete, l.finishCollection, nil)
+	return create(ctx, id, dataStream, l.createPodLog, l.Delete, l.finishCollection, l.close)
 }
 
 func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportArchiveID, data *domain.PodLog) error {
 	logger := log.FromContext(ctx).WithName("LogFileRepository.createPodLog")
-	filePath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveLogDirName, fmt.Sprintf("%s%s", data.PodName, ".log"))
-	err := l.filesystem.MkdirAll(filepath.Dir(filePath), 0755)
-	if err != nil {
-		return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(filePath), err)
+
+	if l.logFiles[id] == nil {
+		filePath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveLogDirName, fmt.Sprintf("%s%s", "logs", ".log"))
+		err := l.filesystem.MkdirAll(filepath.Dir(filePath), 0755)
+		if err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(filePath), err)
+		}
+		l.logFiles[id], err = l.filesystem.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.FileMode(0666))
+		if err != nil {
+			return fmt.Errorf("failed to create log file %s: %w", filePath, err)
+		}
+		_, err = l.logFiles[id].Write([]byte("LOGS\n"))
+		if err != nil {
+			return fmt.Errorf("failed to write header to log file %s: %w", filePath, err)
+		}
+		logger.Info(fmt.Sprintf("Created log file %s", filePath))
 	}
 
-	open, err := l.filesystem.Create(filePath)
+	_, err := l.logFiles[id].Write([]byte(fmt.Sprintf("%s%s", data.Value, "\n")))
 	if err != nil {
-		return fmt.Errorf("failed to create file %s: %w", filePath, err)
+		return fmt.Errorf("failed to write data to log file %s: %w", id, err)
 	}
-	defer func() {
-		closeErr := open.Close()
-		if closeErr != nil {
-			logger.Error(closeErr, "failed to close file")
-		}
-	}()
 
-	for _, logLine := range data.Entries {
-		_, writeErr := open.Write([]byte(logLine))
-		if writeErr != nil {
-			return fmt.Errorf("failed to write to file %s: %w", filePath, writeErr)
-		}
+	return nil
+}
+
+func (l *LogFileRepository) close(_ context.Context, id domain.SupportArchiveID) error {
+	if l.logFiles == nil || l.logFiles[id] == nil {
+		return nil
 	}
-	logger.Info(fmt.Sprintf("Created file %s", filePath))
+
+	err := l.logFiles[id].Close()
+	if err != nil {
+		return fmt.Errorf("failed to close log file %s: %w", id, err)
+	}
 
 	return nil
 }

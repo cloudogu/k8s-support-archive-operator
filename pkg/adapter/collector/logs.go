@@ -17,25 +17,8 @@ func (l *LogCollector) Name() string {
 	return string(domain.CollectorTypeLog)
 }
 
-// Do not close resultChan on error. Closing the channel should only indicate that the collection finished successfully.
 func (l *LogCollector) Collect(ctx context.Context, _ string, startTime, endTime time.Time, resultChan chan<- *domain.PodLog) error {
-	doguLog := &domain.PodLog{
-		PodName:   "cas",
-		StartTime: startTime,
-		EndTime:   endTime,
-		Entries:   []string{"log entry"},
-	}
 
-	writeSaveToChannel(ctx, doguLog, resultChan)
-
-	doguLog = &domain.PodLog{
-		PodName:   "ldap",
-		StartTime: startTime,
-		EndTime:   endTime,
-		Entries:   []string{"log entry"},
-	}
-
-	writeSaveToChannel(ctx, doguLog, resultChan)
 	close(resultChan)
 
 	return nil
