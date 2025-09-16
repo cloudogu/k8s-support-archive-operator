@@ -60,126 +60,33 @@ func NewLokiLogsProvider(httpClient *http.Client, httpAPIUrl string, username st
 	}
 }
 
-func (lp *LokiLogsProvider) FindValuesOfLabel(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, label string) ([]string, error) {
-	var result []string
-	var reqStartTime, reqEndTime, hasNext = int64(0), startTimeInNanoSec, true
-	for hasNext {
-		reqStartTime, reqEndTime, hasNext = findValuesOfLabelNextTimeWindow(reqEndTime, endTimeInNanoSec, maxQueryTimeWindowInDays)
-		resp, err := lp.httpFindValuesOfLabel(ctx, label, reqStartTime, reqEndTime)
-		if err != nil {
-			return []string{}, fmt.Errorf("find values of label \"%s\"; %v", label, err)
-		}
-		result = append(result, resp.Data...)
-	}
-
-	return removeDuplicates(result), nil
-}
-
-func (lp *LokiLogsProvider) httpFindValuesOfLabel(ctx context.Context, label string, startTimeInNanoSec int64, endTimeInNanoSec int64) (*labelValuesResponse, error) {
-	logger := log.FromContext(ctx).WithName(loggerName)
-
-	query, err := buildLabelValuesQuery(lp.serviceURL, label, startTimeInNanoSec, endTimeInNanoSec)
-	if err != nil {
-		return nil, fmt.Errorf("build label values query; %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, query, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create http request; %w", err)
-	}
-	req.SetBasicAuth(lp.username, lp.password)
-
-	resp, err := lp.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("call loki http api; %w", err)
-	}
-
-	defer func(body io.ReadCloser) {
-		err := body.Close()
-		if err != nil {
-			logger.Error(err, "failed to close body of http response")
-		}
-	}(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, extractErrorFromResponse(resp)
-	}
-
-	return parseLabelValuesResponse(resp.Body)
-}
-
-func buildLabelValuesQuery(serviceURL string, label string, startTimeInNanoSec int64, endTimeInNanoSec int64) (string, error) {
-	baseUrl, err := url.Parse(serviceURL)
-	if err != nil {
-		return "", fmt.Errorf("parse service URL; %w", err)
-	}
-	path := fmt.Sprintf("/loki/api/v1/label/%s/values", label)
-	baseUrl = baseUrl.JoinPath(path)
-
-	params := baseUrl.Query()
-	params.Set("start", fmt.Sprintf("%d", startTimeInNanoSec))
-	params.Set("end", fmt.Sprintf("%d", endTimeInNanoSec))
-
-	baseUrl.RawQuery = params.Encode()
-
-	return baseUrl.String(), nil
-}
-
-func extractErrorFromResponse(resp *http.Response) error {
-	body, err := io.ReadAll(resp.Body)
-	if err != nil || len(body) == 0 {
-		return fmt.Errorf("http request failed with status: %s, body: empty", resp.Status)
-	}
-	return fmt.Errorf("http request failed with status: %s, body: %s", resp.Status, body)
-}
-
-func parseLabelValuesResponse(lokiResp io.Reader) (*labelValuesResponse, error) {
-	result := &labelValuesResponse{}
-	err := json.NewDecoder(lokiResp).Decode(result)
-	if err != nil {
-		return nil, fmt.Errorf("parse label values response; %w", err)
-	}
-	return result, nil
-}
-
-func removeDuplicates(data []string) []string {
-	var uniqueMap = make(map[string]bool)
-	var result []string
-	for _, elem := range data {
-		if _, mapContainsKey := uniqueMap[elem]; mapContainsKey {
-			continue
-		} else {
-			result = append(result, elem)
-			uniqueMap[elem] = true
-		}
-	}
-	return result
-}
-
 func (lp *LokiLogsProvider) FindLogs(
 	ctx context.Context,
 	startTimeInNanoSec int64,
 	endTimeInNanoSec int64,
 	namespace string,
-	kind string,
-) ([]col.LogLine, error) {
-	var result []col.LogLine
+	resultChan chan<- *col.LogLine,
+) error {
 	var reqStartTime, reqEndTime = int64(0), startTimeInNanoSec
 	for {
 		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, endTimeInNanoSec, maxQueryTimeWindowInDays)
-		httpResp, err := lp.httpFindLogs(ctx, reqStartTime, reqEndTime, namespace, kind)
+		httpResp, err := lp.httpFindLogs(ctx, reqStartTime, reqEndTime, namespace)
 		if err != nil {
-			return []col.LogLine{}, fmt.Errorf("find logs; %v", err)
+			return fmt.Errorf("find logs; %v", err)
 		}
 
 		logLines, err := convertQueryLogsResponseToLogLines(httpResp)
 		if err != nil {
-			return []col.LogLine{}, fmt.Errorf("convert http response to LogLines; %v", err)
+			return fmt.Errorf("convert http response to LogLines; %v", err)
 		}
 		if len(logLines) == 0 {
-			return removeDuplicateLoglines(result), nil
+			return nil
 		}
-		result = append(result, logLines...)
+
+		for _, ll := range logLines {
+			resultChan <- &ll
+		}
+
 		reqEndTime = findLatestTimestamp(logLines)
 	}
 }
@@ -189,11 +96,10 @@ func (lp *LokiLogsProvider) httpFindLogs(
 	startTimeInNanoSec int64,
 	endTimeInNanoSec int64,
 	namespace string,
-	kind string,
 ) (*queryLogsResponse, error) {
 	logger := log.FromContext(ctx).WithName(loggerName)
 
-	query, err := buildFindLogsHttpQuery(lp.serviceURL, namespace, kind, startTimeInNanoSec, endTimeInNanoSec)
+	query, err := buildFindLogsHttpQuery(lp.serviceURL, namespace, startTimeInNanoSec, endTimeInNanoSec)
 	if err != nil {
 		return nil, fmt.Errorf("build logs query; %w", err)
 	}
@@ -226,7 +132,6 @@ func (lp *LokiLogsProvider) httpFindLogs(
 func buildFindLogsHttpQuery(
 	serviceURL string,
 	namespace string,
-	kind string,
 	startTimeInNanoSec int64,
 	endTimeInNanoSec int64,
 ) (string, error) {
@@ -237,7 +142,7 @@ func buildFindLogsHttpQuery(
 	baseUrl = baseUrl.JoinPath("loki/api/v1/query_range")
 
 	params := baseUrl.Query()
-	params.Set("query", fmt.Sprintf("{namespace=\"%s\", kind=\"%s\"}", namespace, kind))
+	params.Set("query", fmt.Sprintf("{namespace=\"%s\"}", namespace))
 	params.Set("start", fmt.Sprintf("%d", startTimeInNanoSec))
 	params.Set("end", fmt.Sprintf("%d", endTimeInNanoSec))
 	params.Set("limit", fmt.Sprintf("%d", maxQueryResultCount))
@@ -247,6 +152,14 @@ func buildFindLogsHttpQuery(
 	return baseUrl.String(), nil
 }
 
+func extractErrorFromResponse(resp *http.Response) error {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil || len(body) == 0 {
+		return fmt.Errorf("http request failed with status: %s, body: empty", resp.Status)
+	}
+	return fmt.Errorf("http request failed with status: %s, body: %s", resp.Status, body)
+}
+
 func parseQueryLogsResponse(httpRespBody io.Reader) (*queryLogsResponse, error) {
 	result := &queryLogsResponse{}
 	err := json.NewDecoder(httpRespBody).Decode(result)
@@ -254,6 +167,12 @@ func parseQueryLogsResponse(httpRespBody io.Reader) (*queryLogsResponse, error) 
 		return nil, fmt.Errorf("decode query logs http response; %w", err)
 	}
 	return result, nil
+}
+
+func findLogsNextTimeWindow(startTimeInNanoSec int64, maxEndTimeInNanoSec int64, maxTimeWindowInDays int) (int64, int64) {
+	maxTimeWindowInNanoSec := daysToNanoSec(maxTimeWindowInDays)
+	timeWindowEndInNanoSec := minInt64(startTimeInNanoSec+maxTimeWindowInNanoSec, maxEndTimeInNanoSec)
+	return startTimeInNanoSec, timeWindowEndInNanoSec
 }
 
 func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]col.LogLine, error) {
@@ -282,34 +201,6 @@ func findLatestTimestamp(loglines []col.LogLine) int64 {
 		}
 	}
 	return latest
-}
-
-func removeDuplicateLoglines(loglines []col.LogLine) []col.LogLine {
-	var uniqueMap = make(map[string]bool)
-	var result []col.LogLine
-	for _, ll := range loglines {
-		key := fmt.Sprintf("%d%s", ll.Timestamp.UnixNano(), ll.Value)
-		if _, mapContainsKey := uniqueMap[key]; mapContainsKey {
-			continue
-		} else {
-			result = append(result, ll)
-			uniqueMap[key] = true
-		}
-	}
-	return result
-}
-
-func findValuesOfLabelNextTimeWindow(startTimeInNanoSec int64, maxEndTimeInNanoSec int64, maxTimeWindowInDays int) (int64, int64, bool) {
-	maxTimeWindowInNanoSec := daysToNanoSec(maxTimeWindowInDays)
-	timeWindowEndInNanoSec := minInt64(startTimeInNanoSec+maxTimeWindowInNanoSec, maxEndTimeInNanoSec)
-	hasNext := timeWindowEndInNanoSec < maxEndTimeInNanoSec
-	return startTimeInNanoSec, timeWindowEndInNanoSec, hasNext
-}
-
-func findLogsNextTimeWindow(startTimeInNanoSec int64, maxEndTimeInNanoSec int64, maxTimeWindowInDays int) (int64, int64) {
-	maxTimeWindowInNanoSec := daysToNanoSec(maxTimeWindowInDays)
-	timeWindowEndInNanoSec := minInt64(startTimeInNanoSec+maxTimeWindowInNanoSec, maxEndTimeInNanoSec)
-	return startTimeInNanoSec, timeWindowEndInNanoSec
 }
 
 func minInt64(a, b int64) int64 {

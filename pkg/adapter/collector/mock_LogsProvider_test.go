@@ -21,34 +21,22 @@ func (_m *MockLogsProvider) EXPECT() *MockLogsProvider_Expecter {
 	return &MockLogsProvider_Expecter{mock: &_m.Mock}
 }
 
-// FindLogs provides a mock function with given fields: ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, kind
-func (_m *MockLogsProvider) FindLogs(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, kind string) ([]LogLine, error) {
-	ret := _m.Called(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, kind)
+// FindLogs provides a mock function with given fields: ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan
+func (_m *MockLogsProvider) FindLogs(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, resultChan chan<- *LogLine) error {
+	ret := _m.Called(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FindLogs")
 	}
 
-	var r0 []LogLine
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, string, string) ([]LogLine, error)); ok {
-		return rf(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, kind)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, string, string) []LogLine); ok {
-		r0 = rf(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, kind)
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, string, chan<- *LogLine) error); ok {
+		r0 = rf(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]LogLine)
-		}
+		r0 = ret.Error(0)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, int64, int64, string, string) error); ok {
-		r1 = rf(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, kind)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
 
 // MockLogsProvider_FindLogs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindLogs'
@@ -61,85 +49,24 @@ type MockLogsProvider_FindLogs_Call struct {
 //   - startTimeInNanoSec int64
 //   - endTimeInNanoSec int64
 //   - namespace string
-//   - kind string
-func (_e *MockLogsProvider_Expecter) FindLogs(ctx interface{}, startTimeInNanoSec interface{}, endTimeInNanoSec interface{}, namespace interface{}, kind interface{}) *MockLogsProvider_FindLogs_Call {
-	return &MockLogsProvider_FindLogs_Call{Call: _e.mock.On("FindLogs", ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, kind)}
+//   - resultChan chan<- *LogLine
+func (_e *MockLogsProvider_Expecter) FindLogs(ctx interface{}, startTimeInNanoSec interface{}, endTimeInNanoSec interface{}, namespace interface{}, resultChan interface{}) *MockLogsProvider_FindLogs_Call {
+	return &MockLogsProvider_FindLogs_Call{Call: _e.mock.On("FindLogs", ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan)}
 }
 
-func (_c *MockLogsProvider_FindLogs_Call) Run(run func(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, kind string)) *MockLogsProvider_FindLogs_Call {
+func (_c *MockLogsProvider_FindLogs_Call) Run(run func(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, resultChan chan<- *LogLine)) *MockLogsProvider_FindLogs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(int64), args[2].(int64), args[3].(string), args[4].(string))
+		run(args[0].(context.Context), args[1].(int64), args[2].(int64), args[3].(string), args[4].(chan<- *LogLine))
 	})
 	return _c
 }
 
-func (_c *MockLogsProvider_FindLogs_Call) Return(_a0 []LogLine, _a1 error) *MockLogsProvider_FindLogs_Call {
-	_c.Call.Return(_a0, _a1)
+func (_c *MockLogsProvider_FindLogs_Call) Return(_a0 error) *MockLogsProvider_FindLogs_Call {
+	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockLogsProvider_FindLogs_Call) RunAndReturn(run func(context.Context, int64, int64, string, string) ([]LogLine, error)) *MockLogsProvider_FindLogs_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// FindValuesOfLabel provides a mock function with given fields: ctx, startTimeInNanoSec, endTimeInNanoSec, label
-func (_m *MockLogsProvider) FindValuesOfLabel(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, label string) ([]string, error) {
-	ret := _m.Called(ctx, startTimeInNanoSec, endTimeInNanoSec, label)
-
-	if len(ret) == 0 {
-		panic("no return value specified for FindValuesOfLabel")
-	}
-
-	var r0 []string
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, string) ([]string, error)); ok {
-		return rf(ctx, startTimeInNanoSec, endTimeInNanoSec, label)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, string) []string); ok {
-		r0 = rf(ctx, startTimeInNanoSec, endTimeInNanoSec, label)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, int64, int64, string) error); ok {
-		r1 = rf(ctx, startTimeInNanoSec, endTimeInNanoSec, label)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockLogsProvider_FindValuesOfLabel_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindValuesOfLabel'
-type MockLogsProvider_FindValuesOfLabel_Call struct {
-	*mock.Call
-}
-
-// FindValuesOfLabel is a helper method to define mock.On call
-//   - ctx context.Context
-//   - startTimeInNanoSec int64
-//   - endTimeInNanoSec int64
-//   - label string
-func (_e *MockLogsProvider_Expecter) FindValuesOfLabel(ctx interface{}, startTimeInNanoSec interface{}, endTimeInNanoSec interface{}, label interface{}) *MockLogsProvider_FindValuesOfLabel_Call {
-	return &MockLogsProvider_FindValuesOfLabel_Call{Call: _e.mock.On("FindValuesOfLabel", ctx, startTimeInNanoSec, endTimeInNanoSec, label)}
-}
-
-func (_c *MockLogsProvider_FindValuesOfLabel_Call) Run(run func(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, label string)) *MockLogsProvider_FindValuesOfLabel_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(int64), args[2].(int64), args[3].(string))
-	})
-	return _c
-}
-
-func (_c *MockLogsProvider_FindValuesOfLabel_Call) Return(_a0 []string, _a1 error) *MockLogsProvider_FindValuesOfLabel_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockLogsProvider_FindValuesOfLabel_Call) RunAndReturn(run func(context.Context, int64, int64, string) ([]string, error)) *MockLogsProvider_FindValuesOfLabel_Call {
+func (_c *MockLogsProvider_FindLogs_Call) RunAndReturn(run func(context.Context, int64, int64, string, chan<- *LogLine) error) *MockLogsProvider_FindLogs_Call {
 	_c.Call.Return(run)
 	return _c
 }
