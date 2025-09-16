@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
-	col "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -65,7 +65,7 @@ func (lp *LokiLogsProvider) FindLogs(
 	startTimeInNanoSec int64,
 	endTimeInNanoSec int64,
 	namespace string,
-	resultChan chan<- *col.LogLine,
+	resultChan chan<- *domain.LogLine,
 ) error {
 	var reqStartTime, reqEndTime = int64(0), startTimeInNanoSec
 	for {
@@ -175,15 +175,15 @@ func findLogsNextTimeWindow(startTimeInNanoSec int64, maxEndTimeInNanoSec int64,
 	return startTimeInNanoSec, timeWindowEndInNanoSec
 }
 
-func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]col.LogLine, error) {
-	var result []col.LogLine
+func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]domain.LogLine, error) {
+	var result []domain.LogLine
 	for _, respResult := range httpResp.Data.Result {
 		for _, respValue := range respResult.Values {
 			timestampAsInt, err := strconv.ParseInt(respValue[0], 10, 64)
 			if err != nil {
-				return []col.LogLine{}, fmt.Errorf("parse results timestamp '%s'; %w", respValue[0], err)
+				return []domain.LogLine{}, fmt.Errorf("parse results timestamp '%s'; %w", respValue[0], err)
 			}
-			result = append(result, col.LogLine{
+			result = append(result, domain.LogLine{
 				Timestamp: time.Unix(0, timestampAsInt),
 				Value:     respValue[1],
 			})
@@ -193,7 +193,7 @@ func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]col.LogL
 	return result, nil
 }
 
-func findLatestTimestamp(loglines []col.LogLine) int64 {
+func findLatestTimestamp(loglines []domain.LogLine) int64 {
 	var latest int64
 	for _, ll := range loglines {
 		if ll.Timestamp.UnixNano() > latest {

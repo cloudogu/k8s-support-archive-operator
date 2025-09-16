@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-type PodLog struct {
+type LogLine struct {
 	Timestamp time.Time
 	Value     string
 }

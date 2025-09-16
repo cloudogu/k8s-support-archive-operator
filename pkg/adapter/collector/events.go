@@ -22,7 +22,7 @@ func NewEventsCollector(logsProvider LogsProvider) *EventsCollector {
 	}
 }
 
-func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *LogLine) error {
+func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *domain.LogLine) error {
 	defer close(resultChan)
 
 	err := ec.logsProvider.FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), namespace, resultChan)
@@ -33,7 +33,7 @@ func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startT
 	return nil
 }
 
-func logLinesToEvents(logLines []LogLine) ([]string, error) {
+func logLinesToEvents(logLines []domain.LogLine) ([]string, error) {
 	var result []string
 	for _, ll := range logLines {
 		event, err := logLineToEvent(ll)
@@ -45,7 +45,7 @@ func logLinesToEvents(logLines []LogLine) ([]string, error) {
 	return result, nil
 }
 
-func logLineToEvent(logLine LogLine) (string, error) {
+func logLineToEvent(logLine domain.LogLine) (string, error) {
 	jsonDecoder := json.NewDecoder(strings.NewReader(logLine.Value))
 
 	var data map[string]interface{}

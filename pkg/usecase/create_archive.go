@@ -162,7 +162,7 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 		logger.Info("collecting stream for collector", "collector", col)
 		switch col {
 		case domain.CollectorTypeLog:
-			stream, err = fetchRepoAndStreamWithErrorGroup[domain.PodLog](errCtx, errGroup, col, c.collectorMapping, id)
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.LogLine](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypeVolumeInfo:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.VolumeInfo](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypeNodeInfo:
@@ -260,7 +260,7 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 	var err error
 	switch next {
 	case domain.CollectorTypeLog:
-		col, repo, typeErr := getCollectorAndRepositoryForType[domain.PodLog](next, c.collectorMapping)
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.LogLine](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}

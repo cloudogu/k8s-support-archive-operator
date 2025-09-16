@@ -2,24 +2,37 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 )
 
-type LogCollector struct{}
+type LogCollector struct {
+	logProvider LogsProvider
+}
 
-func NewLogCollector() *LogCollector {
-	return &LogCollector{}
+func NewLogCollector(logProvider LogsProvider) *LogCollector {
+	return &LogCollector{logProvider: logProvider}
 }
 
 func (l *LogCollector) Name() string {
 	return string(domain.CollectorTypeLog)
 }
 
-func (l *LogCollector) Collect(ctx context.Context, _ string, startTime, endTime time.Time, resultChan chan<- *domain.PodLog) error {
+func (l *LogCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *domain.LogLine) error {
+	println("Collector start find Logs")
+
+	err := l.logProvider.FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), namespace, resultChan)
+	if err != nil {
+		return fmt.Errorf("failed to find logs: %w", err)
+	}
+
+	println("Collector terminated")
 
 	close(resultChan)
+
+	println("Collector closed channel")
 
 	return nil
 }

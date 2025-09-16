@@ -30,11 +30,11 @@ func NewLogFileRepository(workPath string, fs volumeFs) *LogFileRepository {
 	}
 }
 
-func (l *LogFileRepository) Create(ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *domain.PodLog) error {
+func (l *LogFileRepository) Create(ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *domain.LogLine) error {
 	return create(ctx, id, dataStream, l.createPodLog, l.Delete, l.finishCollection, l.close)
 }
 
-func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportArchiveID, data *domain.PodLog) error {
+func (l *LogFileRepository) createPodLog(ctx context.Context, id domain.SupportArchiveID, data *domain.LogLine) error {
 	logger := log.FromContext(ctx).WithName("LogFileRepository.createPodLog")
 
 	if l.logFiles[id] == nil {

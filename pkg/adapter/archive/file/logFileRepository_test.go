@@ -30,7 +30,7 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 	type args struct {
 		ctx  context.Context
 		id   domain.SupportArchiveID
-		data *domain.PodLog
+		data *domain.LogLine
 	}
 	tests := []struct {
 		name     string
@@ -59,7 +59,7 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 			args: args{
 				ctx: testCtx,
 				id:  testID,
-				data: &domain.PodLog{
+				data: &domain.LogLine{
 					Value: "logline",
 				},
 			},
@@ -90,7 +90,7 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 			args: args{
 				ctx: testCtx,
 				id:  testID,
-				data: &domain.PodLog{
+				data: &domain.LogLine{
 					Value: "logline",
 				},
 			},
@@ -123,7 +123,7 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 			args: args{
 				ctx: testCtx,
 				id:  testID,
-				data: &domain.PodLog{
+				data: &domain.LogLine{
 					Value: "logline",
 				},
 			},
@@ -158,7 +158,7 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 			args: args{
 				ctx: testCtx,
 				id:  testID,
-				data: &domain.PodLog{
+				data: &domain.LogLine{
 					Value: "logline",
 				},
 			},
@@ -192,7 +192,7 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 			args: args{
 				ctx: testCtx,
 				id:  testID,
-				data: &domain.PodLog{
+				data: &domain.LogLine{
 					Value: "logline",
 				},
 			},
@@ -219,7 +219,7 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 			args: args{
 				ctx: testCtx,
 				id:  testID,
-				data: &domain.PodLog{
+				data: &domain.LogLine{
 					Value: "logline",
 				},
 			},

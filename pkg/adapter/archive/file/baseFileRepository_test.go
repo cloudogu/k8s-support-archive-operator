@@ -317,7 +317,7 @@ func Test_create(t *testing.T) {
 		ctx        context.Context
 		id         domain.SupportArchiveID
 		dataStream <-chan *DATATYPE
-		createFn   createFn[domain.PodLog]
+		createFn   createFn[domain.LogLine]
 		deleteFn   deleteFn
 		finishFn   finishFn
 		closeFn    closeFn
@@ -327,14 +327,14 @@ func Test_create(t *testing.T) {
 		args    args[DATATYPE]
 		wantErr func(t *testing.T, err error)
 	}
-	tests := []testCase[domain.PodLog]{
+	tests := []testCase[domain.LogLine]{
 		{
 			name: "should call create and finish if channel is closed",
-			args: args[domain.PodLog]{
+			args: args[domain.LogLine]{
 				ctx:        testCtx,
 				id:         testID,
 				dataStream: getSuccessStream(),
-				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.PodLog) error {
+				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.LogLine) error {
 					return nil
 				},
 				finishFn: func(ctx context.Context, id domain.SupportArchiveID) error {
@@ -347,11 +347,11 @@ func Test_create(t *testing.T) {
 		},
 		{
 			name: "should return error on error finish collection",
-			args: args[domain.PodLog]{
+			args: args[domain.LogLine]{
 				ctx:        testCtx,
 				id:         testID,
 				dataStream: getSuccessStream(),
-				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.PodLog) error {
+				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.LogLine) error {
 					return nil
 				},
 				finishFn: func(ctx context.Context, id domain.SupportArchiveID) error {
@@ -366,11 +366,11 @@ func Test_create(t *testing.T) {
 		},
 		{
 			name: "should return error on error create data",
-			args: args[domain.PodLog]{
+			args: args[domain.LogLine]{
 				ctx:        testCtx,
 				id:         testID,
 				dataStream: getSuccessStream(),
-				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.PodLog) error {
+				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.LogLine) error {
 					return assert.AnError
 				},
 				deleteFn: func(ctx context.Context, id domain.SupportArchiveID) error {
@@ -385,11 +385,11 @@ func Test_create(t *testing.T) {
 		},
 		{
 			name: "should return join error on cleanup error",
-			args: args[domain.PodLog]{
+			args: args[domain.LogLine]{
 				ctx:        testCtx,
 				id:         testID,
 				dataStream: getSuccessStream(),
-				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.PodLog) error {
+				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.LogLine) error {
 					return assert.AnError
 				},
 				deleteFn: func(ctx context.Context, id domain.SupportArchiveID) error {
@@ -411,11 +411,11 @@ func Test_create(t *testing.T) {
 	}
 }
 
-func getSuccessStream() chan *domain.PodLog {
-	channel := make(chan *domain.PodLog)
+func getSuccessStream() chan *domain.LogLine {
+	channel := make(chan *domain.LogLine)
 
 	go func() {
-		channel <- &domain.PodLog{
+		channel <- &domain.LogLine{
 			Value: "logline",
 		}
 
