@@ -1,221 +1,111 @@
 package collector
 
 import (
-	"encoding/json"
-	"strconv"
-	"strings"
+	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCollect(t *testing.T) {
-	t.Run("should send EventSets to result channel", func(t *testing.T) {
-		t.Skip("TODO: loki logs provider has changed")
-		/*
-			ctx := context.TODO()
-			startTime := time.Now()
-			endTime := startTime.AddDate(0, 0, 10)
+	t.Run("should call log provider to find logs", func(t *testing.T) {
+		ctx := context.TODO()
+		startTime := time.Now()
+		endTime := startTime.AddDate(0, 0, 10)
 
-			podTimestamp1 := startTime.AddDate(0, 0, 1)
-			podTimestamp2 := startTime.AddDate(0, 0, 2)
-			doguTimestamp1 := startTime.AddDate(0, 0, 1)
+		resultTimestamp1 := startTime.AddDate(0, 0, 1)
+		resultTimestamp2 := startTime.AddDate(0, 0, 2)
 
-			logPrvMock := NewMockLogsProvider(t)
-			logPrvMock.EXPECT().
-				FindValuesOfLabel(ctx, startTime.UnixNano(), endTime.UnixNano(), "kind").
-				Return([]string{"Pod", "Dogu"}, nil)
-			logPrvMock.EXPECT().
-				FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", "Pod").
-				Return(
-					[]LogLine{
-						{Timestamp: podTimestamp1, Value: "{\"msg\":\"pod message 1\"}"},
-						{Timestamp: podTimestamp2, Value: "{\"msg\":\"pod message 2\"}"},
-					},
-					nil,
-				)
-			logPrvMock.EXPECT().
-				FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", "Dogu").
-				Return(
-					[]LogLine{
-						{Timestamp: doguTimestamp1, Value: "{\"msg\":\"dogu message 1\"}"},
-					},
-					nil,
-				)
+		logPrvMock := NewMockLogsProvider(t)
+		logPrvMock.EXPECT().
+			FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
+			RunAndReturn(func(ctx context.Context, i int64, i2 int64, s string, results chan<- *LogLine) error {
+				results <- &LogLine{Timestamp: resultTimestamp1, Value: "{\"msg\":\"message 1\"}"}
+				results <- &LogLine{Timestamp: resultTimestamp2, Value: "{\"msg\":\"message 2\"}"}
+				return nil
+			})
 
-			eventsCol := NewEventsCollector(logPrvMock)
+		eventsCol := NewEventsCollector(logPrvMock)
 
-			res := receiveResult()
-			err := eventsCol.Collect(ctx, "aNamespace", startTime, endTime, res.channel)
+		res := receiveLogLinesResult()
+		err := eventsCol.Collect(ctx, "aNamespace", startTime, endTime, res.channel)
 
-			res.wait()
-			require.NoError(t, err)
+		res.wait()
+		require.NoError(t, err)
 
-			assert.Equal(t, 2, len(res.eventSets))
+		assert.Equal(t, 2, len(res.logLines))
 
-			// EventSet 0: Pod
-			assert.Equal(t, "aNamespace", res.eventSets[0].Namespace)
-			assert.Equal(t, "Pod", res.eventSets[0].Kind)
+		assert.Equal(t, resultTimestamp1, res.logLines[0].Timestamp)
 
-			assert.Equal(t, 2, len(res.eventSets[0].Events))
+		msg1, err := testutils.ValueOfJsonField(res.logLines[0].Value, "msg")
+		require.NoError(t, err)
+		assert.Equal(t, "message 1", msg1)
 
-			podMsg1, err := valueOfJsonField(res.eventSets[0].Events[0], "msg")
-			require.NoError(t, err)
-			assert.Equal(t, "pod message 1", podMsg1)
+		assert.Equal(t, resultTimestamp2, res.logLines[1].Timestamp)
 
-			podTimeYear1, err := valueOfJsonFieldInt(res.eventSets[0].Events[0], "time_year")
-			require.NoError(t, err)
-			assert.Equal(t, podTimestamp1.Year(), podTimeYear1)
-
-			podMsg2, err := valueOfJsonField(res.eventSets[0].Events[1], "msg")
-			require.NoError(t, err)
-			assert.Equal(t, "pod message 2", podMsg2)
-
-			podTimeYear2, err := valueOfJsonFieldInt(res.eventSets[0].Events[1], "time_year")
-			require.NoError(t, err)
-			assert.Equal(t, podTimestamp2.Year(), podTimeYear2)
-
-			// EventSet 1: Dogu
-			assert.Equal(t, "aNamespace", res.eventSets[1].Namespace)
-			assert.Equal(t, "Dogu", res.eventSets[1].Kind)
-
-			doguMsg1, err := valueOfJsonField(res.eventSets[1].Events[0], "msg")
-			require.NoError(t, err)
-			assert.Equal(t, "dogu message 1", doguMsg1)
-
-			dogTimeYear1, err := valueOfJsonFieldInt(res.eventSets[1].Events[0], "time_year")
-			require.NoError(t, err)
-			assert.Equal(t, doguTimestamp1.Year(), dogTimeYear1)
-		
-		*/
+		msg2, err := testutils.ValueOfJsonField(res.logLines[1].Value, "msg")
+		require.NoError(t, err)
+		assert.Equal(t, "message 2", msg2)
 	})
 
-	t.Run("should convert LogLine to Event and add time fields", func(t *testing.T) {
-		t.Skip("TODO: loki logs provider has changed")
+	t.Run("should issue an error if log provider returns one", func(t *testing.T) {
+		ctx := context.TODO()
+		startTime := time.Now()
+		endTime := startTime.AddDate(0, 0, 10)
 
-		aTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
-		logLine := LogLine{
-			Timestamp: aTime,
-			Value:     "{\"msg\": \"dogu message 1\"}",
-		}
+		logPrvMock := NewMockLogsProvider(t)
+		logPrvMock.EXPECT().
+			FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
+			RunAndReturn(func(ctx context.Context, i int64, i2 int64, s string, results chan<- *LogLine) error {
+				return errors.New("a log provider error")
+			})
 
-		event, err := logLineToEvent(logLine)
-		require.NoError(t, err)
+		eventsCol := NewEventsCollector(logPrvMock)
 
-		jsonMsg, err := valueOfJsonField(event, "msg")
-		require.NoError(t, err)
-		assert.Equal(t, "dogu message 1", jsonMsg)
+		res := receiveLogLinesResult()
+		err := eventsCol.Collect(ctx, "aNamespace", startTime, endTime, res.channel)
 
-		jsonTime, err := valueOfJsonField(event, "time")
-		require.NoError(t, err)
-		assert.Equal(t, "2009-11-17 20:34:58.651387237 +0000 UTC", jsonTime)
+		res.wait()
 
-		jsonTimeUnixNano, err := valueOfJsonField(event, "time_unix_nano")
-		require.NoError(t, err)
-		assert.Equal(t, strconv.FormatInt(aTime.UnixNano(), 10), jsonTimeUnixNano)
-
-		jsonTimeYear, err := valueOfJsonFieldInt(event, "time_year")
-		require.NoError(t, err)
-		assert.Equal(t, 2009, jsonTimeYear)
-
-		jsonTimeMonth, err := valueOfJsonFieldInt(event, "time_month")
-		require.NoError(t, err)
-		assert.Equal(t, 11, jsonTimeMonth)
-
-		jsonTimeDay, err := valueOfJsonFieldInt(event, "time_day")
-		require.NoError(t, err)
-		assert.Equal(t, 17, jsonTimeDay)
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "call log provider")
+		assert.NoError(t, errors.Unwrap(err)) // not expose implementation details through errors
 
 	})
-
-	t.Run("should encode event as one line", func(t *testing.T) {
-		t.Skip("TODO: loki logs provider has changed")
-
-		aTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
-		logLine := LogLine{
-			Timestamp: aTime,
-			Value:     "{\"msg\": \"dogu message 1\"}",
-		}
-
-		event, err := logLineToEvent(logLine)
-		require.NoError(t, err)
-
-		assert.NotContains(t, event, "\n")
-	})
-
-	t.Run("error handling", func(t *testing.T) {
-		t.Skip("TODO")
-	})
-
 }
 
-type result struct {
-	channel   chan *domain.EventSet
-	eventSets []*domain.EventSet
+type logLineResult struct {
+	channel   chan *LogLine
+	logLines  []*LogLine
 	waitGroup sync.WaitGroup
 }
 
-func receiveResult() *result {
-	res := &result{
-		channel:   make(chan *domain.EventSet),
-		eventSets: []*domain.EventSet{},
+func receiveLogLinesResult() *logLineResult {
+	res := &logLineResult{
+		channel:   make(chan *LogLine),
+		logLines:  []*LogLine{},
 		waitGroup: sync.WaitGroup{},
 	}
 	res.receive()
 	return res
 }
 
-func (res *result) receive() {
+func (res *logLineResult) receive() {
 	res.waitGroup.Add(1)
-	go func(resultChan <-chan *domain.EventSet) {
+	go func(resultChan <-chan *LogLine) {
 		for r := range res.channel {
-			res.eventSets = append(res.eventSets, r)
+			res.logLines = append(res.logLines, r)
 		}
 		res.waitGroup.Done()
 	}(res.channel)
 }
 
-func (res *result) wait() {
+func (res *logLineResult) wait() {
 	res.waitGroup.Wait()
-}
-
-func valueOfJsonField(jsonAsString string, field string) (string, error) {
-	jsonDecoder := json.NewDecoder(strings.NewReader(jsonAsString))
-
-	var decodedData map[string]interface{}
-	err := jsonDecoder.Decode(&decodedData)
-	if err != nil {
-		return "", err
-	}
-	value, containsField := decodedData[field]
-	if !containsField {
-		return "", nil
-	}
-	return value.(string), nil
-}
-
-func valueOfJsonFieldInt(jsonAsString string, field string) (int, error) {
-	jsonDecoder := json.NewDecoder(strings.NewReader(jsonAsString))
-	jsonDecoder.UseNumber()
-
-	var decodedData map[string]interface{}
-	err := jsonDecoder.Decode(&decodedData)
-	if err != nil {
-		return 0, err
-	}
-	value, containsField := decodedData[field]
-	if !containsField {
-		return 0, nil
-	}
-
-	valueInt64, err := value.(json.Number).Int64()
-	if err != nil {
-		return 0, err
-	}
-
-	return int(valueInt64), nil
 }

@@ -5,9 +5,3 @@ type EventSet struct {
 	Kind      string
 	Events    []string
 }
-
-type Event struct {
-	Kind    string
-	Message string
-	Reason  string
-}
