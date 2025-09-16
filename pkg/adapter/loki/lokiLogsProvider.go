@@ -1,6 +1,7 @@
 package loki
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	col "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
@@ -183,10 +185,16 @@ func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]col.LogL
 			if err != nil {
 				return []col.LogLine{}, fmt.Errorf("parse results timestamp '%s'; %w", respValue[0], err)
 			}
-			result = append(result, col.LogLine{
+
+			newLogLine, err := appendTimeFields(col.LogLine{
 				Timestamp: time.Unix(0, timestampAsInt),
 				Value:     respValue[1],
 			})
+			if err != nil {
+				return []col.LogLine{}, fmt.Errorf("append time fields to logline '%s'; %w", respValue[1], err)
+			}
+
+			result = append(result, newLogLine)
 		}
 	}
 
@@ -212,4 +220,33 @@ func minInt64(a, b int64) int64 {
 
 func daysToNanoSec(days int) int64 {
 	return time.Hour.Nanoseconds() * 24 * int64(days)
+}
+
+func appendTimeFields(logLine col.LogLine) (col.LogLine, error) {
+	jsonDecoder := json.NewDecoder(strings.NewReader(logLine.Value))
+
+	var data map[string]interface{}
+	err := jsonDecoder.Decode(&data)
+	if err != nil {
+		return col.LogLine{}, fmt.Errorf("decode logline; %w", err)
+	}
+
+	data["time"] = logLine.Timestamp.String()
+	data["time_unix_nano"] = strconv.FormatInt(logLine.Timestamp.UnixNano(), 10)
+	data["time_year"] = logLine.Timestamp.Year()
+	data["time_month"] = logLine.Timestamp.Month()
+	data["time_day"] = logLine.Timestamp.Day()
+
+	result := bytes.NewBufferString("")
+	jsonEncoder := json.NewEncoder(result)
+	err = jsonEncoder.Encode(data)
+	if err != nil {
+		return col.LogLine{}, fmt.Errorf("encode event")
+	}
+
+	newLogLine := col.LogLine{
+		Timestamp: logLine.Timestamp,
+		Value:     strings.Replace(result.String(), "\n", "", -1),
+	}
+	return newLogLine, nil
 }
