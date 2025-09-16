@@ -71,5 +71,5 @@ func logLineToEvent(logLine LogLine) (string, error) {
 }
 
 func (ec *EventsCollector) Name() string {
-	return string(domain.CollectorTypEvents)
+	return string(domain.CollectorTypeEvents)
 }

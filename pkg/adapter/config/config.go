@@ -30,10 +30,19 @@ const (
 	nodeInfoUsageMetricStepEnvVar              = "NODE_INFO_USAGE_METRIC_STEP"
 	nodeInfoHardwareMetricStepEnvVar           = "NODE_INFO_HARDWARE_METRIC_STEP"
 	metricsMaxSamplesEnvVar                    = "METRICS_MAX_SAMPLES"
+	lokiGatewayUrlEnvironmentVariable          = "LOKI_GATEWAY_URL"
+	lokiGatewayUsernameEnvironmentVariable     = "LOKI_GATEWAY_USERNAME"
+	lokiGatewayPasswordEnvironmentVariable     = "LOKI_GATEWAY_PASSWORD"
 )
 
 var log = ctrl.Log.WithName("config")
 var Stage = StageProduction
+
+type LokiGatewayConfig struct {
+	Url      string
+	Username string
+	Password string
+}
 
 // OperatorConfig contains all configurable values for the dogu operator.
 type OperatorConfig struct {
@@ -65,6 +74,8 @@ type OperatorConfig struct {
 	NodeInfoHardwareMetricStep time.Duration
 	// MetricsMaxSamples defines the maximum number of samples the metrics server can serve in a single request.
 	MetricsMaxSamples int
+	// LokiGatewayConfig contains connection configurations for loki.
+	LokiGatewayConfig LokiGatewayConfig
 }
 
 func IsStageDevelopment() bool {
@@ -159,6 +170,11 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	}
 	log.Info(fmt.Sprintf("Maximum number of metrics samples: %d", metricsMaxSamples))
 
+	lokiGateway, err := configureLokiGateway()
+	if err != nil {
+		return nil, err
+	}
+
 	return &OperatorConfig{
 		Version:                              parsedVersion,
 		Namespace:                            namespace,
@@ -175,6 +191,7 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 		NodeInfoUsageMetricStep:    nodeInfoUsageMetricStep,
 		NodeInfoHardwareMetricStep: nodeInfoHardwareMetricStep,
 		MetricsMaxSamples:          metricsMaxSamples,
+		LokiGatewayConfig:          lokiGateway,
 	}, nil
 }
 
@@ -274,4 +291,27 @@ func getEnvVar(name string) (string, error) {
 		return "", fmt.Errorf("environment variable %s must be set", name)
 	}
 	return env, nil
+}
+
+func configureLokiGateway() (LokiGatewayConfig, error) {
+	url, err := getEnvVar(lokiGatewayUrlEnvironmentVariable)
+	if err != nil {
+		return LokiGatewayConfig{}, err
+	}
+
+	username, err := getEnvVar(lokiGatewayUsernameEnvironmentVariable)
+	if err != nil {
+		return LokiGatewayConfig{}, err
+	}
+
+	password, err := getEnvVar(lokiGatewayPasswordEnvironmentVariable)
+	if err != nil {
+		return LokiGatewayConfig{}, err
+	}
+
+	return LokiGatewayConfig{
+		Url:      url,
+		Username: username,
+		Password: password,
+	}, nil
 }

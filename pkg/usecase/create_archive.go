@@ -44,7 +44,10 @@ func (cm CollectorMapping) getRequiredCollectorMapping(cr *libapi.SupportArchive
 		mapping[domain.CollectorTypeNodeInfo] = cm[domain.CollectorTypeNodeInfo]
 	}
 	if !cr.Spec.ExcludedContents.SensitiveData {
-		mapping[domain.CollectorTypSecret] = cm[domain.CollectorTypSecret]
+		mapping[domain.CollectorTypeSecret] = cm[domain.CollectorTypeSecret]
+	}
+	if !cr.Spec.ExcludedContents.Events {
+		mapping[domain.CollectorTypeEvents] = cm[domain.CollectorTypeEvents]
 	}
 
 	return mapping
@@ -164,8 +167,10 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.VolumeInfo](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypeNodeInfo:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.LabeledSample](errCtx, errGroup, col, c.collectorMapping, id)
-		case domain.CollectorTypSecret:
+		case domain.CollectorTypeSecret:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.SecretYaml](errCtx, errGroup, col, c.collectorMapping, id)
+		case domain.CollectorTypeEvents:
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.EventSet](errCtx, errGroup, col, c.collectorMapping, id)
 		default:
 			return "", errors.New("invalid collector type")
 		}
@@ -268,7 +273,7 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 		}
 
 		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
-	case domain.CollectorTypSecret:
+	case domain.CollectorTypeSecret:
 		col, repo, typeErr := getCollectorAndRepositoryForType[domain.SecretYaml](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
@@ -277,6 +282,13 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
 	case domain.CollectorTypeNodeInfo:
 		col, repo, typeErr := getCollectorAndRepositoryForType[domain.LabeledSample](next, c.collectorMapping)
+		if typeErr != nil {
+			return typeErr
+		}
+
+		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
+	case domain.CollectorTypeEvents:
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.EventSet](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}
