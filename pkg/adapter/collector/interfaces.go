@@ -48,6 +48,5 @@ type LogLine struct {
 }
 
 type LogsProvider interface {
-	FindValuesOfLabel(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, label string) ([]string, error)
-	FindLogs(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, namespace string, kind string) ([]LogLine, error)
+	FindLogs(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, namespace string, resultChan chan<- *LogLine) error
 }

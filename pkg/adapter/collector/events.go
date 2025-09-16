@@ -22,29 +22,12 @@ func NewEventsCollector(logsProvider LogsProvider) *EventsCollector {
 	}
 }
 
-func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *domain.EventSet) error {
+func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *LogLine) error {
 	defer close(resultChan)
 
-	kindValues, err := ec.logsProvider.FindValuesOfLabel(ctx, startTime.UnixNano(), endTime.UnixNano(), "kind")
+	err := ec.logsProvider.FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), namespace, resultChan)
 	if err != nil {
 		return err
-	}
-
-	for _, kind := range kindValues {
-		logLines, err2 := ec.logsProvider.FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), namespace, kind)
-		if err2 != nil {
-			return err2
-		}
-		events, err3 := logLinesToEvents(logLines)
-		if err3 != nil {
-			return err3
-		}
-		eventSet := &domain.EventSet{
-			Namespace: namespace,
-			Kind:      kind,
-			Events:    events,
-		}
-		writeSaveToChannel(ctx, eventSet, resultChan)
 	}
 
 	return nil
@@ -68,7 +51,7 @@ func logLineToEvent(logLine LogLine) (string, error) {
 	var data map[string]interface{}
 	err := jsonDecoder.Decode(&data)
 	if err != nil {
-		return "", fmt.Errorf("convert logline to event; %w", err)
+		return "", fmt.Errorf("decode logline; %w", err)
 	}
 
 	data["time"] = logLine.Timestamp.String()
@@ -81,7 +64,7 @@ func logLineToEvent(logLine LogLine) (string, error) {
 	jsonEncoder := json.NewEncoder(result)
 	err = jsonEncoder.Encode(data)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("encode event")
 	}
 
 	return strings.Replace(result.String(), "\n", "", -1), nil

@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -62,7 +63,10 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
 
-		_, err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", "aKind")
+		res := receiveLogLineResults(100 * time.Millisecond)
+		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
+
+		res.wait()
 		require.NoError(t, err)
 
 		assert.Equal(t, 2, callCount)
@@ -120,7 +124,10 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
 
-		_, err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", "aKind")
+		res := receiveLogLineResults(100 * time.Millisecond)
+		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
+
+		res.wait()
 		require.NoError(t, err)
 
 		assert.Equal(t, 3, callCount)
@@ -155,17 +162,20 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
 
-		logLines, err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "ecosystem", "Pod")
+		res := receiveLogLineResults(100 * time.Millisecond)
+		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "ecosystem", res.channel)
+
+		res.wait()
 		require.NoError(t, err)
 
-		assert.Equal(t, 6, len(logLines))
+		assert.Equal(t, 6, len(res.logLines))
 
-		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757507346000000000), "\"count\":1280"))
-		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757507084000000000), "\"count\":1259"))
-		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757506748000000000), "\"count\":1243"))
-		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757500152000000000), "\"count\":41"))
-		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757486049000000000), "\"count\":8"))
-		assert.True(t, containsLogLine(logLines, time.Unix(0, 1757484951000000000), "\"count\":4"))
+		assert.True(t, containsLogLine(res.logLines, time.Unix(0, 1757507346000000000), "\"count\":1280"))
+		assert.True(t, containsLogLine(res.logLines, time.Unix(0, 1757507084000000000), "\"count\":1259"))
+		assert.True(t, containsLogLine(res.logLines, time.Unix(0, 1757506748000000000), "\"count\":1243"))
+		assert.True(t, containsLogLine(res.logLines, time.Unix(0, 1757500152000000000), "\"count\":41"))
+		assert.True(t, containsLogLine(res.logLines, time.Unix(0, 1757486049000000000), "\"count\":8"))
+		assert.True(t, containsLogLine(res.logLines, time.Unix(0, 1757484951000000000), "\"count\":4"))
 	})
 
 	t.Run("should use basic authentification", func(t *testing.T) {
@@ -196,63 +206,14 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "aUser", "aPassword")
 
-		_, err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", "aKind")
+		res := receiveLogLineResults(100 * time.Millisecond)
+		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
+
+		res.wait()
 		require.NoError(t, err)
 
 		assert.Equal(t, "aUser", reqAuthUsername)
 		assert.Equal(t, "aPassword", reqAuthPassword)
-	})
-
-	t.Run("should remove duplicate loglines", func(t *testing.T) {
-		startTime := time.Now().UnixNano()
-		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
-
-		resultTimestamp1 := startTime + daysToNanoSec(1)
-		resultTimestamp2 := startTime + daysToNanoSec(2)
-		resultTimestamp3 := startTime + daysToNanoSec(3)
-
-		var callCount int
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			callCount += 1
-			if callCount == 1 {
-				resp, err := newQueryRangeResponse([][]string{
-					{asString(resultTimestamp1), "logline_1"},
-					{asString(resultTimestamp1), "logline_1"},
-					{asString(resultTimestamp2), "logline_2"},
-				})
-				require.NoError(t, err)
-
-				_, err = w.Write(resp)
-				require.NoError(t, err)
-			}
-			if callCount == 2 {
-				resp, err := newQueryRangeResponse([][]string{
-					{asString(resultTimestamp1), "logline_1"},
-					{asString(resultTimestamp2), "logline_2"},
-					{asString(resultTimestamp3), "logline_3"},
-				})
-				require.NoError(t, err)
-
-				_, err = w.Write(resp)
-				require.NoError(t, err)
-			}
-			if callCount == 3 {
-				_, err := w.Write(lokiFindLogsEmptyResponse)
-				require.NoError(t, err)
-			}
-		}))
-		defer server.Close()
-
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
-
-		logLines, err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", "aKind")
-		require.NoError(t, err)
-
-		assert.Equal(t, 3, len(logLines))
-
-		assert.True(t, containsLogLine(logLines, time.Unix(0, resultTimestamp1), "logline_1"))
-		assert.True(t, containsLogLine(logLines, time.Unix(0, resultTimestamp2), "logline_2"))
-		assert.True(t, containsLogLine(logLines, time.Unix(0, resultTimestamp3), "logline_3"))
 	})
 
 	t.Run("should issue an error if underlying error occurs", func(t *testing.T) {
@@ -261,7 +222,11 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		httpAPIUrl := "\n"
 
 		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, httpAPIUrl, "", "")
-		_, err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", "aKind")
+
+		res := receiveLogLineResults(100 * time.Millisecond)
+		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
+
+		res.wait()
 
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "find logs")
@@ -292,7 +257,11 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		defer server.Close()
 
 		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, server.URL, "", "")
-		_, err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", "aKind")
+
+		res := receiveLogLineResults(100 * time.Millisecond)
+		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
+
+		res.wait()
 
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "convert http response to LogLines")
@@ -313,7 +282,10 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
 
-		_, err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", "aKind")
+		res := receiveLogLineResults(100 * time.Millisecond)
+		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
+
+		res.wait()
 
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, responseMessage)
@@ -326,7 +298,7 @@ func TestBuildFindLogsHttpQuery(t *testing.T) {
 		startTime := time.Now().UnixNano()
 		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
 
-		apiUrl, err := buildFindLogsHttpQuery("http://example.com:8080", "aNamespace", "aKind", startTime, endTime)
+		apiUrl, err := buildFindLogsHttpQuery("http://example.com:8080", "aNamespace", startTime, endTime)
 		require.NoError(t, err)
 
 		parsedApiUrl, err := url.Parse(apiUrl)
@@ -337,21 +309,21 @@ func TestBuildFindLogsHttpQuery(t *testing.T) {
 		assert.Equal(t, "/loki/api/v1/query_range", parsedApiUrl.Path)
 
 		assert.Equal(t, 4, len(parsedApiUrl.Query()))
-		assert.Equal(t, "{namespace=\"aNamespace\", kind=\"aKind\"}", parsedApiUrl.Query().Get("query"))
+		assert.Equal(t, "{namespace=\"aNamespace\"}", parsedApiUrl.Query().Get("query"))
 		assert.Equal(t, fmt.Sprintf("%v", startTime), parsedApiUrl.Query().Get("start"))
 		assert.Equal(t, fmt.Sprintf("%v", endTime), parsedApiUrl.Query().Get("end"))
 		assert.Equal(t, fmt.Sprintf("%v", maxQueryResultCount), parsedApiUrl.Query().Get("limit"))
 	})
 
-	t.Run("error handling", func(t *testing.T) {
-		_, err := buildFindLogsHttpQuery("\n", "", "", 0, 0)
+	t.Run("should issue an error if service url is not a valid", func(t *testing.T) {
+		_, err := buildFindLogsHttpQuery("\n", "", 0, 0)
 
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "parse service URL")
 	})
 }
 
-func containsLogLine(logLines []collector.LogLine, timestamp time.Time, valueContains string) bool {
+func containsLogLine(logLines []*collector.LogLine, timestamp time.Time, valueContains string) bool {
 	for _, ll := range logLines {
 		if ll.Timestamp.Equal(timestamp) && strings.Contains(ll.Value, valueContains) {
 			return true
@@ -374,6 +346,12 @@ func newQueryRangeResponse(values [][]string) ([]byte, error) {
 	return json.Marshal(result)
 }
 
+type httpServerCall struct {
+	reqStartTime int64
+	reqEndTime   int64
+	reqError     error
+}
+
 func appendHttpServerCall(calls []httpServerCall, request *http.Request) ([]httpServerCall, error) {
 	reqStartTime, reqEndTime, err := parseStartAndEndTime(request)
 	if err != nil {
@@ -389,4 +367,57 @@ func appendHttpServerCall(calls []httpServerCall, request *http.Request) ([]http
 
 func asString(value int64) string {
 	return strconv.FormatInt(value, 10)
+}
+
+type logLineResult struct {
+	channel   chan *collector.LogLine
+	logLines  []*collector.LogLine
+	waitGroup sync.WaitGroup
+}
+
+func (res *logLineResult) receive(finishAfterLastChannelRead time.Duration) {
+	res.waitGroup.Add(1)
+	timer := time.NewTimer(finishAfterLastChannelRead)
+	go func(channel <-chan *collector.LogLine) {
+		defer res.waitGroup.Done()
+		for {
+			select {
+			case <-timer.C:
+				return
+			case ll, isOpen := <-res.channel:
+				if isOpen {
+					res.logLines = append(res.logLines, ll)
+					timer.Reset(finishAfterLastChannelRead)
+				} else {
+					return
+				}
+			}
+		}
+	}(res.channel)
+}
+
+func (res *logLineResult) wait() {
+	res.waitGroup.Wait()
+}
+
+func receiveLogLineResults(finishAfterLastChannelRead time.Duration) *logLineResult {
+	res := &logLineResult{
+		channel:   make(chan *collector.LogLine),
+		logLines:  []*collector.LogLine{},
+		waitGroup: sync.WaitGroup{},
+	}
+	res.receive(finishAfterLastChannelRead)
+	return res
+}
+
+func parseStartAndEndTime(r *http.Request) (int64, int64, error) {
+	start, err := strconv.ParseInt(r.URL.Query().Get("start"), 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+	end, err := strconv.ParseInt(r.URL.Query().Get("end"), 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+	return start, end, nil
 }
