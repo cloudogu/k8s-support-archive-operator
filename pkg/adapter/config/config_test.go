@@ -53,9 +53,9 @@ func TestNewOperatorConfig(t *testing.T) {
 		assert.Equal(t, time.Second*30, operatorConfig.NodeInfoUsageMetricStep)
 		assert.Equal(t, time.Minute*30, operatorConfig.NodeInfoHardwareMetricStep)
 		assert.Equal(t, 11000, operatorConfig.MetricsMaxSamples)
-		assert.Equal(t, "loki", operatorConfig.LokiGatewayConfig.Url)
-		assert.Equal(t, "lokiU", operatorConfig.LokiGatewayConfig.Username)
-		assert.Equal(t, "lokiP", operatorConfig.LokiGatewayConfig.Password)
+		assert.Equal(t, "loki", operatorConfig.LogGatewayConfig.Url)
+		assert.Equal(t, "lokiU", operatorConfig.LogGatewayConfig.Username)
+		assert.Equal(t, "lokiP", operatorConfig.LogGatewayConfig.Password)
 	})
 	t.Run("should succeed with stage set", func(t *testing.T) {
 		// given
@@ -270,36 +270,36 @@ func TestGetLogLevel(t *testing.T) {
 func Test_configureLokiGateway(t *testing.T) {
 	tests := []struct {
 		name      string
-		want      LokiGatewayConfig
+		want      LogGatewayConfig
 		wantErr   assert.ErrorAssertionFunc
 		envSetter func(t *testing.T)
 	}{
 		{
 			name: "should return error on error reading gateway url",
-			want: LokiGatewayConfig{},
+			want: LogGatewayConfig{},
 			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorContains(t, err, "environment variable LOKI_GATEWAY_URL must be set")
 			},
 		},
 		{
 			name: "should return error on error reading gateway username",
-			want: LokiGatewayConfig{},
+			want: LogGatewayConfig{},
 			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorContains(t, err, "environment variable LOKI_GATEWAY_USERNAME must be set")
 			},
 			envSetter: func(t *testing.T) {
-				t.Setenv(lokiGatewayUrlEnvironmentVariable, "loki")
+				t.Setenv(logGatewayUrlEnvironmentVariable, "loki")
 			},
 		},
 		{
 			name: "should return error on error reading gateway password",
-			want: LokiGatewayConfig{},
+			want: LogGatewayConfig{},
 			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorContains(t, err, "environment variable LOKI_GATEWAY_PASSWORD must be set")
 			},
 			envSetter: func(t *testing.T) {
-				t.Setenv(lokiGatewayUrlEnvironmentVariable, "loki")
-				t.Setenv(lokiGatewayUsernameEnvironmentVariable, "lokiU")
+				t.Setenv(logGatewayUrlEnvironmentVariable, "loki")
+				t.Setenv(logGatewayUsernameEnvironmentVariable, "lokiU")
 			},
 		},
 	}
@@ -309,11 +309,11 @@ func Test_configureLokiGateway(t *testing.T) {
 				tt.envSetter(t)
 			}
 
-			got, err := configureLokiGateway()
-			if !tt.wantErr(t, err, fmt.Sprintf("configureLokiGateway()")) {
+			got, err := configureLogGateway()
+			if !tt.wantErr(t, err, fmt.Sprintf("configureLogGateway()")) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "configureLokiGateway()")
+			assert.Equalf(t, tt.want, got, "configureLogGateway()")
 		})
 	}
 }

@@ -80,18 +80,18 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: LOKI_GATEWAY_URL
-          value: {{ .Values.controllerManager.env.lokiGateway.url | quote }}
-        - name: LOKI_GATEWAY_USERNAME
+        - name: LOG_GATEWAY_URL
+          value: {{ .Values.controllerManager.env.logGateway.url | quote }}
+        - name: LOG_GATEWAY_USERNAME
           valueFrom:
            secretKeyRef:
-             name: {{ .Values.controllerManager.env.lokiGateway.secretName | quote }}
-             key: {{ .Values.controllerManager.env.lokiGateway.usernameKey | quote }}
-        - name: LOKI_GATEWAY_PASSWORD
+             name: {{ .Values.controllerManager.env.logGateway.secretName | quote }}
+             key: {{ .Values.controllerManager.env.logGateway.usernameKey | quote }}
+        - name: LOG_GATEWAY_PASSWORD
           valueFrom:
            secretKeyRef:
-             name: {{ .Values.controllerManager.env.lokiGateway.secretName | quote }}
-             key: {{ .Values.controllerManager.env.lokiGateway.passwordKey | quote }}
+             name: {{ .Values.controllerManager.env.logGateway.secretName | quote }}
+             key: {{ .Values.controllerManager.env.logGateway.passwordKey | quote }}
         image: "{{ .Values.controllerManager.manager.image.registry }}/{{ .Values.controllerManager.manager.image.repository }}:{{ .Values.controllerManager.manager.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.controllerManager.imagePullPolicy }}
         livenessProbe:
