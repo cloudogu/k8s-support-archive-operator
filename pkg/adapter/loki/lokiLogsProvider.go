@@ -81,7 +81,7 @@ func (lp *LokiLogsProvider) FindLogs(
 		if err != nil {
 			return fmt.Errorf("convert http response to LogLines; %v", err)
 		}
-		if len(logLines) == 0 {
+		if len(logLines) == 0 && reqStartTime == reqEndTime {
 			return nil
 		}
 
@@ -89,7 +89,9 @@ func (lp *LokiLogsProvider) FindLogs(
 			resultChan <- &ll
 		}
 
-		reqEndTime = findLatestTimestamp(logLines)
+		if len(logLines) != 0 {
+			reqEndTime = findLatestTimestamp(logLines)
+		}
 	}
 }
 
@@ -185,13 +187,21 @@ func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]col.LogL
 			if err != nil {
 				return []col.LogLine{}, fmt.Errorf("parse results timestamp '%s'; %w", respValue[0], err)
 			}
+			logTimestamp := time.Unix(0, timestampAsInt)
 
-			newLogLine, err := appendTimeFields(col.LogLine{
-				Timestamp: time.Unix(0, timestampAsInt),
-				Value:     respValue[1],
-			})
+			jsonLog, err := plainLogToJsonLog(respValue[1])
 			if err != nil {
-				return []col.LogLine{}, fmt.Errorf("append time fields to logline '%s'; %w", respValue[1], err)
+				return []col.LogLine{}, fmt.Errorf("convert plain text logline to json logline; %w", err)
+			}
+
+			jsonLogWithTimeFields, err := enrichLogLineWithTimeFields(logTimestamp, jsonLog)
+			if err != nil {
+				return []col.LogLine{}, fmt.Errorf("enrich logline with time fields; %w", err)
+			}
+
+			newLogLine := col.LogLine{
+				Timestamp: logTimestamp,
+				Value:     jsonLogWithTimeFields,
 			}
 
 			result = append(result, newLogLine)
@@ -222,31 +232,49 @@ func daysToNanoSec(days int) int64 {
 	return time.Hour.Nanoseconds() * 24 * int64(days)
 }
 
-func appendTimeFields(logLine col.LogLine) (col.LogLine, error) {
-	jsonDecoder := json.NewDecoder(strings.NewReader(logLine.Value))
-
+func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (string, error) {
 	var data map[string]interface{}
+	jsonDecoder := json.NewDecoder(strings.NewReader(jsonLogLine))
 	err := jsonDecoder.Decode(&data)
 	if err != nil {
-		return col.LogLine{}, fmt.Errorf("decode logline; %w", err)
+		return "", fmt.Errorf("decode json logline; %w", err)
 	}
 
-	data["time"] = logLine.Timestamp.String()
-	data["time_unix_nano"] = strconv.FormatInt(logLine.Timestamp.UnixNano(), 10)
-	data["time_year"] = logLine.Timestamp.Year()
-	data["time_month"] = logLine.Timestamp.Month()
-	data["time_day"] = logLine.Timestamp.Day()
+	data["time"] = timestamp.String()
+	data["time_unix_nano"] = strconv.FormatInt(timestamp.UnixNano(), 10)
+	data["time_year"] = timestamp.Year()
+	data["time_month"] = timestamp.Month()
+	data["time_day"] = timestamp.Day()
 
 	result := bytes.NewBufferString("")
 	jsonEncoder := json.NewEncoder(result)
 	err = jsonEncoder.Encode(data)
 	if err != nil {
-		return col.LogLine{}, fmt.Errorf("encode event")
+		return "", fmt.Errorf("encode json logline; %w", err)
 	}
 
-	newLogLine := col.LogLine{
-		Timestamp: logLine.Timestamp,
-		Value:     strings.Replace(result.String(), "\n", "", -1),
+	return strings.Replace(result.String(), "\n", "", -1), nil
+}
+
+func plainLogToJsonLog(plainLog string) (string, error) {
+	if isJSON(plainLog) {
+		return plainLog, nil
 	}
-	return newLogLine, nil
+
+	data := make(map[string]string)
+	data["message"] = plainLog
+
+	result := bytes.NewBufferString("")
+	jsonEncoder := json.NewEncoder(result)
+	err := jsonEncoder.Encode(data)
+	if err != nil {
+		return "", fmt.Errorf("encode json with plain text as field; %w", err)
+	}
+	return result.String(), nil
+}
+
+func isJSON(s string) bool {
+	var js map[string]interface{}
+	return json.Unmarshal([]byte(s), &js) == nil
+
 }
