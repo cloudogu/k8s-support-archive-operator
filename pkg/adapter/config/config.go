@@ -30,6 +30,8 @@ const (
 	nodeInfoUsageMetricStepEnvVar              = "NODE_INFO_USAGE_METRIC_STEP"
 	nodeInfoHardwareMetricStepEnvVar           = "NODE_INFO_HARDWARE_METRIC_STEP"
 	metricsMaxSamplesEnvVar                    = "METRICS_MAX_SAMPLES"
+	logsMaxQueryResultCountEnvVar              = "LOG_MAX_QUERY_RESULT_COUNT"
+	logsMaxQueryTimeWindowEnvVar               = "LOG_MAX_QUERY_TIME_WINDOW"
 	logGatewayUrlEnvironmentVariable           = "LOG_GATEWAY_URL"
 	logGatewayUsernameEnvironmentVariable      = "LOG_GATEWAY_USERNAME"
 	logGatewayPasswordEnvironmentVariable      = "LOG_GATEWAY_PASSWORD"
@@ -74,6 +76,10 @@ type OperatorConfig struct {
 	NodeInfoHardwareMetricStep time.Duration
 	// MetricsMaxSamples defines the maximum number of samples the metrics server can serve in a single request.
 	MetricsMaxSamples int
+	// LogsMaxQueryResultCount defines the maximum number of results in a log response.
+	LogsMaxQueryResultCount int
+	// LogsMaxQueryTimeWindow defines the maximum time range for a log query.
+	LogsMaxQueryTimeWindow time.Duration
 	// LogGatewayConfig contains connection configurations for the logging backend.
 	LogGatewayConfig LogGatewayConfig
 }
@@ -170,6 +176,18 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	}
 	log.Info(fmt.Sprintf("Maximum number of metrics samples: %d", metricsMaxSamples))
 
+	logsMaxQueryResultCount, err := getIntEnvVar(logsMaxQueryResultCountEnvVar)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get max log query result count: %w", err)
+	}
+	log.Info(fmt.Sprintf("Maximum log query result count: %d", logsMaxQueryResultCount))
+
+	logsMaxQueryTimeWindow, err := getDurationEnvVar(logsMaxQueryTimeWindowEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("Maximum log query time window: %s", logsMaxQueryTimeWindow))
+
 	logGateway, err := configureLogGateway()
 	if err != nil {
 		return nil, err
@@ -191,6 +209,8 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 		NodeInfoUsageMetricStep:    nodeInfoUsageMetricStep,
 		NodeInfoHardwareMetricStep: nodeInfoHardwareMetricStep,
 		MetricsMaxSamples:          metricsMaxSamples,
+		LogsMaxQueryResultCount:    logsMaxQueryResultCount,
+		LogsMaxQueryTimeWindow:     logsMaxQueryTimeWindow,
 		LogGatewayConfig:           logGateway,
 	}, nil
 }

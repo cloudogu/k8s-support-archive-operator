@@ -21,10 +21,12 @@ const maxQueryTimeWindowInDays = 30 // Loki's max time range is 30d1h
 const maxQueryResultCount = 2000    // Loki's max entries limit per query is 5000
 
 type LokiLogsProvider struct {
-	serviceURL string
-	httpClient *http.Client
-	username   string
-	password   string
+	serviceURL                 string
+	httpClient                 *http.Client
+	username                   string
+	password                   string
+	maxQueryResultCount        int
+	maxQueryTimeWindowNanoSecs int64
 }
 
 type labelValuesResponse struct {
@@ -53,12 +55,14 @@ type queryLogsStream struct {
 	Kind      string `json:"kind"`
 }
 
-func NewLokiLogsProvider(httpClient *http.Client, httpAPIUrl string, username string, password string) *LokiLogsProvider {
+func NewLokiLogsProvider(httpClient *http.Client, httpAPIUrl, username, password string, maxQueryResultCount int, maxQueryTimeWindow time.Duration) *LokiLogsProvider {
 	return &LokiLogsProvider{
-		serviceURL: httpAPIUrl,
-		httpClient: httpClient,
-		username:   username,
-		password:   password,
+		serviceURL:                 httpAPIUrl,
+		httpClient:                 httpClient,
+		username:                   username,
+		password:                   password,
+		maxQueryResultCount:        maxQueryResultCount,
+		maxQueryTimeWindowNanoSecs: maxQueryTimeWindow.Nanoseconds(),
 	}
 }
 
@@ -71,7 +75,7 @@ func (lp *LokiLogsProvider) FindLogs(
 ) error {
 	var reqStartTime, reqEndTime = int64(0), startTimeInNanoSec
 	for {
-		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, endTimeInNanoSec, maxQueryTimeWindowInDays)
+		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, endTimeInNanoSec, lp.maxQueryTimeWindowNanoSecs)
 		httpResp, err := lp.httpFindLogs(ctx, reqStartTime, reqEndTime, namespace)
 		if err != nil {
 			return fmt.Errorf("find logs; %v", err)
@@ -171,9 +175,8 @@ func parseQueryLogsResponse(httpRespBody io.Reader) (*queryLogsResponse, error) 
 	return result, nil
 }
 
-func findLogsNextTimeWindow(startTimeInNanoSec int64, maxEndTimeInNanoSec int64, maxTimeWindowInDays int) (int64, int64) {
-	maxTimeWindowInNanoSec := daysToNanoSec(maxTimeWindowInDays)
-	timeWindowEndInNanoSec := minInt64(startTimeInNanoSec+maxTimeWindowInNanoSec, maxEndTimeInNanoSec)
+func findLogsNextTimeWindow(startTimeInNanoSec int64, maxEndTimeInNanoSec int64, maxTimeWindowNanoSecs int64) (int64, int64) {
+	timeWindowEndInNanoSec := minInt64(startTimeInNanoSec+maxTimeWindowNanoSecs, maxEndTimeInNanoSec)
 	return startTimeInNanoSec, timeWindowEndInNanoSec
 }
 

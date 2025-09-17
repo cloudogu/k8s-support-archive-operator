@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -15,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,7 +64,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, time.Hour)
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -125,7 +125,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, time.Hour)
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -163,7 +163,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, time.Hour)
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "ecosystem", res.channel)
@@ -208,7 +208,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, time.Hour)
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "ecosystem", res.channel)
@@ -226,7 +226,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 	t.Run("should append time fields to LogLine.Value", func(t *testing.T) {
 		aTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
-		logLine := collector.LogLine{
+		logLine := domain.LogLine{
 			Timestamp: aTime,
 			Value:     "{\"msg\": \"dogu message 1\"}",
 		}
@@ -262,7 +262,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 	t.Run("should encode LogLine.Value as one line", func(t *testing.T) {
 		aTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
-		baseLogLine := collector.LogLine{
+		baseLogLine := domain.LogLine{
 			Timestamp: aTime,
 			Value:     "{\"msg\": \"dogu message 1\"}",
 		}
@@ -299,7 +299,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "aUser", "aPassword")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "aUser", "aPassword", 0, time.Hour)
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -316,7 +316,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
 		httpAPIUrl := "\n"
 
-		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, httpAPIUrl, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, httpAPIUrl, "", "", 0, time.Hour)
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -351,7 +351,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, server.URL, "", "", 0, time.Hour)
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -375,7 +375,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, time.Hour)
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -418,7 +418,7 @@ func TestBuildFindLogsHttpQuery(t *testing.T) {
 	})
 }
 
-func containsLogLine(logLines []*collector.LogLine, timestamp time.Time, valueContains string) bool {
+func containsLogLine(logLines []*domain.LogLine, timestamp time.Time, valueContains string) bool {
 	for _, ll := range logLines {
 		if ll.Timestamp.Equal(timestamp) && strings.Contains(ll.Value, valueContains) {
 			return true
@@ -465,15 +465,15 @@ func asString(value int64) string {
 }
 
 type logLineResult struct {
-	channel   chan *collector.LogLine
-	logLines  []*collector.LogLine
+	channel   chan *domain.LogLine
+	logLines  []*domain.LogLine
 	waitGroup sync.WaitGroup
 }
 
 func (res *logLineResult) receive(closeChannelAfterLastRead time.Duration) {
 	res.waitGroup.Add(1)
 	timer := time.NewTimer(closeChannelAfterLastRead)
-	go func(channel <-chan *collector.LogLine) {
+	go func(channel <-chan *domain.LogLine) {
 		defer res.waitGroup.Done()
 		for {
 			select {
@@ -497,8 +497,8 @@ func (res *logLineResult) wait() {
 
 func receiveLogLineResults(closeChannelAfterLastRead time.Duration) *logLineResult {
 	res := &logLineResult{
-		channel:   make(chan *collector.LogLine),
-		logLines:  []*collector.LogLine{},
+		channel:   make(chan *domain.LogLine),
+		logLines:  []*domain.LogLine{},
 		waitGroup: sync.WaitGroup{},
 	}
 	res.receive(closeChannelAfterLastRead)

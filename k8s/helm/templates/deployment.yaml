@@ -76,6 +76,10 @@ spec:
           value: {{ .Values.controllerManager.env.nodeInfoHardwareMetricStep | default "30m" }}
         - name: METRICS_MAX_SAMPLES
           value: {{ quote .Values.controllerManager.env.metricsMaxSamples | default "11000" }}
+        - name: LOG_MAX_QUERY_RESULT_COUNT
+          value: {{ .Values.controllerManager.env.logsMaxQueryResultCount | quote }}
+        - name: LOG_MAX_QUERY_TIME_WINDOW
+          value: {{ .Values.controllerManager.env.logsMaxQueryTimeWindow | quote }}
         - name: NAMESPACE
           valueFrom:
             fieldRef:
