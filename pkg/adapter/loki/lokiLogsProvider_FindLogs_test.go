@@ -27,12 +27,17 @@ var lokiFindLogsResponse []byte
 //go:embed testdata/loki-find-logs-response-empty.json
 var lokiFindLogsEmptyResponse []byte
 
+var (
+	testMaxQueryTimeWindow  = time.Hour * 24 * 30
+	testMaxQueryResultCount = 2000
+)
+
 func TestLokiLogsProviderFindLogs(t *testing.T) {
 	closeChannelAfterLastReadDuration := 5 * time.Millisecond
 
 	t.Run("should start next call with the latest timestamp from result", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
-		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
+		endTime := startTime + testMaxQueryTimeWindow.Nanoseconds()
 
 		resultTimestamp := startTime + daysToNanoSec(1)
 		lastestResultTimestamp := startTime + daysToNanoSec(2)
@@ -64,7 +69,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, time.Hour)
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", testMaxQueryResultCount, testMaxQueryTimeWindow)
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -83,7 +88,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 	t.Run("should calling API until the response is empty", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
-		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
+		endTime := startTime + testMaxQueryTimeWindow.Nanoseconds()
 
 		resultTimestamp := startTime + daysToNanoSec(1)
 		lastestResultTimestamp := endTime
@@ -125,7 +130,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, time.Hour)
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", testMaxQueryResultCount, testMaxQueryTimeWindow)
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -163,7 +168,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, time.Hour)
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", testMaxQueryResultCount, testMaxQueryTimeWindow)
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "ecosystem", res.channel)
@@ -183,7 +188,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 	t.Run("should append time fields to http response", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
-		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
+		endTime := startTime + testMaxQueryTimeWindow.Nanoseconds()
 
 		resultTimestamp := startTime + daysToNanoSec(1)
 
@@ -208,7 +213,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, time.Hour)
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", testMaxQueryResultCount, testMaxQueryTimeWindow)
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "ecosystem", res.channel)
@@ -313,7 +318,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 	t.Run("should issue an error if underlying error occurs", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
-		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
+		endTime := startTime + testMaxQueryTimeWindow.Nanoseconds()
 		httpAPIUrl := "\n"
 
 		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, httpAPIUrl, "", "", 0, time.Hour)
@@ -365,7 +370,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 	t.Run("should issue an error if the result size exceeds the limit", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
-		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
+		endTime := startTime + testMaxQueryTimeWindow.Nanoseconds()
 
 		responseMessage := "message from response"
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -391,9 +396,9 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 func TestBuildFindLogsHttpQuery(t *testing.T) {
 	t.Run("should create url for querying logs", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
-		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
+		endTime := startTime + testMaxQueryTimeWindow.Nanoseconds()
 
-		apiUrl, err := buildFindLogsHttpQuery("http://example.com:8080", "aNamespace", startTime, endTime)
+		apiUrl, err := buildFindLogsHttpQuery("http://example.com:8080", "aNamespace", startTime, endTime, testMaxQueryResultCount)
 		require.NoError(t, err)
 
 		parsedApiUrl, err := url.Parse(apiUrl)
@@ -407,11 +412,11 @@ func TestBuildFindLogsHttpQuery(t *testing.T) {
 		assert.Equal(t, "{namespace=\"aNamespace\"}", parsedApiUrl.Query().Get("query"))
 		assert.Equal(t, fmt.Sprintf("%v", startTime), parsedApiUrl.Query().Get("start"))
 		assert.Equal(t, fmt.Sprintf("%v", endTime), parsedApiUrl.Query().Get("end"))
-		assert.Equal(t, fmt.Sprintf("%v", maxQueryResultCount), parsedApiUrl.Query().Get("limit"))
+		assert.Equal(t, fmt.Sprintf("%v", testMaxQueryResultCount), parsedApiUrl.Query().Get("limit"))
 	})
 
 	t.Run("should issue an error if service url is not a valid", func(t *testing.T) {
-		_, err := buildFindLogsHttpQuery("\n", "", 0, 0)
+		_, err := buildFindLogsHttpQuery("\n", "", 0, 0, 0)
 
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "parse service URL")

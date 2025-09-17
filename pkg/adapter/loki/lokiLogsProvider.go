@@ -17,8 +17,6 @@ import (
 )
 
 const loggerName = "LokiLogsProvider"
-const maxQueryTimeWindowInDays = 30 // Loki's max time range is 30d1h
-const maxQueryResultCount = 2000    // Loki's max entries limit per query is 5000
 
 type LokiLogsProvider struct {
 	serviceURL                 string
@@ -105,7 +103,7 @@ func (lp *LokiLogsProvider) httpFindLogs(
 ) (*queryLogsResponse, error) {
 	logger := log.FromContext(ctx).WithName(loggerName)
 
-	query, err := buildFindLogsHttpQuery(lp.serviceURL, namespace, startTimeInNanoSec, endTimeInNanoSec)
+	query, err := buildFindLogsHttpQuery(lp.serviceURL, namespace, startTimeInNanoSec, endTimeInNanoSec, lp.maxQueryResultCount)
 	if err != nil {
 		return nil, fmt.Errorf("build logs query; %w", err)
 	}
@@ -140,6 +138,7 @@ func buildFindLogsHttpQuery(
 	namespace string,
 	startTimeInNanoSec int64,
 	endTimeInNanoSec int64,
+	maxQueryResultCount int,
 ) (string, error) {
 	baseUrl, err := url.Parse(serviceURL)
 	if err != nil {
