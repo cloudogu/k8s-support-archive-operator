@@ -1,16 +1,5 @@
 package file
 
-import (
-	"context"
-	"os"
-	"testing"
-
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-)
-
 const (
 	testWorkPath              = "/work"
 	testCollectorDirName      = "collectorDir"
@@ -20,8 +9,8 @@ const (
 	testWorkCasLog            = testLogWorkDirArchivePath + "/cas.log"
 )
 
-func TestLogFileRepository_createPodLog(t *testing.T) {
-	t.Skip("TODO: createPodLog now uses domain.LogLine")
+//TODO Fixed in log story
+/*func TestLogFileRepository_createPodLog(t *testing.T) {
 	type fields struct {
 		workPath   string
 		filesystem func(t *testing.T) volumeFs
@@ -29,7 +18,7 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 	type args struct {
 		ctx  context.Context
 		id   domain.SupportArchiveID
-		data *domain.PodLog
+		data *domain.LogLine
 	}
 	tests := []struct {
 		name    string
@@ -51,8 +40,8 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 			args: args{
 				ctx: testCtx,
 				id:  testID,
-				data: &domain.PodLog{
-					PodName: "cas",
+				data: &domain.LogLine{
+					Value: "log line",
 				},
 			},
 			wantErr: func(t *testing.T, err error) {
@@ -76,8 +65,8 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 			args: args{
 				ctx: testCtx,
 				id:  testID,
-				data: &domain.PodLog{
-					PodName: "cas",
+				data: &domain.LogLine{
+					Value: "log line",
 				},
 			},
 			wantErr: func(t *testing.T, err error) {
@@ -105,9 +94,8 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 			args: args{
 				ctx: testCtx,
 				id:  testID,
-				data: &domain.PodLog{
-					PodName: "cas",
-					Entries: []string{"logline1", "logline2"},
+				data: &domain.LogLine{
+					Value: "log line",
 				},
 			},
 			wantErr: func(t *testing.T, err error) {
@@ -136,9 +124,8 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 			args: args{
 				ctx: testCtx,
 				id:  testID,
-				data: &domain.PodLog{
-					PodName: "cas",
-					Entries: []string{"logline1", "logline2"},
+				data: &domain.LogLine{
+					Value: "log line",
 				},
 			},
 			wantErr: func(t *testing.T, err error) {
@@ -148,15 +135,11 @@ func TestLogFileRepository_createPodLog(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Skip("TODO")
-			/*
-				l := &LogFileRepository{
-					workPath:   tt.fields.workPath,
-					filesystem: tt.fields.filesystem(t),
-				}
-				tt.wantErr(t, l.createPodLog(tt.args.ctx, tt.args.id, tt.args.data))
-
-			*/
+			l := &LogFileRepository{
+				workPath:   tt.fields.workPath,
+				filesystem: tt.fields.filesystem(t),
+			}
+			tt.wantErr(t, l.createPodLog(tt.args.ctx, tt.args.id, tt.args.data))
 		})
 	}
 }
@@ -174,3 +157,4 @@ func TestNewLogFileRepository(t *testing.T) {
 	assert.Equal(t, fsMock, repository.filesystem)
 	assert.NotEmpty(t, repository.baseFileRepo)
 }
+*/

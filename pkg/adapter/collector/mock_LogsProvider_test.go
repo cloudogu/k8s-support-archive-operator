@@ -5,6 +5,7 @@ package collector
 import (
 	context "context"
 
+	domain "github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -22,7 +23,7 @@ func (_m *MockLogsProvider) EXPECT() *MockLogsProvider_Expecter {
 }
 
 // FindLogs provides a mock function with given fields: ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan
-func (_m *MockLogsProvider) FindLogs(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, resultChan chan<- *LogLine) error {
+func (_m *MockLogsProvider) FindLogs(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, resultChan chan<- *domain.LogLine) error {
 	ret := _m.Called(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan)
 
 	if len(ret) == 0 {
@@ -30,7 +31,7 @@ func (_m *MockLogsProvider) FindLogs(ctx context.Context, startTimeInNanoSec int
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, string, chan<- *LogLine) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, string, chan<- *domain.LogLine) error); ok {
 		r0 = rf(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan)
 	} else {
 		r0 = ret.Error(0)
@@ -49,14 +50,14 @@ type MockLogsProvider_FindLogs_Call struct {
 //   - startTimeInNanoSec int64
 //   - endTimeInNanoSec int64
 //   - namespace string
-//   - resultChan chan<- *LogLine
+//   - resultChan chan<- *domain.LogLine
 func (_e *MockLogsProvider_Expecter) FindLogs(ctx interface{}, startTimeInNanoSec interface{}, endTimeInNanoSec interface{}, namespace interface{}, resultChan interface{}) *MockLogsProvider_FindLogs_Call {
 	return &MockLogsProvider_FindLogs_Call{Call: _e.mock.On("FindLogs", ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan)}
 }
 
-func (_c *MockLogsProvider_FindLogs_Call) Run(run func(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, resultChan chan<- *LogLine)) *MockLogsProvider_FindLogs_Call {
+func (_c *MockLogsProvider_FindLogs_Call) Run(run func(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, resultChan chan<- *domain.LogLine)) *MockLogsProvider_FindLogs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(int64), args[2].(int64), args[3].(string), args[4].(chan<- *LogLine))
+		run(args[0].(context.Context), args[1].(int64), args[2].(int64), args[3].(string), args[4].(chan<- *domain.LogLine))
 	})
 	return _c
 }
@@ -66,7 +67,7 @@ func (_c *MockLogsProvider_FindLogs_Call) Return(_a0 error) *MockLogsProvider_Fi
 	return _c
 }
 
-func (_c *MockLogsProvider_FindLogs_Call) RunAndReturn(run func(context.Context, int64, int64, string, chan<- *LogLine) error) *MockLogsProvider_FindLogs_Call {
+func (_c *MockLogsProvider_FindLogs_Call) RunAndReturn(run func(context.Context, int64, int64, string, chan<- *domain.LogLine) error) *MockLogsProvider_FindLogs_Call {
 	_c.Call.Return(run)
 	return _c
 }
