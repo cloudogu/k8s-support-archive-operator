@@ -42,11 +42,6 @@ type secretInterface interface {
 	corev1.SecretInterface
 }
 
-type LogLine struct {
-	Timestamp time.Time
-	Value     string
-}
-
 type LogsProvider interface {
-	FindLogs(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, namespace string, resultChan chan<- *LogLine) error
+	FindLogs(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, namespace string, resultChan chan<- *domain.LogLine) error
 }

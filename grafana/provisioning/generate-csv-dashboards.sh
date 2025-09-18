@@ -2,38 +2,10 @@
 set -euo pipefail
 
 GEN_DIR="/var/lib/grafana/dashboards/generated"
-ARCHIVES_DIR="/var/lib/grafana/archives"
+ARCHIVE_DIR="/var/lib/grafana/archives"
+CSV_COLLECTOR_DIRS="/var/lib/grafana/archives/NodeInfo"
 
 mkdir -p "${GEN_DIR}"
-
-# Create one dashboard per subfolder under ARCHIVES_DIR, containing
-# one panel per CSV metric file in that subfolder. CSVs directly in ARCHIVES_DIR
-# are grouped into a single "root" dashboard.
-
-shopt -s nullglob globstar
-
-# Collect CSV files
-csv_files=("${ARCHIVES_DIR}"/**/*.csv "${ARCHIVES_DIR}"/*.csv)
-
-if [ ${#csv_files[@]} -eq 0 ]; then
-  echo "[generate-dashboards] No CSV files found under ${ARCHIVES_DIR}."
-  exit 0
-fi
-
-# Build a list of unique folders relative to ARCHIVES_DIR
-folders=()
-declare -A seen
-for csv in "${csv_files[@]}"; do
-  rel_path="${csv#${ARCHIVES_DIR}/}"
-  dir_name="$(dirname "${rel_path}")"
-  if [ "${dir_name}" = "." ]; then
-    dir_name=""  # root
-  fi
-  if [ -z "${seen["$dir_name"]+x}" ]; then
-    folders+=("$dir_name")
-    seen["$dir_name"]=1
-  fi
-done
 
 # Helper to sanitize strings for UID/file names
 sanitize() {
@@ -41,7 +13,7 @@ sanitize() {
 }
 
 # Generate one dashboard per folder
-for folder in "${folders[@]}"; do
+for folder in ${CSV_COLLECTOR_DIRS}; do
   panels=""
   panel_index=0
 
@@ -50,17 +22,14 @@ for folder in "${folders[@]}"; do
   if [ -z "$folder_label" ]; then
     folder_label="root"
   fi
-  dash_uid="csv_group_$(echo -n "$folder_label" | sanitize)"
+  dash_uid="csv_group_$(basename "$folder_label" | sanitize)"
   dashboard_json="${GEN_DIR}/${dash_uid}.json"
 
   # Build panels for this folder
-  for csv in "${csv_files[@]}"; do
-    rel_path="${csv#${ARCHIVES_DIR}/}"
+  for csv in "$folder"/*.csv; do
+    rel_path="${csv#${ARCHIVE_DIR}/}"
     dir_name="$(dirname "${rel_path}")"
     if [ "${dir_name}" = "." ]; then dir_name=""; fi
-    if [ "$dir_name" != "$folder" ]; then
-      continue
-    fi
 
     name_no_ext="$(basename "${rel_path}")"
     name_no_ext="${name_no_ext%.csv}"
@@ -141,7 +110,7 @@ PANEL
 {
   "id": null,
   "uid": "${dash_uid}",
-  "title": "CSV: ${folder_label}",
+  "title": "CSV: $(basename "$folder_label" | sanitize)",
   "timezone": "browser",
   "tags": ["csv", "infinity"],
   "schemaVersion": 38,

@@ -30,15 +30,17 @@ const (
 	nodeInfoUsageMetricStepEnvVar              = "NODE_INFO_USAGE_METRIC_STEP"
 	nodeInfoHardwareMetricStepEnvVar           = "NODE_INFO_HARDWARE_METRIC_STEP"
 	metricsMaxSamplesEnvVar                    = "METRICS_MAX_SAMPLES"
-	lokiGatewayUrlEnvironmentVariable          = "LOKI_GATEWAY_URL"
-	lokiGatewayUsernameEnvironmentVariable     = "LOKI_GATEWAY_USERNAME"
-	lokiGatewayPasswordEnvironmentVariable     = "LOKI_GATEWAY_PASSWORD"
+	logsMaxQueryResultCountEnvVar              = "LOG_MAX_QUERY_RESULT_COUNT"
+	logsMaxQueryTimeWindowEnvVar               = "LOG_MAX_QUERY_TIME_WINDOW"
+	logGatewayUrlEnvironmentVariable           = "LOG_GATEWAY_URL"
+	logGatewayUsernameEnvironmentVariable      = "LOG_GATEWAY_USERNAME"
+	logGatewayPasswordEnvironmentVariable      = "LOG_GATEWAY_PASSWORD"
 )
 
 var log = ctrl.Log.WithName("config")
 var Stage = StageProduction
 
-type LokiGatewayConfig struct {
+type LogGatewayConfig struct {
 	Url      string
 	Username string
 	Password string
@@ -74,8 +76,12 @@ type OperatorConfig struct {
 	NodeInfoHardwareMetricStep time.Duration
 	// MetricsMaxSamples defines the maximum number of samples the metrics server can serve in a single request.
 	MetricsMaxSamples int
-	// LokiGatewayConfig contains connection configurations for loki.
-	LokiGatewayConfig LokiGatewayConfig
+	// LogsMaxQueryResultCount defines the maximum number of results in a log response.
+	LogsMaxQueryResultCount int
+	// LogsMaxQueryTimeWindow defines the maximum time range for a log query.
+	LogsMaxQueryTimeWindow time.Duration
+	// LogGatewayConfig contains connection configurations for the logging backend.
+	LogGatewayConfig LogGatewayConfig
 }
 
 func IsStageDevelopment() bool {
@@ -170,7 +176,19 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	}
 	log.Info(fmt.Sprintf("Maximum number of metrics samples: %d", metricsMaxSamples))
 
-	lokiGateway, err := configureLokiGateway()
+	logsMaxQueryResultCount, err := getIntEnvVar(logsMaxQueryResultCountEnvVar)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get max log query result count: %w", err)
+	}
+	log.Info(fmt.Sprintf("Maximum log query result count: %d", logsMaxQueryResultCount))
+
+	logsMaxQueryTimeWindow, err := getDurationEnvVar(logsMaxQueryTimeWindowEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("Maximum log query time window: %s", logsMaxQueryTimeWindow))
+
+	logGateway, err := configureLogGateway()
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +209,9 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 		NodeInfoUsageMetricStep:    nodeInfoUsageMetricStep,
 		NodeInfoHardwareMetricStep: nodeInfoHardwareMetricStep,
 		MetricsMaxSamples:          metricsMaxSamples,
-		LokiGatewayConfig:          lokiGateway,
+		LogsMaxQueryResultCount:    logsMaxQueryResultCount,
+		LogsMaxQueryTimeWindow:     logsMaxQueryTimeWindow,
+		LogGatewayConfig:           logGateway,
 	}, nil
 }
 
@@ -293,23 +313,23 @@ func getEnvVar(name string) (string, error) {
 	return env, nil
 }
 
-func configureLokiGateway() (LokiGatewayConfig, error) {
-	url, err := getEnvVar(lokiGatewayUrlEnvironmentVariable)
+func configureLogGateway() (LogGatewayConfig, error) {
+	url, err := getEnvVar(logGatewayUrlEnvironmentVariable)
 	if err != nil {
-		return LokiGatewayConfig{}, err
+		return LogGatewayConfig{}, err
 	}
 
-	username, err := getEnvVar(lokiGatewayUsernameEnvironmentVariable)
+	username, err := getEnvVar(logGatewayUsernameEnvironmentVariable)
 	if err != nil {
-		return LokiGatewayConfig{}, err
+		return LogGatewayConfig{}, err
 	}
 
-	password, err := getEnvVar(lokiGatewayPasswordEnvironmentVariable)
+	password, err := getEnvVar(logGatewayPasswordEnvironmentVariable)
 	if err != nil {
-		return LokiGatewayConfig{}, err
+		return LogGatewayConfig{}, err
 	}
 
-	return LokiGatewayConfig{
+	return LogGatewayConfig{
 		Url:      url,
 		Username: username,
 		Password: password,

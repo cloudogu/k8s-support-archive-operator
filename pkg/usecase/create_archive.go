@@ -162,7 +162,7 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 		logger.Info("collecting stream for collector", "collector", col)
 		switch col {
 		case domain.CollectorTypeLog:
-			stream, err = fetchRepoAndStreamWithErrorGroup[domain.PodLog](errCtx, errGroup, col, c.collectorMapping, id)
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.LogLine](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypeVolumeInfo:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.VolumeInfo](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypeNodeInfo:
@@ -170,7 +170,7 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 		case domain.CollectorTypeSecret:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.SecretYaml](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypeEvents:
-			stream, err = fetchRepoAndStreamWithErrorGroup[domain.EventSet](errCtx, errGroup, col, c.collectorMapping, id)
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.LogLine](errCtx, errGroup, col, c.collectorMapping, id)
 		default:
 			return "", errors.New("invalid collector type")
 		}
@@ -260,7 +260,7 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 	var err error
 	switch next {
 	case domain.CollectorTypeLog:
-		col, repo, typeErr := getCollectorAndRepositoryForType[domain.PodLog](next, c.collectorMapping)
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.LogLine](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}
@@ -288,7 +288,7 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 
 		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
 	case domain.CollectorTypeEvents:
-		col, repo, typeErr := getCollectorAndRepositoryForType[domain.EventSet](next, c.collectorMapping)
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.LogLine](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}

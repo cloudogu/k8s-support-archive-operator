@@ -8,3 +8,8 @@ type PodLog struct {
 	EndTime   time.Time
 	Entries   []string
 }
+
+type LogLine struct {
+	Timestamp time.Time
+	Value     string
+}

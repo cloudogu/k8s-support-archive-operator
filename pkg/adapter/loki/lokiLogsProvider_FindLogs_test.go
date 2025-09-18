@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,6 +26,8 @@ var lokiFindLogsResponse []byte
 
 //go:embed testdata/loki-find-logs-response-empty.json
 var lokiFindLogsEmptyResponse []byte
+
+var maxQueryTimeWindowInDays = 30
 
 func TestLokiLogsProviderFindLogs(t *testing.T) {
 	closeChannelAfterLastReadDuration := 5 * time.Millisecond
@@ -65,10 +67,11 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 				_, err := w.Write(lokiFindLogsEmptyResponse)
 				require.NoError(t, err)
 			}
+
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -132,7 +135,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -174,7 +177,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "ecosystem", res.channel)
@@ -222,7 +225,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -274,7 +277,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "ecosystem", res.channel)
@@ -363,7 +366,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "aUser", "aPassword")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "aUser", "aPassword", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -380,7 +383,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
 		httpAPIUrl := "\n"
 
-		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, httpAPIUrl, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, httpAPIUrl, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -415,7 +418,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -439,7 +442,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -482,7 +485,7 @@ func TestBuildFindLogsHttpQuery(t *testing.T) {
 	})
 }
 
-func containsLogLine(logLines []*collector.LogLine, timestamp time.Time, valueContains string) bool {
+func containsLogLine(logLines []*domain.LogLine, timestamp time.Time, valueContains string) bool {
 	for _, ll := range logLines {
 		if ll.Timestamp.Equal(timestamp) && strings.Contains(ll.Value, valueContains) {
 			return true
@@ -529,15 +532,15 @@ func asString(value int64) string {
 }
 
 type logLineResult struct {
-	channel   chan *collector.LogLine
-	logLines  []*collector.LogLine
+	channel   chan *domain.LogLine
+	logLines  []*domain.LogLine
 	waitGroup sync.WaitGroup
 }
 
 func (res *logLineResult) receive(closeChannelAfterLastRead time.Duration) {
 	res.waitGroup.Add(1)
 	timer := time.NewTimer(closeChannelAfterLastRead)
-	go func(channel <-chan *collector.LogLine) {
+	go func(channel <-chan *domain.LogLine) {
 		defer res.waitGroup.Done()
 		for {
 			select {
@@ -561,8 +564,8 @@ func (res *logLineResult) wait() {
 
 func receiveLogLineResults(closeChannelAfterLastRead time.Duration) *logLineResult {
 	res := &logLineResult{
-		channel:   make(chan *collector.LogLine),
-		logLines:  []*collector.LogLine{},
+		channel:   make(chan *domain.LogLine),
+		logLines:  []*domain.LogLine{},
 		waitGroup: sync.WaitGroup{},
 	}
 	res.receive(closeChannelAfterLastRead)
@@ -579,4 +582,8 @@ func parseStartAndEndTime(r *http.Request) (int64, int64, error) {
 		return 0, 0, err
 	}
 	return start, end, nil
+}
+
+func daysToDuration(days int) time.Duration {
+	return time.Duration(time.Hour.Nanoseconds() * int64(24) * int64(days))
 }

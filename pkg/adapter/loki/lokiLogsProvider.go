@@ -12,19 +12,23 @@ import (
 	"strings"
 	"time"
 
-	col "github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const loggerName = "LokiLogsProvider"
-const maxQueryTimeWindowInDays = 30 // Loki's max time range is 30d1h
-const maxQueryResultCount = 2000    // Loki's max entries limit per query is 5000
+
+// const maxQueryTimeWindowInDays = 30 // Loki's max time range is 30d1h
+const maxQueryResultCount = 2000 // Loki's max entries limit per query is 5000
 
 type LokiLogsProvider struct {
-	serviceURL string
-	httpClient *http.Client
-	username   string
-	password   string
+	serviceURL                 string
+	httpClient                 *http.Client
+	username                   string
+	password                   string
+	maxQueryResultCount        int
+	maxQueryTimeWindowNanoSecs int64
 }
 
 type labelValuesResponse struct {
@@ -53,12 +57,14 @@ type queryLogsStream struct {
 	Kind      string `json:"kind"`
 }
 
-func NewLokiLogsProvider(httpClient *http.Client, httpAPIUrl string, username string, password string) *LokiLogsProvider {
+func NewLokiLogsProvider(httpClient *http.Client, httpAPIUrl, username, password string, maxQueryResultCount int, maxQueryTimeWindow time.Duration) *LokiLogsProvider {
 	return &LokiLogsProvider{
-		serviceURL: httpAPIUrl,
-		httpClient: httpClient,
-		username:   username,
-		password:   password,
+		serviceURL:                 httpAPIUrl,
+		httpClient:                 httpClient,
+		username:                   username,
+		password:                   password,
+		maxQueryResultCount:        maxQueryResultCount,
+		maxQueryTimeWindowNanoSecs: maxQueryTimeWindow.Nanoseconds(),
 	}
 }
 
@@ -67,11 +73,11 @@ func (lp *LokiLogsProvider) FindLogs(
 	startTimeInNanoSec int64,
 	endTimeInNanoSec int64,
 	namespace string,
-	resultChan chan<- *col.LogLine,
+	resultChan chan<- *domain.LogLine,
 ) error {
 	var reqStartTime, reqEndTime = int64(0), startTimeInNanoSec
 	for {
-		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, endTimeInNanoSec, maxQueryTimeWindowInDays)
+		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, endTimeInNanoSec, lp.maxQueryTimeWindowNanoSecs)
 		httpResp, err := lp.httpFindLogs(ctx, reqStartTime, reqEndTime, namespace)
 		if err != nil {
 			return fmt.Errorf("find logs; %v", err)
@@ -173,33 +179,32 @@ func parseQueryLogsResponse(httpRespBody io.Reader) (*queryLogsResponse, error) 
 	return result, nil
 }
 
-func findLogsNextTimeWindow(startTimeInNanoSec int64, maxEndTimeInNanoSec int64, maxTimeWindowInDays int) (int64, int64) {
-	maxTimeWindowInNanoSec := daysToNanoSec(maxTimeWindowInDays)
-	timeWindowEndInNanoSec := minInt64(startTimeInNanoSec+maxTimeWindowInNanoSec, maxEndTimeInNanoSec)
+func findLogsNextTimeWindow(startTimeInNanoSec int64, maxEndTimeInNanoSec int64, maxTimeWindowNanoSecs int64) (int64, int64) {
+	timeWindowEndInNanoSec := minInt64(startTimeInNanoSec+maxTimeWindowNanoSecs, maxEndTimeInNanoSec)
 	return startTimeInNanoSec, timeWindowEndInNanoSec
 }
 
-func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]col.LogLine, error) {
-	var result []col.LogLine
+func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]domain.LogLine, error) {
+	var result []domain.LogLine
 	for _, respResult := range httpResp.Data.Result {
 		for _, respValue := range respResult.Values {
 			timestampAsInt, err := strconv.ParseInt(respValue[0], 10, 64)
 			if err != nil {
-				return []col.LogLine{}, fmt.Errorf("parse results timestamp '%s'; %w", respValue[0], err)
+				return []domain.LogLine{}, fmt.Errorf("parse results timestamp '%s'; %w", respValue[0], err)
 			}
 			logTimestamp := time.Unix(0, timestampAsInt)
 
 			jsonLog, err := plainLogToJsonLog(respValue[1])
 			if err != nil {
-				return []col.LogLine{}, fmt.Errorf("convert plain text logline to json logline; %w", err)
+				return []domain.LogLine{}, fmt.Errorf("convert plain text logline to json logline; %w", err)
 			}
 
 			jsonLogWithTimeFields, err := enrichLogLineWithTimeFields(logTimestamp, jsonLog)
 			if err != nil {
-				return []col.LogLine{}, fmt.Errorf("enrich logline with time fields; %w", err)
+				return []domain.LogLine{}, fmt.Errorf("enrich logline with time fields; %w", err)
 			}
 
-			newLogLine := col.LogLine{
+			newLogLine := domain.LogLine{
 				Timestamp: logTimestamp,
 				Value:     jsonLogWithTimeFields,
 			}
@@ -211,7 +216,7 @@ func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]col.LogL
 	return result, nil
 }
 
-func findLatestTimestamp(loglines []col.LogLine) int64 {
+func findLatestTimestamp(loglines []domain.LogLine) int64 {
 	var latest int64
 	for _, ll := range loglines {
 		if ll.Timestamp.UnixNano() > latest {
