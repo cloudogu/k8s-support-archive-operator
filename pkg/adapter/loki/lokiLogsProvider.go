@@ -76,6 +76,7 @@ func (lp *LokiLogsProvider) FindLogs(
 	resultChan chan<- *domain.LogLine,
 ) error {
 	var reqStartTime, reqEndTime = int64(0), startTimeInNanoSec
+	var lastTimeWindowCalled bool
 	for {
 		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, endTimeInNanoSec, lp.maxQueryTimeWindowNanoSecs)
 		httpResp, err := lp.httpFindLogs(ctx, reqStartTime, reqEndTime, namespace)
@@ -87,9 +88,12 @@ func (lp *LokiLogsProvider) FindLogs(
 		if err != nil {
 			return fmt.Errorf("convert http response to LogLines; %v", err)
 		}
-		if len(logLines) == 0 && reqStartTime == reqEndTime {
+
+		if lastTimeWindowCalled {
 			return nil
 		}
+
+		lastTimeWindowCalled = reqStartTime == reqEndTime
 
 		for _, ll := range logLines {
 			resultChan <- &ll

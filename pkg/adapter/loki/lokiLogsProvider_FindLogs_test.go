@@ -68,6 +68,11 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 				require.NoError(t, err)
 			}
 
+			if callCount == 4 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
+
 		}))
 		defer server.Close()
 
@@ -79,7 +84,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		res.wait()
 		require.NoError(t, err)
 
-		assert.Equal(t, 3, callCount)
+		assert.Equal(t, 4, callCount)
 
 		assert.Equal(t, startTime, httpServerCalls[0].reqStartTime)
 		assert.Equal(t, endTime, httpServerCalls[0].reqEndTime)
@@ -91,7 +96,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		assert.Equal(t, endTime, httpServerCalls[2].reqEndTime)
 	})
 
-	t.Run("should call API until response is empty and the last time window's start and end time are equal", func(t *testing.T) {
+	t.Run("should call API until the second call with request parameter start == end", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
 		endTime := startTime + daysToNanoSec(3*maxQueryTimeWindowInDays)
 
@@ -128,10 +133,28 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 				require.NoError(t, err)
 			}
 
+			// first call with request parameter start == end
 			if callCount == 4 {
-				_, err := w.Write(lokiFindLogsEmptyResponse)
+				resp, err := newQueryRangeResponse([][]string{
+					{asString(startTime + daysToNanoSec(3*maxQueryTimeWindowInDays)), "{\"msg\":\"msg4\"}"},
+				})
+				require.NoError(t, err)
+
+				_, err = w.Write(resp)
 				require.NoError(t, err)
 			}
+
+			// second call with request parameter start == end
+			if callCount == 5 {
+				resp, err := newQueryRangeResponse([][]string{
+					{asString(startTime + daysToNanoSec(3*maxQueryTimeWindowInDays)), "{\"msg\":\"msg4\"}"},
+				})
+				require.NoError(t, err)
+
+				_, err = w.Write(resp)
+				require.NoError(t, err)
+			}
+
 		}))
 		defer server.Close()
 
@@ -143,7 +166,8 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		res.wait()
 		require.NoError(t, err)
 
-		assert.Equal(t, 4, callCount)
+		assert.Equal(t, 3, len(res.logLines))
+		assert.Equal(t, 5, callCount)
 
 		assert.Equal(t, startTime, httpServerCalls[0].reqStartTime)
 		assert.Equal(t, startTime+daysToNanoSec(maxQueryTimeWindowInDays), httpServerCalls[0].reqEndTime)
@@ -156,6 +180,9 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		assert.Equal(t, endTime, httpServerCalls[3].reqStartTime)
 		assert.Equal(t, endTime, httpServerCalls[3].reqEndTime)
+
+		assert.Equal(t, endTime, httpServerCalls[4].reqStartTime)
+		assert.Equal(t, endTime, httpServerCalls[4].reqEndTime)
 
 	})
 
@@ -171,6 +198,10 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 				require.NoError(t, err)
 			}
 			if callCount == 2 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
+			if callCount == 3 {
 				_, err := w.Write(lokiFindLogsEmptyResponse)
 				require.NoError(t, err)
 			}
@@ -222,6 +253,11 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 				require.NoError(t, err)
 			}
 
+			if callCount == 3 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
+
 		}))
 		defer server.Close()
 
@@ -233,7 +269,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		res.wait()
 		require.NoError(t, err)
 
-		require.Equal(t, 2, callCount)
+		require.Equal(t, 3, callCount)
 		require.Equal(t, startTime, httpServerCalls[0].reqStartTime)
 		require.Equal(t, endTime, httpServerCalls[0].reqEndTime)
 
@@ -271,6 +307,11 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 			}
 
 			if callCount == 3 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
+
+			if callCount == 4 {
 				_, err := w.Write(lokiFindLogsEmptyResponse)
 				require.NoError(t, err)
 			}
@@ -359,6 +400,11 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 			}
 
 			if callCount == 3 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
+
+			if callCount == 4 {
 				_, err := w.Write(lokiFindLogsEmptyResponse)
 				require.NoError(t, err)
 			}
