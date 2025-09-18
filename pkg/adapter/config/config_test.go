@@ -29,6 +29,7 @@ func setTestEnvVars(t *testing.T) {
 	t.Setenv("LOG_GATEWAY_PASSWORD", "lokiP")
 	t.Setenv("LOG_MAX_QUERY_RESULT_COUNT", "2000")
 	t.Setenv("LOG_MAX_QUERY_TIME_WINDOW", "24h")
+	t.Setenv("LOG_EVENT_SOURCE_NAME", "loki.kubernetes_events")
 }
 
 func TestNewOperatorConfig(t *testing.T) {
@@ -60,6 +61,7 @@ func TestNewOperatorConfig(t *testing.T) {
 		assert.Equal(t, "lokiP", operatorConfig.LogGatewayConfig.Password)
 		assert.Equal(t, 2000, operatorConfig.LogsMaxQueryResultCount)
 		assert.Equal(t, time.Hour*24, operatorConfig.LogsMaxQueryTimeWindow)
+		assert.Equal(t, "loki.kubernetes_events", operatorConfig.LogsEventSourceName)
 	})
 	t.Run("should succeed with stage set", func(t *testing.T) {
 		// given

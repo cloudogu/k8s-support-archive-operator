@@ -499,11 +499,6 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 	})
 }
 
-func TestTime(t *testing.T) {
-	unix := time.Unix(0, 1758193918588750320)
-	assert.Equal(t, "", unix.String())
-}
-
 /*func TestBuildFindLogsHttpQuery(t *testing.T) {
 	t.Run("should create url for querying logs", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
