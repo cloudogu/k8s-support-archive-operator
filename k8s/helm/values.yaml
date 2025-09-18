@@ -37,7 +37,7 @@ controllerManager:
     nodeInfoHardwareMetricStep: 30m
     metricsMaxSamples: 11000
     logsMaxQueryResultCount: 2000 # max is 5000
-    logsMaxQueryTimeWindow: 30d # max is 30d
+    logsMaxQueryTimeWindow: 720h # max is 720h
     logGateway:
       url: "http://k8s-loki-gateway.ecosystem.svc.cluster.local"
       secretName: "k8s-loki-gateway-secret"
