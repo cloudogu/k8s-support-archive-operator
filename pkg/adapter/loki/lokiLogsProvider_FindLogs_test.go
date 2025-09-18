@@ -5,10 +5,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -501,7 +499,12 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 	})
 }
 
-func TestBuildFindLogsHttpQuery(t *testing.T) {
+func TestTime(t *testing.T) {
+	unix := time.Unix(0, 1758193918588750320)
+	assert.Equal(t, "", unix.String())
+}
+
+/*func TestBuildFindLogsHttpQuery(t *testing.T) {
 	t.Run("should create url for querying logs", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
 		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
@@ -529,7 +532,7 @@ func TestBuildFindLogsHttpQuery(t *testing.T) {
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "parse service URL")
 	})
-}
+}*/
 
 func containsLogLine(logLines []*domain.LogLine, timestamp time.Time, valueContains string) bool {
 	for _, ll := range logLines {

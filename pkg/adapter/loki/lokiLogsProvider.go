@@ -76,31 +76,49 @@ func (lp *LokiLogsProvider) FindLogs(
 	resultChan chan<- *domain.LogLine,
 ) error {
 	var reqStartTime, reqEndTime = int64(0), startTimeInNanoSec
-	var lastTimeWindowCalled bool
 	for {
 		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, endTimeInNanoSec, lp.maxQueryTimeWindowNanoSecs)
+
+		println("Start: ", time.Unix(0, reqStartTime).String())
+		println("End: ", time.Unix(0, reqEndTime).String())
+
 		httpResp, err := lp.httpFindLogs(ctx, reqStartTime, reqEndTime, namespace)
 		if err != nil {
 			return fmt.Errorf("find logs; %v", err)
 		}
+
+		println("---------------")
+		marshal, err := json.Marshal(httpResp)
+		println(string(marshal))
+		println("---------------")
 
 		logLines, err := convertQueryLogsResponseToLogLines(httpResp)
 		if err != nil {
 			return fmt.Errorf("convert http response to LogLines; %v", err)
 		}
 
-		if lastTimeWindowCalled {
-			return nil
-		}
-
-		lastTimeWindowCalled = reqStartTime == reqEndTime
-
+		println("Anzahl logs: ", len(logLines))
 		for _, ll := range logLines {
 			resultChan <- &ll
 		}
 
-		if len(logLines) != 0 {
-			reqEndTime = findLatestTimestamp(logLines)
+		if reqEndTime == endTimeInNanoSec {
+			println("reached last window")
+			return nil
+		}
+
+		if len(logLines) == 0 || len(logLines) != lp.maxQueryResultCount {
+			println("add window")
+			reqEndTime += lp.maxQueryTimeWindowNanoSecs
+			continue
+		}
+
+		reqEndTime = findLatestTimestamp(logLines)
+		// if we reach the limit and the last timestamp is this starting timestamp, possible other logs can't be queried
+		// we use a high limit to avoid that.
+		println("found last timestamp: ", time.Unix(0, reqEndTime).String())
+		if reqEndTime == reqStartTime {
+			reqEndTime += 1
 		}
 	}
 }
@@ -113,7 +131,7 @@ func (lp *LokiLogsProvider) httpFindLogs(
 ) (*queryLogsResponse, error) {
 	logger := log.FromContext(ctx).WithName(loggerName)
 
-	query, err := buildFindLogsHttpQuery(lp.serviceURL, namespace, startTimeInNanoSec, endTimeInNanoSec)
+	query, err := buildFindLogsHttpQuery(lp.serviceURL, namespace, startTimeInNanoSec, endTimeInNanoSec, lp.maxQueryResultCount)
 	if err != nil {
 		return nil, fmt.Errorf("build logs query; %w", err)
 	}
@@ -148,6 +166,7 @@ func buildFindLogsHttpQuery(
 	namespace string,
 	startTimeInNanoSec int64,
 	endTimeInNanoSec int64,
+	maxQueryResultCount int,
 ) (string, error) {
 	baseUrl, err := url.Parse(serviceURL)
 	if err != nil {
@@ -180,6 +199,7 @@ func parseQueryLogsResponse(httpRespBody io.Reader) (*queryLogsResponse, error) 
 	if err != nil {
 		return nil, fmt.Errorf("decode query logs http response; %w", err)
 	}
+
 	return result, nil
 }
 
