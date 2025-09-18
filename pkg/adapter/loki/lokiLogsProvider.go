@@ -19,9 +19,6 @@ import (
 
 const loggerName = "LokiLogsProvider"
 
-// const maxQueryTimeWindowInDays = 30 // Loki's max time range is 30d1h
-const maxQueryResultCount = 2000 // Loki's max entries limit per query is 5000
-
 type LokiLogsProvider struct {
 	serviceURL                 string
 	httpClient                 *http.Client
