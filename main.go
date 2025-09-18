@@ -147,7 +147,7 @@ func startOperator(
 	secretsCollector := collector.NewSecretCollector(ecoClientSet.CoreV1())
 	secretRepository := file.NewSecretsFileRepository(workPath, fs)
 
-	logProvider := loki.NewLokiLogsProvider(http.DefaultClient, operatorConfig.LogGatewayConfig.Url, operatorConfig.LogGatewayConfig.Username, operatorConfig.LogGatewayConfig.Password, operatorConfig.LogsMaxQueryResultCount, operatorConfig.LogsMaxQueryTimeWindow)
+	logProvider := loki.NewLokiLogsProvider(http.DefaultClient, operatorConfig)
 	eventsCollector := collector.NewEventsCollector(logProvider)
 	eventsRepository := file.NewEventRepository(workPath, fs)
 

@@ -25,7 +25,7 @@ func TestCollect(t *testing.T) {
 
 		logPrvMock := NewMockLogsProvider(t)
 		logPrvMock.EXPECT().
-			FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
+			FindEvents(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
 			RunAndReturn(func(ctx context.Context, i int64, i2 int64, s string, results chan<- *domain.LogLine) error {
 				results <- &domain.LogLine{Timestamp: resultTimestamp1, Value: "{\"msg\":\"message 1\"}"}
 				results <- &domain.LogLine{Timestamp: resultTimestamp2, Value: "{\"msg\":\"message 2\"}"}
@@ -62,7 +62,7 @@ func TestCollect(t *testing.T) {
 
 		logPrvMock := NewMockLogsProvider(t)
 		logPrvMock.EXPECT().
-			FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
+			FindEvents(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
 			RunAndReturn(func(ctx context.Context, i int64, i2 int64, s string, results chan<- *domain.LogLine) error {
 				return errors.New("a log provider error")
 			})

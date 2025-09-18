@@ -38,6 +38,7 @@ controllerManager:
     metricsMaxSamples: 11000
     logsMaxQueryResultCount: 2500 # max is 5000
     logsMaxQueryTimeWindow: 720h # max is 720h
+    logsEventSourceName: loki.source.kubernetes_events
     logGateway:
       url: "http://k8s-loki-gateway.ecosystem.svc.cluster.local"
       secretName: "k8s-loki-gateway-secret"

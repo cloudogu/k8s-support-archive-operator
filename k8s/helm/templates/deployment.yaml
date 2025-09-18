@@ -80,6 +80,8 @@ spec:
           value: {{ .Values.controllerManager.env.logsMaxQueryResultCount | quote }}
         - name: LOG_MAX_QUERY_TIME_WINDOW
           value: {{ .Values.controllerManager.env.logsMaxQueryTimeWindow | quote }}
+        - name: LOG_EVENT_SOURCE_NAME
+          value: {{ .Values.controllerManager.env.logsEventSourceName | quote }}
         - name: NAMESPACE
           valueFrom:
             fieldRef:

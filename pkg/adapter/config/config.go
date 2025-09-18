@@ -32,6 +32,7 @@ const (
 	metricsMaxSamplesEnvVar                    = "METRICS_MAX_SAMPLES"
 	logsMaxQueryResultCountEnvVar              = "LOG_MAX_QUERY_RESULT_COUNT"
 	logsMaxQueryTimeWindowEnvVar               = "LOG_MAX_QUERY_TIME_WINDOW"
+	logsEventSourceNameEnvVar                  = "LOG_EVENT_SOURCE_NAME"
 	logGatewayUrlEnvironmentVariable           = "LOG_GATEWAY_URL"
 	logGatewayUsernameEnvironmentVariable      = "LOG_GATEWAY_USERNAME"
 	logGatewayPasswordEnvironmentVariable      = "LOG_GATEWAY_PASSWORD"
@@ -80,6 +81,8 @@ type OperatorConfig struct {
 	LogsMaxQueryResultCount int
 	// LogsMaxQueryTimeWindow defines the maximum time range for a log query.
 	LogsMaxQueryTimeWindow time.Duration
+	// LogsEventSourceName contains the source name of the events if they are queried from the log provider.
+	LogsEventSourceName string
 	// LogGatewayConfig contains connection configurations for the logging backend.
 	LogGatewayConfig LogGatewayConfig
 }
@@ -188,6 +191,12 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	}
 	log.Info(fmt.Sprintf("Maximum log query time window: %s", logsMaxQueryTimeWindow))
 
+	logsEventSourceName, err := getEnvVar(logsEventSourceNameEnvVar)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(fmt.Sprintf("Log event source name: %s", logsMaxQueryTimeWindow))
+
 	logGateway, err := configureLogGateway()
 	if err != nil {
 		return nil, err
@@ -211,6 +220,7 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 		MetricsMaxSamples:          metricsMaxSamples,
 		LogsMaxQueryResultCount:    logsMaxQueryResultCount,
 		LogsMaxQueryTimeWindow:     logsMaxQueryTimeWindow,
+		LogsEventSourceName:        logsEventSourceName,
 		LogGatewayConfig:           logGateway,
 	}, nil
 }

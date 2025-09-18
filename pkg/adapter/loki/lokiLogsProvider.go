@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
 	"io"
 	"net/http"
 	"net/url"
@@ -17,7 +18,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-const loggerName = "LokiLogsProvider"
+const (
+	loggerName         = "LokiLogsProvider"
+	lokiQueryrangePath = "loki/api/v1/query_range"
+)
 
 type LokiLogsProvider struct {
 	serviceURL                 string
@@ -26,11 +30,7 @@ type LokiLogsProvider struct {
 	password                   string
 	maxQueryResultCount        int
 	maxQueryTimeWindowNanoSecs int64
-}
-
-type labelValuesResponse struct {
-	Status string   `json:"status"`
-	Data   []string `json:"data"`
+	logEventSourceName         string
 }
 
 type queryLogsResponse struct {
@@ -54,14 +54,33 @@ type queryLogsStream struct {
 	Kind      string `json:"kind"`
 }
 
-func NewLokiLogsProvider(httpClient *http.Client, httpAPIUrl, username, password string, maxQueryResultCount int, maxQueryTimeWindow time.Duration) *LokiLogsProvider {
+type ReturnType int
+
+const (
+	onlyLogs ReturnType = iota
+	onlyEvents
+)
+
+func (r ReturnType) GetQuery(namespace, logEventSourceName string) (string, error) {
+	switch r {
+	case onlyLogs:
+		return fmt.Sprintf("{namespace=\"%s\", job!=\"%s\"}", namespace, logEventSourceName), nil
+	case onlyEvents:
+		return fmt.Sprintf("{namespace=\"%s\", job=\"%s\"}", namespace, logEventSourceName), nil
+	default:
+		return "", fmt.Errorf("invalid ReturnType: %v", r)
+	}
+}
+
+func NewLokiLogsProvider(httpClient *http.Client, operatorConfig *config.OperatorConfig) *LokiLogsProvider {
 	return &LokiLogsProvider{
-		serviceURL:                 httpAPIUrl,
 		httpClient:                 httpClient,
-		username:                   username,
-		password:                   password,
-		maxQueryResultCount:        maxQueryResultCount,
-		maxQueryTimeWindowNanoSecs: maxQueryTimeWindow.Nanoseconds(),
+		serviceURL:                 operatorConfig.LogGatewayConfig.Url,
+		username:                   operatorConfig.LogGatewayConfig.Username,
+		password:                   operatorConfig.LogGatewayConfig.Password,
+		maxQueryResultCount:        operatorConfig.LogsMaxQueryResultCount,
+		maxQueryTimeWindowNanoSecs: operatorConfig.LogsMaxQueryTimeWindow.Nanoseconds(),
+		logEventSourceName:         operatorConfig.LogsEventSourceName,
 	}
 }
 
@@ -72,18 +91,39 @@ func (lp *LokiLogsProvider) FindLogs(
 	namespace string,
 	resultChan chan<- *domain.LogLine,
 ) error {
+	return lp.findLogs(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan, onlyLogs)
+}
+
+func (lp *LokiLogsProvider) FindEvents(
+	ctx context.Context,
+	startTimeInNanoSec int64,
+	endTimeInNanoSec int64,
+	namespace string,
+	resultChan chan<- *domain.LogLine,
+) error {
+	return lp.findLogs(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan, onlyEvents)
+}
+
+func (lp *LokiLogsProvider) findLogs(
+	ctx context.Context,
+	startTimeInNanoSec int64,
+	endTimeInNanoSec int64,
+	namespace string,
+	resultChan chan<- *domain.LogLine,
+	returnType ReturnType,
+) error {
 	var reqStartTime, reqEndTime = int64(0), startTimeInNanoSec
 	for {
 		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, endTimeInNanoSec, lp.maxQueryTimeWindowNanoSecs)
 
-		httpResp, err := lp.httpFindLogs(ctx, reqStartTime, reqEndTime, namespace)
+		httpResp, err := lp.httpFindLogs(ctx, reqStartTime, reqEndTime, namespace, returnType)
 		if err != nil {
-			return fmt.Errorf("find logs; %v", err)
+			return fmt.Errorf("finding logs: %w", err)
 		}
 
 		logLines, err := convertQueryLogsResponseToLogLines(httpResp)
 		if err != nil {
-			return fmt.Errorf("convert http response to LogLines; %v", err)
+			return fmt.Errorf("convert http response to LogLines: %w", err)
 		}
 
 		for _, ll := range logLines {
@@ -108,34 +148,34 @@ func (lp *LokiLogsProvider) FindLogs(
 	}
 }
 
-func (lp *LokiLogsProvider) httpFindLogs(
-	ctx context.Context,
-	startTimeInNanoSec int64,
-	endTimeInNanoSec int64,
-	namespace string,
-) (*queryLogsResponse, error) {
+func (lp *LokiLogsProvider) httpFindLogs(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, returnType ReturnType) (*queryLogsResponse, error) {
 	logger := log.FromContext(ctx).WithName(loggerName)
 
-	query, err := buildFindLogsHttpQuery(lp.serviceURL, namespace, startTimeInNanoSec, endTimeInNanoSec, lp.maxQueryResultCount)
+	query, err := returnType.GetQuery(namespace, lp.logEventSourceName)
 	if err != nil {
-		return nil, fmt.Errorf("build logs query; %w", err)
+		return nil, err
+	}
+
+	query, err = buildFindLogsHttpQuery(lp.serviceURL, startTimeInNanoSec, endTimeInNanoSec, lp.maxQueryResultCount, query)
+	if err != nil {
+		return nil, fmt.Errorf("building logs query: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, query, nil)
 	if err != nil {
-		return nil, fmt.Errorf("create http request for query '%s'; %w", query, err)
+		return nil, fmt.Errorf("create http request for query %q: %w", query, err)
 	}
 	req.SetBasicAuth(lp.username, lp.password)
 
 	resp, err := lp.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("call loki http api; %w", err)
+		return nil, fmt.Errorf("call loki http api: %w", err)
 	}
 
 	defer func(body io.ReadCloser) {
-		err := body.Close()
-		if err != nil {
-			logger.Error(err, "failed to close body of http response")
+		closeErr := body.Close()
+		if closeErr != nil {
+			logger.Error(closeErr, "failed to close body of http response")
 		}
 	}(resp.Body)
 
@@ -148,19 +188,19 @@ func (lp *LokiLogsProvider) httpFindLogs(
 
 func buildFindLogsHttpQuery(
 	serviceURL string,
-	namespace string,
 	startTimeInNanoSec int64,
 	endTimeInNanoSec int64,
 	maxQueryResultCount int,
+	query string,
 ) (string, error) {
 	baseUrl, err := url.Parse(serviceURL)
 	if err != nil {
-		return "", fmt.Errorf("parse service URL; %w", err)
+		return "", fmt.Errorf("parse service URL: %w", err)
 	}
-	baseUrl = baseUrl.JoinPath("loki/api/v1/query_range")
+	baseUrl = baseUrl.JoinPath(lokiQueryrangePath)
 
 	params := baseUrl.Query()
-	params.Set("query", fmt.Sprintf("{namespace=\"%s\"}", namespace))
+	params.Set("query", query)
 	params.Set("start", fmt.Sprintf("%d", startTimeInNanoSec))
 	params.Set("end", fmt.Sprintf("%d", endTimeInNanoSec))
 	params.Set("limit", fmt.Sprintf("%d", maxQueryResultCount))
@@ -200,18 +240,18 @@ func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]domain.L
 		for _, respValue := range respResult.Values {
 			timestampAsInt, err := strconv.ParseInt(respValue[0], 10, 64)
 			if err != nil {
-				return []domain.LogLine{}, fmt.Errorf("parse results timestamp '%s'; %w", respValue[0], err)
+				return []domain.LogLine{}, fmt.Errorf("parse results timestamp %q: %w", respValue[0], err)
 			}
 			logTimestamp := time.Unix(0, timestampAsInt)
 
 			jsonLog, err := plainLogToJsonLog(respValue[1])
 			if err != nil {
-				return []domain.LogLine{}, fmt.Errorf("convert plain text logline to json logline; %w", err)
+				return []domain.LogLine{}, fmt.Errorf("convert plain text logline to json logline: %w", err)
 			}
 
 			jsonLogWithTimeFields, err := enrichLogLineWithTimeFields(logTimestamp, jsonLog)
 			if err != nil {
-				return []domain.LogLine{}, fmt.Errorf("enrich logline with time fields; %w", err)
+				return []domain.LogLine{}, fmt.Errorf("enrich logline with time fields: %w", err)
 			}
 
 			newLogLine := domain.LogLine{
@@ -252,7 +292,7 @@ func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (strin
 	jsonDecoder := json.NewDecoder(strings.NewReader(jsonLogLine))
 	err := jsonDecoder.Decode(&data)
 	if err != nil {
-		return "", fmt.Errorf("decode json logline; %w", err)
+		return "", fmt.Errorf("decode json logline: %w", err)
 	}
 
 	data["time"] = timestamp.String()
@@ -265,7 +305,7 @@ func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (strin
 	jsonEncoder := json.NewEncoder(result)
 	err = jsonEncoder.Encode(data)
 	if err != nil {
-		return "", fmt.Errorf("encode json logline; %w", err)
+		return "", fmt.Errorf("encode json logline: %w", err)
 	}
 
 	return strings.Replace(result.String(), "\n", "", -1), nil
@@ -283,7 +323,7 @@ func plainLogToJsonLog(plainLog string) (string, error) {
 	jsonEncoder := json.NewEncoder(result)
 	err := jsonEncoder.Encode(data)
 	if err != nil {
-		return "", fmt.Errorf("encode json with plain text as field; %w", err)
+		return "", fmt.Errorf("encode json with plain text as field: %w", err)
 	}
 	return result.String(), nil
 }

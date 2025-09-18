@@ -22,6 +22,56 @@ func (_m *MockLogsProvider) EXPECT() *MockLogsProvider_Expecter {
 	return &MockLogsProvider_Expecter{mock: &_m.Mock}
 }
 
+// FindEvents provides a mock function with given fields: ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan
+func (_m *MockLogsProvider) FindEvents(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, resultChan chan<- *domain.LogLine) error {
+	ret := _m.Called(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindEvents")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, string, chan<- *domain.LogLine) error); ok {
+		r0 = rf(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockLogsProvider_FindEvents_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindEvents'
+type MockLogsProvider_FindEvents_Call struct {
+	*mock.Call
+}
+
+// FindEvents is a helper method to define mock.On call
+//   - ctx context.Context
+//   - startTimeInNanoSec int64
+//   - endTimeInNanoSec int64
+//   - namespace string
+//   - resultChan chan<- *domain.LogLine
+func (_e *MockLogsProvider_Expecter) FindEvents(ctx interface{}, startTimeInNanoSec interface{}, endTimeInNanoSec interface{}, namespace interface{}, resultChan interface{}) *MockLogsProvider_FindEvents_Call {
+	return &MockLogsProvider_FindEvents_Call{Call: _e.mock.On("FindEvents", ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan)}
+}
+
+func (_c *MockLogsProvider_FindEvents_Call) Run(run func(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, resultChan chan<- *domain.LogLine)) *MockLogsProvider_FindEvents_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(int64), args[3].(string), args[4].(chan<- *domain.LogLine))
+	})
+	return _c
+}
+
+func (_c *MockLogsProvider_FindEvents_Call) Return(_a0 error) *MockLogsProvider_FindEvents_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockLogsProvider_FindEvents_Call) RunAndReturn(run func(context.Context, int64, int64, string, chan<- *domain.LogLine) error) *MockLogsProvider_FindEvents_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FindLogs provides a mock function with given fields: ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan
 func (_m *MockLogsProvider) FindLogs(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, resultChan chan<- *domain.LogLine) error {
 	ret := _m.Called(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan)

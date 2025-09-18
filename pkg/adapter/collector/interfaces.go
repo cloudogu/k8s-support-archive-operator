@@ -44,4 +44,5 @@ type secretInterface interface {
 
 type LogsProvider interface {
 	FindLogs(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, namespace string, resultChan chan<- *domain.LogLine) error
+	FindEvents(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, namespace string, resultChan chan<- *domain.LogLine) error
 }
