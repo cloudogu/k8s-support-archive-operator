@@ -266,7 +266,7 @@ func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (strin
 }
 
 func plainLogToJsonLog(plainLog string) (string, error) {
-	if isJSON(plainLog) {
+	if json.Valid([]byte(plainLog)) {
 		return plainLog, nil
 	}
 
@@ -280,10 +280,4 @@ func plainLogToJsonLog(plainLog string) (string, error) {
 		return "", fmt.Errorf("encode json with plain text as field; %w", err)
 	}
 	return result.String(), nil
-}
-
-func isJSON(s string) bool {
-	var js map[string]interface{}
-	return json.Unmarshal([]byte(s), &js) == nil
-
 }
