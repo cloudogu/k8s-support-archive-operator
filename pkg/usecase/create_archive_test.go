@@ -408,3 +408,72 @@ func Test_streamFromRepository(t *testing.T) {
 		})
 	}
 }
+
+func TestCollectorMapping_getRequiredCollectorMapping(t *testing.T) {
+	t.Run("should return mapping for cr", func(t *testing.T) {
+		// given
+		cr := &libapi.SupportArchive{}
+
+		logColRepo := CollectorAndRepository{Collector: "logs"}
+		volumeColRepo := CollectorAndRepository{Collector: "volume"}
+		nodeColRepo := CollectorAndRepository{Collector: "node"}
+		secretColRepo := CollectorAndRepository{Collector: "logs"}
+		systemStateColRepo := CollectorAndRepository{Collector: "logs"}
+
+		sut := &CollectorMapping{
+			domain.CollectorTypeLog:         logColRepo,
+			domain.CollectorTypeVolumeInfo:  volumeColRepo,
+			domain.CollectorTypeNodeInfo:    nodeColRepo,
+			domain.CollectorTypSecret:       secretColRepo,
+			domain.CollectorTypeSystemState: systemStateColRepo,
+		}
+
+		// when
+		mapping := sut.getRequiredCollectorMapping(cr)
+
+		// then
+		require.NotNil(t, mapping)
+		assert.Equal(t, logColRepo, mapping[domain.CollectorTypeLog])
+		assert.Equal(t, volumeColRepo, mapping[domain.CollectorTypeVolumeInfo])
+		assert.Equal(t, nodeColRepo, mapping[domain.CollectorTypeNodeInfo])
+		assert.Equal(t, secretColRepo, mapping[domain.CollectorTypSecret])
+		assert.Equal(t, systemStateColRepo, mapping[domain.CollectorTypeSystemState])
+	})
+
+	t.Run("should not add collector to mapping if excluded", func(t *testing.T) {
+		// given
+		cr := &libapi.SupportArchive{
+			Spec: libapi.SupportArchiveSpec{
+				ExcludedContents: libapi.ExcludedContents{
+					SystemState:   true,
+					SensitiveData: true,
+					Events:        true,
+					Logs:          true,
+					VolumeInfo:    true,
+					SystemInfo:    true,
+				},
+			},
+		}
+
+		logColRepo := CollectorAndRepository{Collector: "logs"}
+		volumeColRepo := CollectorAndRepository{Collector: "volume"}
+		nodeColRepo := CollectorAndRepository{Collector: "node"}
+		secretColRepo := CollectorAndRepository{Collector: "logs"}
+		systemStateColRepo := CollectorAndRepository{Collector: "logs"}
+
+		sut := &CollectorMapping{
+			domain.CollectorTypeLog:         logColRepo,
+			domain.CollectorTypeVolumeInfo:  volumeColRepo,
+			domain.CollectorTypeNodeInfo:    nodeColRepo,
+			domain.CollectorTypSecret:       secretColRepo,
+			domain.CollectorTypeSystemState: systemStateColRepo,
+		}
+
+		// when
+		mapping := sut.getRequiredCollectorMapping(cr)
+
+		// then
+		require.NotNil(t, mapping)
+		assert.Len(t, mapping, 0)
+	})
+}

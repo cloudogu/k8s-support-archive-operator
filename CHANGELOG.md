@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [#15] Garbage-collect old support archives
 - [#14] Collect secrets information and add it to support archive
 - [#16] Collect node information from prometheus
+- [#20] Collect system state
 
 ## [v0.3.0] - 2025-08-07
 ### Added

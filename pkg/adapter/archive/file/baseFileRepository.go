@@ -143,8 +143,12 @@ func (l *baseFileRepository) Stream(ctx context.Context, id domain.SupportArchiv
 			return nil
 		}
 
+		rel, err := filepath.Rel(dirPath, path)
+		if err != nil {
+			return err
+		}
 		writeSaveToChannel(ctx, domain.StreamData{
-			ID:                info.Name(),
+			ID:                rel,
 			StreamConstructor: l.createStreamConstructor(path),
 		}, stream.Data)
 

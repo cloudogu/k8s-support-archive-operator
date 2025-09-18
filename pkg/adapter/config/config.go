@@ -30,6 +30,8 @@ const (
 	nodeInfoUsageMetricStepEnvVar              = "NODE_INFO_USAGE_METRIC_STEP"
 	nodeInfoHardwareMetricStepEnvVar           = "NODE_INFO_HARDWARE_METRIC_STEP"
 	metricsMaxSamplesEnvVar                    = "METRICS_MAX_SAMPLES"
+	systemStateLabelSelectorsEnvVar            = "SYSTEM_STATE_LABEL_SELECTORS"
+	systemStateGvkExclusionsEnvVar             = "SYSTEM_STATE_GVK_EXCLUSIONS"
 )
 
 var log = ctrl.Log.WithName("config")
@@ -65,6 +67,10 @@ type OperatorConfig struct {
 	NodeInfoHardwareMetricStep time.Duration
 	// MetricsMaxSamples defines the maximum number of samples the metrics server can serve in a single request.
 	MetricsMaxSamples int
+	// SystemStateLabelSelectors defines a slice of label selectors as string in YAML format.
+	SystemStateLabelSelectors string
+	// SystemStateGvkExclusions defines a slice of group version kind structs as string in YAML format.
+	SystemStateGvkExclusions string
 }
 
 func IsStageDevelopment() bool {
@@ -74,108 +80,169 @@ func IsStageDevelopment() bool {
 // NewOperatorConfig creates a new operator config by reading values from the environment variables
 func NewOperatorConfig(version string) (*OperatorConfig, error) {
 	configureStage()
+	config := &OperatorConfig{}
 
 	parsedVersion, err := semver.NewVersion(version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse version: %w", err)
 	}
 	log.Info(fmt.Sprintf("Version: [%s]", version))
+	config.Version = parsedVersion
 
 	namespace, err := getNamespace()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read namespace: %w", err)
 	}
 	log.Info(fmt.Sprintf("Deploying the k8s dogu operator in namespace %s", namespace))
+	config.Namespace = namespace
 
+	err = getArchiveConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	err = getGarbageCollectionConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	err = getNodeInfoConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	err = getMetricsConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	err = getSystemStateConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
+func getArchiveConfig(config *OperatorConfig) error {
 	archiveVolumeDownloadServiceName, err := getArchiveVolumeDownloadServiceName()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get archive volume download service name: %w", err)
+		return fmt.Errorf("failed to get archive volume download service name: %w", err)
 	}
 	log.Info(fmt.Sprintf("Archive volume download service name: %s", archiveVolumeDownloadServiceName))
 
 	archiveVolumeDownloadServiceProtocol, err := getArchiveVolumeDownloadServiceProtocol()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get archive volume download service protocol: %w", err)
+		return fmt.Errorf("failed to get archive volume download service protocol: %w", err)
 	}
 	log.Info(fmt.Sprintf("Archive volume download service protocol: %s", archiveVolumeDownloadServiceProtocol))
 
 	archiveVolumeDownloadServicePort, err := getArchiveVolumeDownloadServicePort()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get archive volume download service port: %w", err)
+		return fmt.Errorf("failed to get archive volume download service port: %w", err)
 	}
 	log.Info(fmt.Sprintf("Archive volume download service port: %s", archiveVolumeDownloadServicePort))
 
 	supportArchiveSyncInterval, err := getDurationEnvVar(supportArchiveSyncIntervalEnvVar)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get support archive sync interval: %w", err)
+		return fmt.Errorf("failed to get support archive sync interval: %w", err)
 	}
 	log.Info(fmt.Sprintf("Support archive sync interval: %s", supportArchiveSyncInterval))
 
+	config.ArchiveVolumeDownloadServiceName = archiveVolumeDownloadServiceName
+	config.ArchiveVolumeDownloadServiceProtocol = archiveVolumeDownloadServiceProtocol
+	config.ArchiveVolumeDownloadServicePort = archiveVolumeDownloadServicePort
+	config.GarbageCollectionInterval = supportArchiveSyncInterval
+
+	return nil
+}
+
+func getGarbageCollectionConfig(config *OperatorConfig) error {
 	garbageCollectionInterval, err := getDurationEnvVar(garbageCollectionIntervalEnvVar)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get garbage collection interval: %w", err)
+		return fmt.Errorf("failed to get garbage collection interval: %w", err)
 	}
 	log.Info(fmt.Sprintf("Garbage collection interval: %s", garbageCollectionInterval))
 
 	garbageCollectionNumberToKeep, err := getIntEnvVar(garbageCollectionNumberToKeepEnvVar)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get garbage collection number to keep: %w", err)
+		return fmt.Errorf("failed to get garbage collection number to keep: %w", err)
 	}
 	log.Info(fmt.Sprintf("Garbage collection number to keep: %d", garbageCollectionNumberToKeep))
 
-	metricsServiceName, err := getEnvVar(metricsServiceNameEnvVar)
-	if err != nil {
-		return nil, err
-	}
-	log.Info(fmt.Sprintf("Metrics service name: %s", metricsServiceName))
+	config.GarbageCollectionInterval = garbageCollectionInterval
+	config.GarbageCollectionNumberToKeep = garbageCollectionNumberToKeep
 
-	metricsServicePort, err := getEnvVar(metricsServicePortEnvVar)
-	if err != nil {
-		return nil, err
-	}
-	log.Info(fmt.Sprintf("Metrics service port: %s", metricsServicePort))
+	return nil
+}
 
-	metricsServiceProtocol, err := getEnvVar(metricsServiceProtocolEnvVar)
-	if err != nil {
-		return nil, err
-	}
-	log.Info(fmt.Sprintf("Metrics service protocol: %s", metricsServiceProtocol))
-
+func getNodeInfoConfig(config *OperatorConfig) error {
 	nodeInfoUsageMetricStep, err := getDurationEnvVar(nodeInfoUsageMetricStepEnvVar)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	log.Info(fmt.Sprintf("NodeInfo usage metric step: %s", nodeInfoUsageMetricStep))
 
 	nodeInfoHardwareMetricStep, err := getDurationEnvVar(nodeInfoHardwareMetricStepEnvVar)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	log.Info(fmt.Sprintf("NodeInfo hardware metric step: %s", nodeInfoHardwareMetricStep))
 
+	config.NodeInfoUsageMetricStep = nodeInfoUsageMetricStep
+	config.NodeInfoHardwareMetricStep = nodeInfoHardwareMetricStep
+
+	return nil
+}
+
+func getMetricsConfig(config *OperatorConfig) error {
+	metricsServiceName, err := getEnvVar(metricsServiceNameEnvVar)
+	if err != nil {
+		return err
+	}
+	log.Info(fmt.Sprintf("Metrics service name: %s", metricsServiceName))
+
+	metricsServicePort, err := getEnvVar(metricsServicePortEnvVar)
+	if err != nil {
+		return err
+	}
+	log.Info(fmt.Sprintf("Metrics service port: %s", metricsServicePort))
+
+	metricsServiceProtocol, err := getEnvVar(metricsServiceProtocolEnvVar)
+	if err != nil {
+		return err
+	}
+	log.Info(fmt.Sprintf("Metrics service protocol: %s", metricsServiceProtocol))
+
 	metricsMaxSamples, err := getIntEnvVar(metricsMaxSamplesEnvVar)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get maximum number of metrics samples: %w", err)
+		return fmt.Errorf("failed to get maximum number of metrics samples: %w", err)
 	}
 	log.Info(fmt.Sprintf("Maximum number of metrics samples: %d", metricsMaxSamples))
 
-	return &OperatorConfig{
-		Version:                              parsedVersion,
-		Namespace:                            namespace,
-		ArchiveVolumeDownloadServiceName:     archiveVolumeDownloadServiceName,
-		ArchiveVolumeDownloadServiceProtocol: archiveVolumeDownloadServiceProtocol,
-		ArchiveVolumeDownloadServicePort:     archiveVolumeDownloadServicePort,
-		SupportArchiveSyncInterval:           supportArchiveSyncInterval,
-		GarbageCollectionInterval:            garbageCollectionInterval,
-		GarbageCollectionNumberToKeep:        garbageCollectionNumberToKeep,
-		// prometheus is optional?
-		MetricsServiceName:         metricsServiceName,
-		MetricsServicePort:         metricsServicePort,
-		MetricsServiceProtocol:     metricsServiceProtocol,
-		NodeInfoUsageMetricStep:    nodeInfoUsageMetricStep,
-		NodeInfoHardwareMetricStep: nodeInfoHardwareMetricStep,
-		MetricsMaxSamples:          metricsMaxSamples,
-	}, nil
+	config.MetricsServiceName = metricsServiceName
+	config.MetricsServicePort = metricsServicePort
+	config.MetricsServiceProtocol = metricsServiceProtocol
+	config.MetricsMaxSamples = metricsMaxSamples
+
+	return nil
+}
+
+func getSystemStateConfig(config *OperatorConfig) error {
+	systemStateLabelsSelectors, err := getEnvVar(systemStateLabelSelectorsEnvVar)
+	if err != nil {
+		return fmt.Errorf("failed to get system state label selectors: %w", err)
+	}
+	log.Info(fmt.Sprintf("System state label selectors: %s", systemStateLabelsSelectors))
+	systemStateGvkExclusions, err := getEnvVar(systemStateGvkExclusionsEnvVar)
+	if err != nil {
+		return fmt.Errorf("failed to get system state gvks to exclude: %w", err)
+	}
+	log.Info(fmt.Sprintf("System state excluded gvks: %s", systemStateGvkExclusions))
+
+	config.SystemStateLabelSelectors = systemStateLabelsSelectors
+	config.SystemStateGvkExclusions = systemStateGvkExclusions
+	return nil
 }
 
 func configureStage() {

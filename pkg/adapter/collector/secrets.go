@@ -89,19 +89,21 @@ func (sc *SecretCollector) censorSecret(secret v1.Secret) *domain.SecretYaml {
 func censorYaml(node *yaml.Node) {
 	switch node.Kind {
 	case yaml.DocumentNode:
-		for _, n := range node.Content {
-			censorYaml(n)
-		}
+		censorYAMLNode(node)
 	case yaml.MappingNode:
 		for i := 0; i < len(node.Content); i += 2 {
 			valueNode := node.Content[i+1]
 			censorYaml(valueNode)
 		}
 	case yaml.SequenceNode:
-		for _, n := range node.Content {
-			censorYaml(n)
-		}
+		censorYAMLNode(node)
 	case yaml.ScalarNode:
 		node.Value = censoredValue
+	}
+}
+
+func censorYAMLNode(node *yaml.Node) {
+	for _, n := range node.Content {
+		censorYaml(n)
 	}
 }

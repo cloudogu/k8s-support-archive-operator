@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -37,19 +36,10 @@ func (v *VolumesFileRepository) Create(ctx context.Context, id domain.SupportArc
 func (v *VolumesFileRepository) createVolumeInfo(ctx context.Context, id domain.SupportArchiveID, data *domain.VolumeInfo) error {
 	logger := log.FromContext(ctx).WithName("VolumesFileRepository.createVolumeInfo")
 	filePath := fmt.Sprintf("%s.yaml", filepath.Join(v.workPath, id.Namespace, id.Name, archiveVolumeInfoDirName, data.Name))
-	err := v.filesystem.MkdirAll(filepath.Dir(filePath), 0755)
-	if err != nil {
-		return fmt.Errorf("error creating directory for volume metrics file: %w", err)
-	}
 
-	out, err := yaml.Marshal(data)
+	err := createYAMLFile(v.filesystem, filePath, data)
 	if err != nil {
-		return fmt.Errorf("error marshalling volume metrics file: %w", err)
-	}
-
-	err = v.filesystem.WriteFile(filePath, out, 0644)
-	if err != nil {
-		return fmt.Errorf("error creating volume metrics file: %w", err)
+		return err
 	}
 
 	logger.Info("created volume metrics file")
