@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -38,18 +37,10 @@ func (v *SecretsFileRepository) createCoreSecret(ctx context.Context, id domain.
 	logger := log.FromContext(ctx).WithName("SecretsFileRepository.createCoreSecret")
 
 	filePath := filepath.Join(v.workPath, id.Namespace, id.Name, archiveSecretsInfoDirName, fmt.Sprintf("%s%s", data.Metadata.Name, ".yaml"))
-	err := v.filesystem.MkdirAll(filepath.Dir(filePath), 0755)
-	if err != nil {
-		return fmt.Errorf("failed to create directory %s: %w", filepath.Dir(filePath), err)
-	}
-	out, err := yaml.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("error marshalling secrets file: %w", err)
-	}
 
-	err = v.filesystem.WriteFile(filePath, out, 0644)
+	err := createYAMLFile(v.filesystem, filePath, data)
 	if err != nil {
-		return fmt.Errorf("error creating secrets file: %w", err)
+		return err
 	}
 
 	logger.Info(fmt.Sprintf("created file for secret: %s", data.Metadata.Name))

@@ -147,6 +147,12 @@ func startOperator(
 	secretsCollector := collector.NewSecretCollector(ecoClientSet.CoreV1())
 	secretRepository := file.NewSecretsFileRepository(workPath, fs)
 
+	systemStateCollector, err := collector.NewSystemStateCollector(k8sManager.GetClient(), k8sClientSet.Discovery(), operatorConfig.SystemStateLabelSelectors, operatorConfig.SystemStateGvkExclusions)
+	if err != nil {
+		return err
+	}
+	systemStateRepository := file.NewSystemStateFileRepository(workPath, fs)
+
 	logProvider := loki.NewLokiLogsProvider(http.DefaultClient, operatorConfig)
 	eventsCollector := collector.NewEventsCollector(logProvider)
 	eventsRepository := file.NewEventRepository(workPath, fs)
@@ -158,6 +164,7 @@ func startOperator(
 	mapping[domain.CollectorTypeVolumeInfo] = usecase.CollectorAndRepository{Collector: volumesCollector, Repository: volumeRepository}
 	mapping[domain.CollectorTypeSecret] = usecase.CollectorAndRepository{Collector: secretsCollector, Repository: secretRepository}
 	mapping[domain.CollectorTypeEvents] = usecase.CollectorAndRepository{Collector: eventsCollector, Repository: eventsRepository}
+	mapping[domain.CollectorTypeSystemState] = usecase.CollectorAndRepository{Collector: systemStateCollector, Repository: systemStateRepository}
 
 	createUseCase := usecase.NewCreateArchiveUseCase(v1SupportArchive, mapping, supportArchiveRepository)
 	deleteUseCase := usecase.NewDeleteArchiveUseCase(mapping, supportArchiveRepository)

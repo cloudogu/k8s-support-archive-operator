@@ -5,11 +5,12 @@ import libapi "github.com/cloudogu/k8s-support-archive-lib/api/v1"
 type CollectorType string
 
 const (
-	CollectorTypeLog        CollectorType = "Logs"
-	CollectorTypeVolumeInfo CollectorType = "VolumeInfo"
-	CollectorTypeNodeInfo   CollectorType = "NodeInfo"
-	CollectorTypeSecret     CollectorType = "Resources/Secrets"
-	CollectorTypeEvents     CollectorType = "Events"
+	CollectorTypeLog         CollectorType = "Logs"
+	CollectorTypeVolumeInfo  CollectorType = "VolumeInfo"
+	CollectorTypeNodeInfo    CollectorType = "NodeInfo"
+	CollectorTypeSecret      CollectorType = "Resources/Secrets"
+	CollectorTypeSystemState CollectorType = "Resources/SystemState"
+	CollectorTypeEvents      CollectorType = "Events"
 )
 
 func (c CollectorType) GetConditionType() string {
@@ -24,11 +25,13 @@ func (c CollectorType) GetConditionType() string {
 		return libapi.ConditionSecretsFetched
 	case CollectorTypeEvents:
 		return libapi.ConditionEventsFetched
+	case CollectorTypeSystemState:
+		return libapi.ConditionSystemStateFetched
 	default:
 		return ""
 	}
 }
 
 type CollectorUnionDataType interface {
-	LogLine | VolumeInfo | LabeledSample | SecretYaml | EventSet
+	LogLine | VolumeInfo | LabeledSample | SecretYaml | UnstructuredResource
 }
