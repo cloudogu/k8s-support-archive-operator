@@ -2,7 +2,6 @@ package collector
 
 import (
 	"context"
-	"errors"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"sync"
 	"testing"
@@ -16,6 +15,7 @@ import (
 
 func TestCollect(t *testing.T) {
 	t.Run("should call log provider to find logs", func(t *testing.T) {
+		// given
 		startTime := time.Now()
 		endTime := startTime.AddDate(0, 0, 10)
 
@@ -24,19 +24,21 @@ func TestCollect(t *testing.T) {
 
 		logPrvMock := NewMockLogsProvider(t)
 		logPrvMock.EXPECT().
-			FindEvents(testCtx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
-			RunAndReturn(func(ctx context.Context, i int64, i2 int64, s string, results chan<- *domain.LogLine) error {
+			FindEvents(testCtx, startTime.UnixNano(), endTime.UnixNano(), testNamespace, mock.Anything).
+			RunAndReturn(func(_ context.Context, _ int64, _ int64, _ string, results chan<- *domain.LogLine) error {
 				results <- &domain.LogLine{Timestamp: resultTimestamp1, Value: "{\"msg\":\"message 1\"}"}
 				results <- &domain.LogLine{Timestamp: resultTimestamp2, Value: "{\"msg\":\"message 2\"}"}
 				return nil
 			})
 
-		eventsCol := NewEventsCollector(logPrvMock)
-
 		res := receiveLogLinesResult()
-		err := eventsCol.Collect(testCtx, "aNamespace", startTime, endTime, res.channel)
+		sut := NewEventsCollector(logPrvMock)
 
+		// when
+		err := sut.Collect(testCtx, testNamespace, startTime, endTime, res.channel)
 		res.wait()
+
+		// then
 		require.NoError(t, err)
 
 		assert.Equal(t, 2, len(res.logLines))
@@ -55,27 +57,24 @@ func TestCollect(t *testing.T) {
 	})
 
 	t.Run("should issue an error if log provider returns one", func(t *testing.T) {
+		// given
 		startTime := time.Now()
 		endTime := startTime.AddDate(0, 0, 10)
 
 		logPrvMock := NewMockLogsProvider(t)
-		logPrvMock.EXPECT().
-			FindEvents(testCtx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
-			RunAndReturn(func(ctx context.Context, i int64, i2 int64, s string, results chan<- *domain.LogLine) error {
-				return errors.New("a log provider error")
-			})
-
-		eventsCol := NewEventsCollector(logPrvMock)
+		logPrvMock.EXPECT().FindEvents(testCtx, startTime.UnixNano(), endTime.UnixNano(), testNamespace, mock.Anything).Return(assert.AnError)
 
 		res := receiveLogLinesResult()
-		err := eventsCol.Collect(testCtx, "aNamespace", startTime, endTime, res.channel)
+		eventsCol := NewEventsCollector(logPrvMock)
 
+		// when
+		err := eventsCol.Collect(testCtx, testNamespace, startTime, endTime, res.channel)
 		res.wait()
 
+		// then
 		assert.Error(t, err)
-		assert.ErrorContains(t, err, "call log provider")
-		assert.NoError(t, errors.Unwrap(err)) // not expose implementation details through errors
-
+		assert.ErrorContains(t, err, "error finding events")
+		assert.ErrorIs(t, err, assert.AnError)
 	})
 }
 

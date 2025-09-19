@@ -23,7 +23,7 @@ func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startT
 
 	err := ec.logsProvider.FindEvents(ctx, startTime.UnixNano(), endTime.UnixNano(), namespace, resultChan)
 	if err != nil {
-		return fmt.Errorf("call log provider to find logs; %v", err)
+		return fmt.Errorf("error finding events: %w", err)
 	}
 
 	return nil
