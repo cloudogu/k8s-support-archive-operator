@@ -44,6 +44,12 @@ controllerManager:
       secretName: "k8s-loki-gateway-secret"
       usernameKey: "username"
       passwordKey: "password"
+    systemStateLabelSelector: # empty selects all resources
+      app: ces
+    systemStateGvkExclusions:
+      - group: ""
+        version: v1
+        kind: Secret
   imagePullPolicy: IfNotPresent
   podSecurityContext:
     fsGroup: 65532

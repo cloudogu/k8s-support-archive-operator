@@ -30,6 +30,9 @@ func setTestEnvVars(t *testing.T) {
 	t.Setenv("LOG_MAX_QUERY_RESULT_COUNT", "2000")
 	t.Setenv("LOG_MAX_QUERY_TIME_WINDOW", "24h")
 	t.Setenv("LOG_EVENT_SOURCE_NAME", "loki.kubernetes_events")
+	t.Setenv("SYSTEM_STATE_LABEL_SELECTORS", "app: ces")
+	t.Setenv("SYSTEM_STATE_GVK_EXCLUSIONS", "- group: apps\n  kind: Deployment\n  version: v1")
+
 }
 
 func TestNewOperatorConfig(t *testing.T) {
