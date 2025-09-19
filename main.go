@@ -155,7 +155,7 @@ func startOperator(
 
 	logProvider := loki.NewLokiLogsProvider(http.DefaultClient, operatorConfig)
 	eventsCollector := collector.NewEventsCollector(logProvider)
-	eventsRepository := file.NewEventRepository(workPath, fs)
+	eventsRepository := file.NewEventFileRepository(workPath, fs)
 
 	mapping := make(map[domain.CollectorType]usecase.CollectorAndRepository)
 	mapping[domain.CollectorTypeLog] = usecase.CollectorAndRepository{Collector: logCollector, Repository: logRepository}

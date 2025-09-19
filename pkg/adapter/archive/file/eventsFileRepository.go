@@ -14,15 +14,15 @@ const (
 	archiveEventsDirName = "Events"
 )
 
-type EventRepository struct {
+type EventFileRepository struct {
 	baseFileRepo
 	workPath   string
 	filesystem volumeFs
 	eventFiles map[domain.SupportArchiveID]closableRWFile
 }
 
-func NewEventRepository(workPath string, fs volumeFs) *EventRepository {
-	return &EventRepository{
+func NewEventFileRepository(workPath string, fs volumeFs) *EventFileRepository {
+	return &EventFileRepository{
 		workPath:     workPath,
 		filesystem:   fs,
 		baseFileRepo: NewBaseFileRepository(workPath, archiveEventsDirName, fs),
@@ -30,12 +30,12 @@ func NewEventRepository(workPath string, fs volumeFs) *EventRepository {
 	}
 }
 
-func (l *EventRepository) Create(ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *domain.LogLine) error {
+func (l *EventFileRepository) Create(ctx context.Context, id domain.SupportArchiveID, dataStream <-chan *domain.LogLine) error {
 	return create(ctx, id, dataStream, l.createEventLog, l.Delete, l.finishCollection, l.close)
 }
 
-func (l *EventRepository) createEventLog(ctx context.Context, id domain.SupportArchiveID, data *domain.LogLine) error {
-	logger := log.FromContext(ctx).WithName("EventRepository.createEventLog")
+func (l *EventFileRepository) createEventLog(ctx context.Context, id domain.SupportArchiveID, data *domain.LogLine) error {
+	logger := log.FromContext(ctx).WithName("EventFileRepository.createEventLog")
 
 	if l.eventFiles[id] == nil {
 		filePath := filepath.Join(l.workPath, id.Namespace, id.Name, archiveEventsDirName, fmt.Sprintf("%s%s", "events", ".log"))
@@ -54,15 +54,15 @@ func (l *EventRepository) createEventLog(ctx context.Context, id domain.SupportA
 		logger.Info(fmt.Sprintf("Created event file %s", filePath))
 	}
 
-	_, err := l.eventFiles[id].Write([]byte(fmt.Sprintf("%s%s", data.Value, "\n")))
+	_, err := fmt.Fprintf(l.eventFiles[id], "%s%s", data.Value, "\n")
 	if err != nil {
-		return fmt.Errorf("failed to write data to log file %s: %w", id, err)
+		return fmt.Errorf("failed to write data to event file %s: %w", id, err)
 	}
 
 	return nil
 }
 
-func (l *EventRepository) close(_ context.Context, id domain.SupportArchiveID) error {
+func (l *EventFileRepository) close(_ context.Context, id domain.SupportArchiveID) error {
 	if l.eventFiles == nil || l.eventFiles[id] == nil {
 		return nil
 	}
