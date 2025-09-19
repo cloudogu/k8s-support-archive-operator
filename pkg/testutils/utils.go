@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 )
 
@@ -17,7 +18,11 @@ func ValueOfJsonField(jsonAsString string, field string) (string, error) {
 	if !containsField {
 		return "", nil
 	}
-	return value.(string), nil
+	s, ok := value.(string)
+	if !ok {
+		return "", errors.New("value is not a string")
+	}
+	return s, nil
 }
 
 func ValueOfJsonFieldInt(jsonAsString string, field string) (int, error) {
@@ -34,7 +39,11 @@ func ValueOfJsonFieldInt(jsonAsString string, field string) (int, error) {
 		return 0, nil
 	}
 
-	valueInt64, err := value.(json.Number).Int64()
+	number, ok := value.(json.Number)
+	if !ok {
+		return 0, errors.New("value is not a json number")
+	}
+	valueInt64, err := number.Int64()
 	if err != nil {
 		return 0, err
 	}
