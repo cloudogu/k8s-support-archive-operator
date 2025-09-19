@@ -16,7 +16,6 @@ import (
 
 func TestCollect(t *testing.T) {
 	t.Run("should call log provider to find logs", func(t *testing.T) {
-		ctx := context.TODO()
 		startTime := time.Now()
 		endTime := startTime.AddDate(0, 0, 10)
 
@@ -25,7 +24,7 @@ func TestCollect(t *testing.T) {
 
 		logPrvMock := NewMockLogsProvider(t)
 		logPrvMock.EXPECT().
-			FindEvents(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
+			FindEvents(testCtx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
 			RunAndReturn(func(ctx context.Context, i int64, i2 int64, s string, results chan<- *domain.LogLine) error {
 				results <- &domain.LogLine{Timestamp: resultTimestamp1, Value: "{\"msg\":\"message 1\"}"}
 				results <- &domain.LogLine{Timestamp: resultTimestamp2, Value: "{\"msg\":\"message 2\"}"}
@@ -35,7 +34,7 @@ func TestCollect(t *testing.T) {
 		eventsCol := NewEventsCollector(logPrvMock)
 
 		res := receiveLogLinesResult()
-		err := eventsCol.Collect(ctx, "aNamespace", startTime, endTime, res.channel)
+		err := eventsCol.Collect(testCtx, "aNamespace", startTime, endTime, res.channel)
 
 		res.wait()
 		require.NoError(t, err)
@@ -56,13 +55,12 @@ func TestCollect(t *testing.T) {
 	})
 
 	t.Run("should issue an error if log provider returns one", func(t *testing.T) {
-		ctx := context.TODO()
 		startTime := time.Now()
 		endTime := startTime.AddDate(0, 0, 10)
 
 		logPrvMock := NewMockLogsProvider(t)
 		logPrvMock.EXPECT().
-			FindEvents(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
+			FindEvents(testCtx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
 			RunAndReturn(func(ctx context.Context, i int64, i2 int64, s string, results chan<- *domain.LogLine) error {
 				return errors.New("a log provider error")
 			})
@@ -70,7 +68,7 @@ func TestCollect(t *testing.T) {
 		eventsCol := NewEventsCollector(logPrvMock)
 
 		res := receiveLogLinesResult()
-		err := eventsCol.Collect(ctx, "aNamespace", startTime, endTime, res.channel)
+		err := eventsCol.Collect(testCtx, "aNamespace", startTime, endTime, res.channel)
 
 		res.wait()
 
