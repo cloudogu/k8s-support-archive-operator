@@ -67,7 +67,7 @@ func TestSecretFileRepository_createCoreSecret(t *testing.T) {
 			wantErr: func(t *testing.T, err error) {
 				assert.Error(t, err)
 				assert.ErrorIs(t, err, assert.AnError)
-				assert.ErrorContains(t, err, "failed to create directory")
+				assert.ErrorContains(t, err, "error creating directory for file")
 			},
 		},
 		{
@@ -92,7 +92,7 @@ func TestSecretFileRepository_createCoreSecret(t *testing.T) {
 			wantErr: func(t *testing.T, err error) {
 				assert.Error(t, err)
 				assert.ErrorIs(t, err, assert.AnError)
-				assert.ErrorContains(t, err, "error creating secrets file:")
+				assert.ErrorContains(t, err, "error creating file")
 			},
 		},
 		{

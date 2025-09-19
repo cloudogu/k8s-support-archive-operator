@@ -18,7 +18,7 @@ services:
       # Provisioning for datasources and dashboards + generator script
       - ./provisioning:/etc/grafana/provisioning
     entrypoint: /bin/bash
-    command: -c "bash /etc/grafana/provisioning/generate-dashboards.sh && /run.sh"
+    command: -c "bash /etc/grafana/provisioning/generate-csv-dashboards.sh && /run.sh"
     depends_on:
       - archives
     restart: unless-stopped

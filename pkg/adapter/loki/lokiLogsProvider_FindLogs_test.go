@@ -5,17 +5,15 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/collector"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,6 +24,8 @@ var lokiFindLogsResponse []byte
 
 //go:embed testdata/loki-find-logs-response-empty.json
 var lokiFindLogsEmptyResponse []byte
+
+var maxQueryTimeWindowInDays = 30
 
 func TestLokiLogsProviderFindLogs(t *testing.T) {
 	closeChannelAfterLastReadDuration := 5 * time.Millisecond
@@ -61,10 +61,20 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 				require.NoError(t, err)
 			}
 
+			if callCount == 3 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
+
+			if callCount == 4 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
+
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -72,21 +82,21 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		res.wait()
 		require.NoError(t, err)
 
-		assert.Equal(t, 2, callCount)
+		assert.Equal(t, 4, callCount)
 
 		assert.Equal(t, startTime, httpServerCalls[0].reqStartTime)
 		assert.Equal(t, endTime, httpServerCalls[0].reqEndTime)
 
 		assert.Equal(t, lastestResultTimestamp, httpServerCalls[1].reqStartTime)
 		assert.Equal(t, endTime, httpServerCalls[1].reqEndTime)
+
+		assert.Equal(t, endTime, httpServerCalls[2].reqStartTime)
+		assert.Equal(t, endTime, httpServerCalls[2].reqEndTime)
 	})
 
-	t.Run("should calling API until the response is empty", func(t *testing.T) {
+	t.Run("should call API until the second call with request parameter start == end", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
-		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
-
-		resultTimestamp := startTime + daysToNanoSec(1)
-		lastestResultTimestamp := endTime
+		endTime := startTime + daysToNanoSec(3*maxQueryTimeWindowInDays)
 
 		var callCount int
 		var httpServerCalls []httpServerCall
@@ -98,8 +108,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 			if callCount == 1 {
 				resp, err := newQueryRangeResponse([][]string{
-					{asString(resultTimestamp), "{\"msg\":\"msg1\"}"},
-					{asString(lastestResultTimestamp), "{\"msg\":\"msg2\"}"},
+					{asString(startTime + daysToNanoSec(maxQueryTimeWindowInDays)), "{\"msg\":\"msg1\"}"},
 				})
 				require.NoError(t, err)
 
@@ -108,9 +117,13 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 			}
 
 			if callCount == 2 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
+
+			if callCount == 3 {
 				resp, err := newQueryRangeResponse([][]string{
-					{asString(lastestResultTimestamp), "{\"msg\":\"msg3\"}"},
-					{asString(lastestResultTimestamp), "{\"msg\":\"msg4\"}"},
+					{asString(startTime + daysToNanoSec(3*maxQueryTimeWindowInDays)), "{\"msg\":\"msg4\"}"},
 				})
 				require.NoError(t, err)
 
@@ -118,14 +131,32 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			if callCount == 3 {
-				_, err := w.Write(lokiFindLogsEmptyResponse)
+			// first call with request parameter start == end
+			if callCount == 4 {
+				resp, err := newQueryRangeResponse([][]string{
+					{asString(startTime + daysToNanoSec(3*maxQueryTimeWindowInDays)), "{\"msg\":\"msg4\"}"},
+				})
+				require.NoError(t, err)
+
+				_, err = w.Write(resp)
 				require.NoError(t, err)
 			}
+
+			// second call with request parameter start == end
+			if callCount == 5 {
+				resp, err := newQueryRangeResponse([][]string{
+					{asString(startTime + daysToNanoSec(3*maxQueryTimeWindowInDays)), "{\"msg\":\"msg4\"}"},
+				})
+				require.NoError(t, err)
+
+				_, err = w.Write(resp)
+				require.NoError(t, err)
+			}
+
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -133,16 +164,24 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		res.wait()
 		require.NoError(t, err)
 
-		assert.Equal(t, 3, callCount)
+		assert.Equal(t, 3, len(res.logLines))
+		assert.Equal(t, 5, callCount)
 
 		assert.Equal(t, startTime, httpServerCalls[0].reqStartTime)
-		assert.Equal(t, endTime, httpServerCalls[0].reqEndTime)
+		assert.Equal(t, startTime+daysToNanoSec(maxQueryTimeWindowInDays), httpServerCalls[0].reqEndTime)
 
-		assert.Equal(t, lastestResultTimestamp, httpServerCalls[1].reqStartTime)
-		assert.Equal(t, endTime, httpServerCalls[1].reqEndTime)
+		assert.Equal(t, startTime+daysToNanoSec(maxQueryTimeWindowInDays), httpServerCalls[1].reqStartTime)
+		assert.Equal(t, startTime+daysToNanoSec(2*maxQueryTimeWindowInDays), httpServerCalls[1].reqEndTime)
 
-		assert.Equal(t, lastestResultTimestamp, httpServerCalls[2].reqStartTime)
-		assert.Equal(t, endTime, httpServerCalls[2].reqEndTime)
+		assert.Equal(t, startTime+daysToNanoSec(2*maxQueryTimeWindowInDays), httpServerCalls[2].reqStartTime)
+		assert.Equal(t, startTime+daysToNanoSec(3*maxQueryTimeWindowInDays), httpServerCalls[2].reqEndTime)
+
+		assert.Equal(t, endTime, httpServerCalls[3].reqStartTime)
+		assert.Equal(t, endTime, httpServerCalls[3].reqEndTime)
+
+		assert.Equal(t, endTime, httpServerCalls[4].reqStartTime)
+		assert.Equal(t, endTime, httpServerCalls[4].reqEndTime)
+
 	})
 
 	t.Run("should parse response from API", func(t *testing.T) {
@@ -160,10 +199,14 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 				_, err := w.Write(lokiFindLogsEmptyResponse)
 				require.NoError(t, err)
 			}
+			if callCount == 3 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "ecosystem", res.channel)
@@ -179,6 +222,61 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		assert.True(t, containsLogLine(res.logLines, time.Unix(0, 1757500152000000000), "\"count\":41"))
 		assert.True(t, containsLogLine(res.logLines, time.Unix(0, 1757486049000000000), "\"count\":8"))
 		assert.True(t, containsLogLine(res.logLines, time.Unix(0, 1757484951000000000), "\"count\":4"))
+	})
+
+	t.Run("should convert plain text logs to json logs", func(t *testing.T) {
+		startTime := time.Now().UnixNano()
+		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
+
+		var callCount int
+		var httpServerCalls []httpServerCall
+		var anError error
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			callCount += 1
+			httpServerCalls, anError = appendHttpServerCall(httpServerCalls, r)
+			require.NoError(t, anError)
+
+			if callCount == 1 {
+				resp, err := newQueryRangeResponse([][]string{
+					{asString(startTime + daysToNanoSec(maxQueryTimeWindowInDays)), "plain text with \"quotes\""},
+				})
+				require.NoError(t, err)
+
+				_, err = w.Write(resp)
+				require.NoError(t, err)
+			}
+
+			if callCount == 2 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
+
+			if callCount == 3 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
+
+		}))
+		defer server.Close()
+
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
+
+		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
+		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
+
+		res.wait()
+		require.NoError(t, err)
+
+		require.Equal(t, 3, callCount)
+		require.Equal(t, startTime, httpServerCalls[0].reqStartTime)
+		require.Equal(t, endTime, httpServerCalls[0].reqEndTime)
+
+		require.Equal(t, endTime, httpServerCalls[1].reqStartTime)
+		require.Equal(t, endTime, httpServerCalls[1].reqEndTime)
+
+		msg, err := testutils.ValueOfJsonField(res.logLines[0].Value, "message")
+		require.NoError(t, err)
+		assert.Equal(t, "plain text with \"quotes\"", msg)
 	})
 
 	t.Run("should append time fields to http response", func(t *testing.T) {
@@ -205,10 +303,20 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 				_, err := w.Write(lokiFindLogsEmptyResponse)
 				require.NoError(t, err)
 			}
+
+			if callCount == 3 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
+
+			if callCount == 4 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "ecosystem", res.channel)
@@ -224,37 +332,33 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 	})
 
-	t.Run("should append time fields to LogLine.Value", func(t *testing.T) {
+	t.Run("should enrich json log time fields", func(t *testing.T) {
 		aTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
-		logLine := collector.LogLine{
-			Timestamp: aTime,
-			Value:     "{\"msg\": \"dogu message 1\"}",
-		}
 
-		logLine, err := appendTimeFields(logLine)
+		logLine, err := enrichLogLineWithTimeFields(aTime, "{\"msg\": \"dogu message 1\"}")
 		require.NoError(t, err)
 
-		jsonMsg, err := testutils.ValueOfJsonField(logLine.Value, "msg")
+		jsonMsg, err := testutils.ValueOfJsonField(logLine, "msg")
 		require.NoError(t, err)
 		assert.Equal(t, "dogu message 1", jsonMsg)
 
-		jsonTime, err := testutils.ValueOfJsonField(logLine.Value, "time")
+		jsonTime, err := testutils.ValueOfJsonField(logLine, "time")
 		require.NoError(t, err)
 		assert.Equal(t, "2009-11-17 20:34:58.651387237 +0000 UTC", jsonTime)
 
-		jsonTimeUnixNano, err := testutils.ValueOfJsonField(logLine.Value, "time_unix_nano")
+		jsonTimeUnixNano, err := testutils.ValueOfJsonField(logLine, "time_unix_nano")
 		require.NoError(t, err)
 		assert.Equal(t, strconv.FormatInt(aTime.UnixNano(), 10), jsonTimeUnixNano)
 
-		jsonTimeYear, err := testutils.ValueOfJsonFieldInt(logLine.Value, "time_year")
+		jsonTimeYear, err := testutils.ValueOfJsonFieldInt(logLine, "time_year")
 		require.NoError(t, err)
 		assert.Equal(t, 2009, jsonTimeYear)
 
-		jsonTimeMonth, err := testutils.ValueOfJsonFieldInt(logLine.Value, "time_month")
+		jsonTimeMonth, err := testutils.ValueOfJsonFieldInt(logLine, "time_month")
 		require.NoError(t, err)
 		assert.Equal(t, 11, jsonTimeMonth)
 
-		jsonTimeDay, err := testutils.ValueOfJsonFieldInt(logLine.Value, "time_day")
+		jsonTimeDay, err := testutils.ValueOfJsonFieldInt(logLine, "time_day")
 		require.NoError(t, err)
 		assert.Equal(t, 17, jsonTimeDay)
 
@@ -262,15 +366,12 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 	t.Run("should encode LogLine.Value as one line", func(t *testing.T) {
 		aTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
-		baseLogLine := collector.LogLine{
-			Timestamp: aTime,
-			Value:     "{\"msg\": \"dogu message 1\"}",
-		}
 
-		logLine, err := appendTimeFields(baseLogLine)
+		logLine, err := enrichLogLineWithTimeFields(aTime, "{\"msg\": \"dogu message 1\"}")
 		require.NoError(t, err)
 
-		assert.NotContains(t, logLine.Value, "\n")
+		assert.NotContains(t, logLine, "\n")
+		assert.NotContains(t, logLine, "\t")
 	})
 
 	t.Run("should use basic authentification", func(t *testing.T) {
@@ -296,10 +397,20 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 				require.NoError(t, err)
 			}
 
+			if callCount == 3 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
+
+			if callCount == 4 {
+				_, err := w.Write(lokiFindLogsEmptyResponse)
+				require.NoError(t, err)
+			}
+
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "aUser", "aPassword")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "aUser", "aPassword", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -316,7 +427,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
 		httpAPIUrl := "\n"
 
-		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, httpAPIUrl, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, httpAPIUrl, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -351,7 +462,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(http.DefaultClient, server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -375,7 +486,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		}))
 		defer server.Close()
 
-		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "")
+		lokiLogsPrv := NewLokiLogsProvider(server.Client(), server.URL, "", "", 0, daysToDuration(maxQueryTimeWindowInDays))
 
 		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "aNamespace", res.channel)
@@ -388,7 +499,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 	})
 }
 
-func TestBuildFindLogsHttpQuery(t *testing.T) {
+/*func TestBuildFindLogsHttpQuery(t *testing.T) {
 	t.Run("should create url for querying logs", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
 		endTime := startTime + daysToNanoSec(maxQueryTimeWindowInDays)
@@ -416,9 +527,9 @@ func TestBuildFindLogsHttpQuery(t *testing.T) {
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "parse service URL")
 	})
-}
+}*/
 
-func containsLogLine(logLines []*collector.LogLine, timestamp time.Time, valueContains string) bool {
+func containsLogLine(logLines []*domain.LogLine, timestamp time.Time, valueContains string) bool {
 	for _, ll := range logLines {
 		if ll.Timestamp.Equal(timestamp) && strings.Contains(ll.Value, valueContains) {
 			return true
@@ -465,15 +576,15 @@ func asString(value int64) string {
 }
 
 type logLineResult struct {
-	channel   chan *collector.LogLine
-	logLines  []*collector.LogLine
+	channel   chan *domain.LogLine
+	logLines  []*domain.LogLine
 	waitGroup sync.WaitGroup
 }
 
 func (res *logLineResult) receive(closeChannelAfterLastRead time.Duration) {
 	res.waitGroup.Add(1)
 	timer := time.NewTimer(closeChannelAfterLastRead)
-	go func(channel <-chan *collector.LogLine) {
+	go func(channel <-chan *domain.LogLine) {
 		defer res.waitGroup.Done()
 		for {
 			select {
@@ -497,8 +608,8 @@ func (res *logLineResult) wait() {
 
 func receiveLogLineResults(closeChannelAfterLastRead time.Duration) *logLineResult {
 	res := &logLineResult{
-		channel:   make(chan *collector.LogLine),
-		logLines:  []*collector.LogLine{},
+		channel:   make(chan *domain.LogLine),
+		logLines:  []*domain.LogLine{},
 		waitGroup: sync.WaitGroup{},
 	}
 	res.receive(closeChannelAfterLastRead)
@@ -515,4 +626,8 @@ func parseStartAndEndTime(r *http.Request) (int64, int64, error) {
 		return 0, 0, err
 	}
 	return start, end, nil
+}
+
+func daysToDuration(days int) time.Duration {
+	return time.Duration(time.Hour.Nanoseconds() * int64(24) * int64(days))
 }

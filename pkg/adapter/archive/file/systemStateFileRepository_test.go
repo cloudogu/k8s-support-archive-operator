@@ -10,17 +10,17 @@ import (
 )
 
 const (
-	testVolumeCollectorDirName   = "VolumeInfo"
-	testVolumeWorkDirArchivePath = testWorkPath + "/" + testNamespace + "/" + testName + "/" + testVolumeCollectorDirName
-	testVolumeWorkFile           = testVolumeWorkDirArchivePath + "/pvcs.yaml"
+	testSystemStateCollectorDirName   = "Resources/SystemState"
+	testSystemStateWorkDirArchivePath = testWorkPath + "/" + testNamespace + "/" + testName + "/" + testSystemStateCollectorDirName + "/apps/v1"
+	testSystemStateWorkFile           = testSystemStateWorkDirArchivePath + "/deployment.yaml"
 )
 
-func TestNewVolumesFileRepository(t *testing.T) {
+func TestNewSystemStateFileRepository(t *testing.T) {
 	// given
 	fsMock := newMockVolumeFs(t)
 
 	// when
-	repository := NewVolumesFileRepository(testWorkPath, fsMock)
+	repository := NewSystemStateFileRepository(testWorkPath, fsMock)
 
 	// then
 	assert.NotNil(t, repository)
@@ -29,7 +29,7 @@ func TestNewVolumesFileRepository(t *testing.T) {
 	assert.NotEmpty(t, repository.baseFileRepo)
 }
 
-func TestVolumesFileRepository_createVolumeInfo(t *testing.T) {
+func TestSystemStateFileRepository_createSystemStateInfo(t *testing.T) {
 	type fields struct {
 		workPath   string
 		filesystem func(t *testing.T) volumeFs
@@ -37,7 +37,7 @@ func TestVolumesFileRepository_createVolumeInfo(t *testing.T) {
 	type args struct {
 		ctx  context.Context
 		id   domain.SupportArchiveID
-		data *domain.VolumeInfo
+		data *domain.UnstructuredResource
 	}
 	tests := []struct {
 		name    string
@@ -51,7 +51,7 @@ func TestVolumesFileRepository_createVolumeInfo(t *testing.T) {
 				workPath: testWorkPath,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testVolumeWorkDirArchivePath, os.FileMode(0755)).Return(assert.AnError)
+					fsMock.EXPECT().MkdirAll(testSystemStateWorkDirArchivePath, os.FileMode(0755)).Return(assert.AnError)
 
 					return fsMock
 				},
@@ -59,7 +59,7 @@ func TestVolumesFileRepository_createVolumeInfo(t *testing.T) {
 			args: args{
 				ctx:  testCtx,
 				id:   testID,
-				data: &domain.VolumeInfo{Name: "pvcs"},
+				data: &domain.UnstructuredResource{Name: "deployment", Path: "apps/v1"},
 			},
 			wantErr: func(t *testing.T, err error) {
 				assert.Error(t, err)
@@ -73,8 +73,8 @@ func TestVolumesFileRepository_createVolumeInfo(t *testing.T) {
 				workPath: testWorkPath,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testVolumeWorkDirArchivePath, os.FileMode(0755)).Return(nil)
-					fsMock.EXPECT().WriteFile(testVolumeWorkFile, mock.Anything, os.FileMode(0644)).Return(assert.AnError)
+					fsMock.EXPECT().MkdirAll(testSystemStateWorkDirArchivePath, os.FileMode(0755)).Return(nil)
+					fsMock.EXPECT().WriteFile(testSystemStateWorkFile, mock.Anything, os.FileMode(0644)).Return(assert.AnError)
 
 					return fsMock
 				},
@@ -82,7 +82,7 @@ func TestVolumesFileRepository_createVolumeInfo(t *testing.T) {
 			args: args{
 				ctx:  testCtx,
 				id:   testID,
-				data: &domain.VolumeInfo{Name: "pvcs"},
+				data: &domain.UnstructuredResource{Name: "deployment", Path: "apps/v1"},
 			},
 			wantErr: func(t *testing.T, err error) {
 				assert.Error(t, err)
@@ -96,8 +96,8 @@ func TestVolumesFileRepository_createVolumeInfo(t *testing.T) {
 				workPath: testWorkPath,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testVolumeWorkDirArchivePath, os.FileMode(0755)).Return(nil)
-					fsMock.EXPECT().WriteFile(testVolumeWorkFile, mock.Anything, os.FileMode(0644)).Return(nil)
+					fsMock.EXPECT().MkdirAll(testSystemStateWorkDirArchivePath, os.FileMode(0755)).Return(nil)
+					fsMock.EXPECT().WriteFile(testSystemStateWorkFile, mock.Anything, os.FileMode(0644)).Return(nil)
 
 					return fsMock
 				},
@@ -105,7 +105,7 @@ func TestVolumesFileRepository_createVolumeInfo(t *testing.T) {
 			args: args{
 				ctx:  testCtx,
 				id:   testID,
-				data: &domain.VolumeInfo{Name: "pvcs"},
+				data: &domain.UnstructuredResource{Name: "deployment", Path: "apps/v1"},
 			},
 			wantErr: func(t *testing.T, err error) {
 				assert.NoError(t, err)
@@ -114,11 +114,11 @@ func TestVolumesFileRepository_createVolumeInfo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v := &VolumesFileRepository{
+			v := &SystemStateFileRepository{
 				workPath:   tt.fields.workPath,
 				filesystem: tt.fields.filesystem(t),
 			}
-			tt.wantErr(t, v.createVolumeInfo(tt.args.ctx, tt.args.id, tt.args.data))
+			tt.wantErr(t, v.createSystemState(tt.args.ctx, tt.args.id, tt.args.data))
 		})
 	}
 }

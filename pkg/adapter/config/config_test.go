@@ -24,9 +24,14 @@ func setTestEnvVars(t *testing.T) {
 	t.Setenv("NODE_INFO_USAGE_METRIC_STEP", "30s")
 	t.Setenv("NODE_INFO_HARDWARE_METRIC_STEP", "30m")
 	t.Setenv("METRICS_MAX_SAMPLES", "11000")
-	t.Setenv("LOKI_GATEWAY_URL", "loki")
-	t.Setenv("LOKI_GATEWAY_USERNAME", "lokiU")
-	t.Setenv("LOKI_GATEWAY_PASSWORD", "lokiP")
+	t.Setenv("LOG_GATEWAY_URL", "loki")
+	t.Setenv("LOG_GATEWAY_USERNAME", "lokiU")
+	t.Setenv("LOG_GATEWAY_PASSWORD", "lokiP")
+	t.Setenv("LOG_MAX_QUERY_RESULT_COUNT", "2000")
+	t.Setenv("LOG_MAX_QUERY_TIME_WINDOW", "24h")
+	t.Setenv("LOG_EVENT_SOURCE_NAME", "loki.kubernetes_events")
+	t.Setenv("SYSTEM_STATE_LABEL_SELECTORS", "app: ces")
+	t.Setenv("SYSTEM_STATE_GVK_EXCLUSIONS", "- group: apps\n  kind: Deployment\n  version: v1")
 }
 
 func TestNewOperatorConfig(t *testing.T) {
@@ -53,9 +58,12 @@ func TestNewOperatorConfig(t *testing.T) {
 		assert.Equal(t, time.Second*30, operatorConfig.NodeInfoUsageMetricStep)
 		assert.Equal(t, time.Minute*30, operatorConfig.NodeInfoHardwareMetricStep)
 		assert.Equal(t, 11000, operatorConfig.MetricsMaxSamples)
-		assert.Equal(t, "loki", operatorConfig.LokiGatewayConfig.Url)
-		assert.Equal(t, "lokiU", operatorConfig.LokiGatewayConfig.Username)
-		assert.Equal(t, "lokiP", operatorConfig.LokiGatewayConfig.Password)
+		assert.Equal(t, "loki", operatorConfig.LogGatewayConfig.Url)
+		assert.Equal(t, "lokiU", operatorConfig.LogGatewayConfig.Username)
+		assert.Equal(t, "lokiP", operatorConfig.LogGatewayConfig.Password)
+		assert.Equal(t, 2000, operatorConfig.LogsMaxQueryResultCount)
+		assert.Equal(t, time.Hour*24, operatorConfig.LogsMaxQueryTimeWindow)
+		assert.Equal(t, "loki.kubernetes_events", operatorConfig.LogsEventSourceName)
 	})
 	t.Run("should succeed with stage set", func(t *testing.T) {
 		// given
@@ -270,36 +278,36 @@ func TestGetLogLevel(t *testing.T) {
 func Test_configureLokiGateway(t *testing.T) {
 	tests := []struct {
 		name      string
-		want      LokiGatewayConfig
+		want      LogGatewayConfig
 		wantErr   assert.ErrorAssertionFunc
 		envSetter func(t *testing.T)
 	}{
 		{
 			name: "should return error on error reading gateway url",
-			want: LokiGatewayConfig{},
+			want: LogGatewayConfig{},
 			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
-				return assert.ErrorContains(t, err, "environment variable LOKI_GATEWAY_URL must be set")
+				return assert.ErrorContains(t, err, "environment variable LOG_GATEWAY_URL must be set")
 			},
 		},
 		{
 			name: "should return error on error reading gateway username",
-			want: LokiGatewayConfig{},
+			want: LogGatewayConfig{},
 			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
-				return assert.ErrorContains(t, err, "environment variable LOKI_GATEWAY_USERNAME must be set")
+				return assert.ErrorContains(t, err, "environment variable LOG_GATEWAY_USERNAME must be set")
 			},
 			envSetter: func(t *testing.T) {
-				t.Setenv(lokiGatewayUrlEnvironmentVariable, "loki")
+				t.Setenv(logGatewayUrlEnvironmentVariable, "loki")
 			},
 		},
 		{
 			name: "should return error on error reading gateway password",
-			want: LokiGatewayConfig{},
+			want: LogGatewayConfig{},
 			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
-				return assert.ErrorContains(t, err, "environment variable LOKI_GATEWAY_PASSWORD must be set")
+				return assert.ErrorContains(t, err, "environment variable LOG_GATEWAY_PASSWORD must be set")
 			},
 			envSetter: func(t *testing.T) {
-				t.Setenv(lokiGatewayUrlEnvironmentVariable, "loki")
-				t.Setenv(lokiGatewayUsernameEnvironmentVariable, "lokiU")
+				t.Setenv(logGatewayUrlEnvironmentVariable, "loki")
+				t.Setenv(logGatewayUsernameEnvironmentVariable, "lokiU")
 			},
 		},
 	}
@@ -309,11 +317,12 @@ func Test_configureLokiGateway(t *testing.T) {
 				tt.envSetter(t)
 			}
 
-			got, err := configureLokiGateway()
-			if !tt.wantErr(t, err, fmt.Sprintf("configureLokiGateway()")) {
+			config := &OperatorConfig{}
+			err := getLogConfig(config)
+			if !tt.wantErr(t, err, fmt.Sprintf("getLogConfig()")) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "configureLokiGateway()")
+			assert.Equalf(t, tt.want, config.LogGatewayConfig, "getLogConfig()")
 		})
 	}
 }

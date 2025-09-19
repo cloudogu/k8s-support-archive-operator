@@ -49,6 +49,9 @@ func (cm CollectorMapping) getRequiredCollectorMapping(cr *libapi.SupportArchive
 	if !cr.Spec.ExcludedContents.Events {
 		mapping[domain.CollectorTypeEvents] = cm[domain.CollectorTypeEvents]
 	}
+	if !cr.Spec.ExcludedContents.SystemState {
+		mapping[domain.CollectorTypeSystemState] = cm[domain.CollectorTypeSystemState]
+	}
 
 	return mapping
 }
@@ -170,7 +173,9 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 		case domain.CollectorTypeSecret:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.SecretYaml](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypeEvents:
-			stream, err = fetchRepoAndStreamWithErrorGroup[domain.EventSet](errCtx, errGroup, col, c.collectorMapping, id)
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.LogLine](errCtx, errGroup, col, c.collectorMapping, id)
+		case domain.CollectorTypeSystemState:
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.UnstructuredResource](errCtx, errGroup, col, c.collectorMapping, id)
 		default:
 			return "", errors.New("invalid collector type")
 		}
@@ -288,7 +293,14 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 
 		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
 	case domain.CollectorTypeEvents:
-		col, repo, typeErr := getCollectorAndRepositoryForType[domain.EventSet](next, c.collectorMapping)
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.LogLine](next, c.collectorMapping)
+		if typeErr != nil {
+			return typeErr
+		}
+
+		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
+	case domain.CollectorTypeSystemState:
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.UnstructuredResource](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}

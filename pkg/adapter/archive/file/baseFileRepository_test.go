@@ -416,7 +416,8 @@ func getSuccessStream() chan *domain.LogLine {
 
 	go func() {
 		channel <- &domain.LogLine{
-			Value: "logline",
+			Timestamp: time.Now(),
+			Value:     "value",
 		}
 
 		close(channel)

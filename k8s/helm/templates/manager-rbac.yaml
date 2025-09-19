@@ -35,6 +35,13 @@ rules:
     verbs:
       - get
       - list
+  - apiGroups: # we need this generic list and get to read the system state.
+      - "*"
+    resources:
+      - "*"
+    verbs:
+      - get
+      - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -49,3 +56,31 @@ subjects:
 - kind: ServiceAccount
   name: '{{ include "helm.fullname" . }}-controller-manager'
   namespace: '{{ .Release.Namespace }}'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "helm.fullname" . }}-manager-cluster-role
+  labels: {{ include "helm.labels" . | nindent 4 }}
+rules:
+  - apiGroups: # we need this generic list and get to read the system state.
+      - "*"
+    resources:
+      - "*"
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "helm.fullname" . }}-manager-clusterrolebinding
+  labels: {{ include "helm.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: '{{ include "helm.fullname" . }}-manager-cluster-role'
+subjects:
+  - kind: ServiceAccount
+    name: '{{ include "helm.fullname" . }}-controller-manager'
+    namespace: '{{ .Release.Namespace }}'

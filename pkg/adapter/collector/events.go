@@ -18,10 +18,10 @@ func NewEventsCollector(logsProvider LogsProvider) *EventsCollector {
 	}
 }
 
-func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *LogLine) error {
+func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *domain.LogLine) error {
 	defer close(resultChan)
 
-	err := ec.logsProvider.FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), namespace, resultChan)
+	err := ec.logsProvider.FindEvents(ctx, startTime.UnixNano(), endTime.UnixNano(), namespace, resultChan)
 	if err != nil {
 		return fmt.Errorf("call log provider to find logs; %v", err)
 	}

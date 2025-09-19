@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"errors"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"sync"
 	"testing"
 	"time"
@@ -24,10 +25,10 @@ func TestCollect(t *testing.T) {
 
 		logPrvMock := NewMockLogsProvider(t)
 		logPrvMock.EXPECT().
-			FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
-			RunAndReturn(func(ctx context.Context, i int64, i2 int64, s string, results chan<- *LogLine) error {
-				results <- &LogLine{Timestamp: resultTimestamp1, Value: "{\"msg\":\"message 1\"}"}
-				results <- &LogLine{Timestamp: resultTimestamp2, Value: "{\"msg\":\"message 2\"}"}
+			FindEvents(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
+			RunAndReturn(func(ctx context.Context, i int64, i2 int64, s string, results chan<- *domain.LogLine) error {
+				results <- &domain.LogLine{Timestamp: resultTimestamp1, Value: "{\"msg\":\"message 1\"}"}
+				results <- &domain.LogLine{Timestamp: resultTimestamp2, Value: "{\"msg\":\"message 2\"}"}
 				return nil
 			})
 
@@ -61,8 +62,8 @@ func TestCollect(t *testing.T) {
 
 		logPrvMock := NewMockLogsProvider(t)
 		logPrvMock.EXPECT().
-			FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
-			RunAndReturn(func(ctx context.Context, i int64, i2 int64, s string, results chan<- *LogLine) error {
+			FindEvents(ctx, startTime.UnixNano(), endTime.UnixNano(), "aNamespace", mock.Anything).
+			RunAndReturn(func(ctx context.Context, i int64, i2 int64, s string, results chan<- *domain.LogLine) error {
 				return errors.New("a log provider error")
 			})
 
@@ -81,15 +82,15 @@ func TestCollect(t *testing.T) {
 }
 
 type logLineResult struct {
-	channel   chan *LogLine
-	logLines  []*LogLine
+	channel   chan *domain.LogLine
+	logLines  []*domain.LogLine
 	waitGroup sync.WaitGroup
 }
 
 func receiveLogLinesResult() *logLineResult {
 	res := &logLineResult{
-		channel:   make(chan *LogLine),
-		logLines:  []*LogLine{},
+		channel:   make(chan *domain.LogLine),
+		logLines:  []*domain.LogLine{},
 		waitGroup: sync.WaitGroup{},
 	}
 	res.receive()
@@ -98,7 +99,7 @@ func receiveLogLinesResult() *logLineResult {
 
 func (res *logLineResult) receive() {
 	res.waitGroup.Add(1)
-	go func(resultChan <-chan *LogLine) {
+	go func(resultChan <-chan *domain.LogLine) {
 		for r := range res.channel {
 			res.logLines = append(res.logLines, r)
 		}
