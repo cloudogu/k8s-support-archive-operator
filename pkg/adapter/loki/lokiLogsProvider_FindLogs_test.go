@@ -34,6 +34,7 @@ var (
 
 func TestLokiLogsProviderFindLogs(t *testing.T) {
 	closeChannelAfterLastReadDuration := 5 * time.Millisecond
+	//closeChannelAfterLastReadDuration := 10 * time.Minute
 
 	t.Run("should call API once if result size < limit and queried time == max time window", func(t *testing.T) {
 		startTime := time.Now().UnixNano()
@@ -78,7 +79,6 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 	})
 
 	t.Run("should call API twice using the latest result timestamp as start time if result size == limit and queried time == max time window", func(t *testing.T) {
-		t.Skip("TODO: fix it")
 		startTime := time.Now().UnixNano()
 		endTime := startTime + daysToNanoSec(10)
 
@@ -138,6 +138,20 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		assert.Equal(t, endTime, httpServerCalls[1].reqEndTime)
 	})
 
+	t.Run("xxx", func(t *testing.T) {
+		rstart := time.Unix(0, 1758286329102847174) // "2025-09-19 14:52:09.102847174 +0200 CEST"
+		rEnd := time.Unix(0, 1759150329102847174)   //  "2025-09-29 14:52:09.102847174 +0200 CEST"
+
+		assert.Equal(t, "", rstart.String())
+		assert.Equal(t, "", rEnd.String())
+
+		start := time.Unix(0, 1758286329102847174)
+		end := time.Unix(0, 1760014329102847174)
+
+		assert.Equal(t, "", start.String()) // "2025-09-19 14:52:09.102847174 +0200 CEST"
+		assert.Equal(t, "", end.String())   //   "2025-10-09 14:52:09.102847174 +0200 CEST"
+	})
+
 	t.Run("should call API twice if queried time == 2 * max time window", func(t *testing.T) {
 		t.Skip("TODO: fix it")
 		startTime := time.Now().UnixNano()
@@ -184,6 +198,8 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		res.wait()
 		require.NoError(t, err)
+
+		//require.NotEqual(t, resultTimeStampFirstResponse, httpServerCalls[1].reqStartTime)
 
 		assert.Equal(t, 2, callCount)
 

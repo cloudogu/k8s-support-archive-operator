@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
 
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 
@@ -130,7 +131,7 @@ func (lp *LokiLogsProvider) findLogs(
 			resultChan <- &ll
 		}
 
-		if reqEndTime == endTimeInNanoSec {
+		if reqEndTime == endTimeInNanoSec && len(logLines) != lp.maxQueryResultCount {
 			return nil
 		}
 
