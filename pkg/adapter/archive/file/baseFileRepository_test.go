@@ -19,7 +19,10 @@ import (
 )
 
 const (
-	testStateFilePath = testWorkDirArchivePath + "/.done"
+	testStateFilePath         = testWorkDirArchivePath + "/.done"
+	testLogCollectorDirName   = "Logs"
+	testLogWorkDirArchivePath = testWorkPath + "/" + testNamespace + "/" + testName + "/" + testLogCollectorDirName
+	testWorkLog               = testLogWorkDirArchivePath + "/logs.log"
 )
 
 func Test_baseFileRepository_FinishCollection(t *testing.T) {
@@ -572,10 +575,10 @@ func Test_baseFileRepository_createStreamConstructor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			filesystem, expectedWant := tt.fields.filesystem(t)
+			testFilesystem, expectedWant := tt.fields.filesystem(t)
 			l := &baseFileRepository{
 				workPath:   tt.fields.workPath,
-				filesystem: filesystem,
+				filesystem: testFilesystem,
 			}
 			reader, closeReader, err := l.createStreamConstructor(tt.args.path)()
 			tt.wantErr(t, err)
