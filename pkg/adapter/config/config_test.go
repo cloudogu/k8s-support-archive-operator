@@ -32,7 +32,6 @@ func setTestEnvVars(t *testing.T) {
 	t.Setenv("LOG_EVENT_SOURCE_NAME", "loki.kubernetes_events")
 	t.Setenv("SYSTEM_STATE_LABEL_SELECTORS", "app: ces")
 	t.Setenv("SYSTEM_STATE_GVK_EXCLUSIONS", "- group: apps\n  kind: Deployment\n  version: v1")
-
 }
 
 func TestNewOperatorConfig(t *testing.T) {
@@ -318,11 +317,12 @@ func Test_configureLokiGateway(t *testing.T) {
 				tt.envSetter(t)
 			}
 
-			got, err := configureLogGateway()
-			if !tt.wantErr(t, err, fmt.Sprintf("configureLogGateway()")) {
+			config := &OperatorConfig{}
+			err := getLogConfig(config)
+			if !tt.wantErr(t, err, fmt.Sprintf("getLogConfig()")) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "configureLogGateway()")
+			assert.Equalf(t, tt.want, config.LogGatewayConfig, "getLogConfig()")
 		})
 	}
 }

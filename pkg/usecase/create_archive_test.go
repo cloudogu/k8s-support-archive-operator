@@ -424,7 +424,7 @@ func TestCollectorMapping_getRequiredCollectorMapping(t *testing.T) {
 			domain.CollectorTypeLog:         logColRepo,
 			domain.CollectorTypeVolumeInfo:  volumeColRepo,
 			domain.CollectorTypeNodeInfo:    nodeColRepo,
-			domain.CollectorTypSecret:       secretColRepo,
+			domain.CollectorTypeSecret:      secretColRepo,
 			domain.CollectorTypeSystemState: systemStateColRepo,
 		}
 
@@ -436,7 +436,7 @@ func TestCollectorMapping_getRequiredCollectorMapping(t *testing.T) {
 		assert.Equal(t, logColRepo, mapping[domain.CollectorTypeLog])
 		assert.Equal(t, volumeColRepo, mapping[domain.CollectorTypeVolumeInfo])
 		assert.Equal(t, nodeColRepo, mapping[domain.CollectorTypeNodeInfo])
-		assert.Equal(t, secretColRepo, mapping[domain.CollectorTypSecret])
+		assert.Equal(t, secretColRepo, mapping[domain.CollectorTypeSecret])
 		assert.Equal(t, systemStateColRepo, mapping[domain.CollectorTypeSystemState])
 	})
 
@@ -465,7 +465,7 @@ func TestCollectorMapping_getRequiredCollectorMapping(t *testing.T) {
 			domain.CollectorTypeLog:         logColRepo,
 			domain.CollectorTypeVolumeInfo:  volumeColRepo,
 			domain.CollectorTypeNodeInfo:    nodeColRepo,
-			domain.CollectorTypSecret:       secretColRepo,
+			domain.CollectorTypeSecret:      secretColRepo,
 			domain.CollectorTypeSystemState: systemStateColRepo,
 		}
 

@@ -141,30 +141,10 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 		return nil, err
 	}
 
-	logsMaxQueryResultCount, err := getIntEnvVar(logsMaxQueryResultCountEnvVar)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get max log query result count: %w", err)
-	}
-	log.Info(fmt.Sprintf("Maximum log query result count: %d", logsMaxQueryResultCount))
-
-	logsMaxQueryTimeWindow, err := getDurationEnvVar(logsMaxQueryTimeWindowEnvVar)
+	err = getLogConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	log.Info(fmt.Sprintf("Maximum log query time window: %s", logsMaxQueryTimeWindow))
-
-	logsEventSourceName, err := getEnvVar(logsEventSourceNameEnvVar)
-	if err != nil {
-		return nil, err
-	}
-	log.Info(fmt.Sprintf("Log event source name: %s", logsEventSourceName))
-
-	logGateway, err := configureLogGateway()
-	if err != nil {
-		return nil, err
-	}
-
-	//TODO Extract Log config fetch
 
 	return config, nil
 }
@@ -197,7 +177,7 @@ func getArchiveConfig(config *OperatorConfig) error {
 	config.ArchiveVolumeDownloadServiceName = archiveVolumeDownloadServiceName
 	config.ArchiveVolumeDownloadServiceProtocol = archiveVolumeDownloadServiceProtocol
 	config.ArchiveVolumeDownloadServicePort = archiveVolumeDownloadServicePort
-	config.GarbageCollectionInterval = supportArchiveSyncInterval
+	config.SupportArchiveSyncInterval = supportArchiveSyncInterval
 
 	return nil
 }
@@ -388,25 +368,47 @@ func getEnvVar(name string) (string, error) {
 	return env, nil
 }
 
-func configureLogGateway() (LogGatewayConfig, error) {
+func getLogConfig(config *OperatorConfig) error {
 	url, err := getEnvVar(logGatewayUrlEnvironmentVariable)
 	if err != nil {
-		return LogGatewayConfig{}, err
+		return err
 	}
 
 	username, err := getEnvVar(logGatewayUsernameEnvironmentVariable)
 	if err != nil {
-		return LogGatewayConfig{}, err
+		return err
 	}
 
 	password, err := getEnvVar(logGatewayPasswordEnvironmentVariable)
 	if err != nil {
-		return LogGatewayConfig{}, err
+		return err
 	}
 
-	return LogGatewayConfig{
-		Url:      url,
-		Username: username,
-		Password: password,
-	}, nil
+	logsMaxQueryResultCount, err := getIntEnvVar(logsMaxQueryResultCountEnvVar)
+	if err != nil {
+		return err
+	}
+	log.Info(fmt.Sprintf("Maximum log query result count: %d", logsMaxQueryResultCount))
+
+	logsMaxQueryTimeWindow, err := getDurationEnvVar(logsMaxQueryTimeWindowEnvVar)
+	if err != nil {
+		return err
+	}
+	log.Info(fmt.Sprintf("Maximum log query time window: %s", logsMaxQueryTimeWindow))
+
+	logsEventSourceName, err := getEnvVar(logsEventSourceNameEnvVar)
+	if err != nil {
+		return err
+	}
+	log.Info(fmt.Sprintf("Log event source name: %s", logsEventSourceName))
+
+	config.LogGatewayConfig.Url = url
+	config.LogGatewayConfig.Username = username
+	config.LogGatewayConfig.Password = password
+
+	config.LogsMaxQueryResultCount = logsMaxQueryResultCount
+	config.LogsMaxQueryTimeWindow = logsMaxQueryTimeWindow
+	config.LogsEventSourceName = logsEventSourceName
+
+	return nil
 }

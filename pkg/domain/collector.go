@@ -8,7 +8,7 @@ const (
 	CollectorTypeLog         CollectorType = "Logs"
 	CollectorTypeVolumeInfo  CollectorType = "VolumeInfo"
 	CollectorTypeNodeInfo    CollectorType = "NodeInfo"
-	CollectorTypSecret       CollectorType = "Resources/Secrets"
+	CollectorTypeSecret      CollectorType = "Resources/Secrets"
 	CollectorTypeSystemState CollectorType = "Resources/SystemState"
 	CollectorTypeEvents      CollectorType = "Events"
 )

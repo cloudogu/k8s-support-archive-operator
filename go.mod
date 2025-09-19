@@ -4,8 +4,7 @@ go 1.24.5
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
-	// TODO Merge dev in lib repo
-	github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250915115325-f68f3a230692
+	github.com/cloudogu/k8s-support-archive-lib v0.0.0-20250919073343-1cd318ca98bc
 	github.com/go-logr/logr v1.4.3
 	github.com/prometheus/client_golang v1.23.0
 	github.com/prometheus/common v0.65.0
