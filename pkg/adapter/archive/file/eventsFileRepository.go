@@ -54,7 +54,7 @@ func (l *EventFileRepository) createEventLog(ctx context.Context, id domain.Supp
 		logger.Info(fmt.Sprintf("Created event file %s", filePath))
 	}
 
-	_, err := l.eventFiles[id].Write([]byte(fmt.Sprintf("%s%s", data.Value, "\n")))
+	_, err := fmt.Fprintf(l.eventFiles[id], "%s%s", data.Value, "\n")
 	if err != nil {
 		return fmt.Errorf("failed to write data to event file %s: %w", id, err)
 	}
