@@ -138,22 +138,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		assert.Equal(t, endTime, httpServerCalls[1].reqEndTime)
 	})
 
-	t.Run("xxx", func(t *testing.T) {
-		rstart := time.Unix(0, 1758286329102847174) // "2025-09-19 14:52:09.102847174 +0200 CEST"
-		rEnd := time.Unix(0, 1759150329102847174)   //  "2025-09-29 14:52:09.102847174 +0200 CEST"
-
-		assert.Equal(t, "", rstart.String())
-		assert.Equal(t, "", rEnd.String())
-
-		start := time.Unix(0, 1758286329102847174)
-		end := time.Unix(0, 1760014329102847174)
-
-		assert.Equal(t, "", start.String()) // "2025-09-19 14:52:09.102847174 +0200 CEST"
-		assert.Equal(t, "", end.String())   //   "2025-10-09 14:52:09.102847174 +0200 CEST"
-	})
-
 	t.Run("should call API twice if queried time == 2 * max time window", func(t *testing.T) {
-		t.Skip("TODO: fix it")
 		startTime := time.Now().UnixNano()
 		endTime := startTime + daysToNanoSec(20)
 
@@ -199,8 +184,6 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		res.wait()
 		require.NoError(t, err)
 
-		//require.NotEqual(t, resultTimeStampFirstResponse, httpServerCalls[1].reqStartTime)
-
 		assert.Equal(t, 2, callCount)
 
 		assert.Equal(t, startTime, httpServerCalls[0].reqStartTime)
@@ -211,7 +194,6 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 	})
 
 	t.Run("should be able to handle empty results", func(t *testing.T) {
-		t.Skip("TODO: fix it")
 		startTime := time.Now().UnixNano()
 		endTime := startTime + daysToNanoSec(30)
 
@@ -267,7 +249,6 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 	})
 
 	t.Run("should call API twice with a shorter second time window if end time == 1.5 * max time window", func(t *testing.T) {
-		t.Skip("TODO: fix it")
 		startTime := time.Now().UnixNano()
 		endTime := startTime + daysToNanoSec(15)
 
@@ -320,6 +301,19 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		assert.Equal(t, startTime+daysToNanoSec(10), httpServerCalls[1].reqStartTime)
 		assert.Equal(t, endTime, httpServerCalls[1].reqEndTime)
+	})
+
+	t.Run("should calculate next time window", func(t *testing.T) {
+		startTime := time.Now().UnixNano()
+		endTime := startTime + daysToNanoSec(20)
+
+		nextStart, nextEnd := findLogsNextTimeWindow(startTime, endTime, daysToNanoSec(10))
+		assert.Equal(t, startTime, nextStart)
+		assert.Equal(t, startTime+daysToNanoSec(10), nextEnd)
+
+		nextStart, nextEnd = findLogsNextTimeWindow(nextEnd, endTime, daysToNanoSec(10))
+		assert.Equal(t, startTime+daysToNanoSec(10), nextStart)
+		assert.Equal(t, endTime, nextEnd)
 	})
 
 	t.Run("should parse response from API", func(t *testing.T) {

@@ -136,7 +136,6 @@ func (lp *LokiLogsProvider) findLogs(
 		}
 
 		if len(logLines) == 0 || len(logLines) != lp.maxQueryResultCount {
-			reqEndTime += lp.maxQueryTimeWindowNanoSecs
 			continue
 		}
 
