@@ -274,7 +274,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		require.Equal(t, endTime, httpServerCalls[1].reqStartTime)
 		require.Equal(t, endTime, httpServerCalls[1].reqEndTime)
 
-		msg, err := testutils.ValueOfJsonField(res.logLines[0].Value, "message")
+		msg, err := valueOfJsonField(res.logLines[0].Value, "message")
 		require.NoError(t, err)
 		assert.Equal(t, "plain text with \"quotes\"", msg)
 	})
@@ -324,11 +324,11 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		res.wait()
 		require.NoError(t, err)
 
-		assert.True(t, testutils.ContainsJsonField(res.logLines[0].Value, "time"))
-		assert.True(t, testutils.ContainsJsonField(res.logLines[0].Value, "time_unix_nano"))
-		assert.True(t, testutils.ContainsJsonField(res.logLines[0].Value, "time_year"))
-		assert.True(t, testutils.ContainsJsonField(res.logLines[0].Value, "time_month"))
-		assert.True(t, testutils.ContainsJsonField(res.logLines[0].Value, "time_day"))
+		assert.True(t, containsJsonField(res.logLines[0].Value, "time"))
+		assert.True(t, containsJsonField(res.logLines[0].Value, "time_unix_nano"))
+		assert.True(t, containsJsonField(res.logLines[0].Value, "time_year"))
+		assert.True(t, containsJsonField(res.logLines[0].Value, "time_month"))
+		assert.True(t, containsJsonField(res.logLines[0].Value, "time_day"))
 
 	})
 
@@ -338,27 +338,27 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		logLine, err := enrichLogLineWithTimeFields(aTime, "{\"msg\": \"dogu message 1\"}")
 		require.NoError(t, err)
 
-		jsonMsg, err := testutils.ValueOfJsonField(logLine, "msg")
+		jsonMsg, err := valueOfJsonField(logLine, "msg")
 		require.NoError(t, err)
 		assert.Equal(t, "dogu message 1", jsonMsg)
 
-		jsonTime, err := testutils.ValueOfJsonField(logLine, "time")
+		jsonTime, err := valueOfJsonField(logLine, "time")
 		require.NoError(t, err)
 		assert.Equal(t, "2009-11-17 20:34:58.651387237 +0000 UTC", jsonTime)
 
-		jsonTimeUnixNano, err := testutils.ValueOfJsonField(logLine, "time_unix_nano")
+		jsonTimeUnixNano, err := valueOfJsonField(logLine, "time_unix_nano")
 		require.NoError(t, err)
 		assert.Equal(t, strconv.FormatInt(aTime.UnixNano(), 10), jsonTimeUnixNano)
 
-		jsonTimeYear, err := testutils.ValueOfJsonFieldInt(logLine, "time_year")
+		jsonTimeYear, err := valueOfJsonFieldInt(logLine, "time_year")
 		require.NoError(t, err)
 		assert.Equal(t, 2009, jsonTimeYear)
 
-		jsonTimeMonth, err := testutils.ValueOfJsonFieldInt(logLine, "time_month")
+		jsonTimeMonth, err := valueOfJsonFieldInt(logLine, "time_month")
 		require.NoError(t, err)
 		assert.Equal(t, 11, jsonTimeMonth)
 
-		jsonTimeDay, err := testutils.ValueOfJsonFieldInt(logLine, "time_day")
+		jsonTimeDay, err := valueOfJsonFieldInt(logLine, "time_day")
 		require.NoError(t, err)
 		assert.Equal(t, 17, jsonTimeDay)
 
@@ -630,4 +630,63 @@ func parseStartAndEndTime(r *http.Request) (int64, int64, error) {
 
 func daysToDuration(days int) time.Duration {
 	return time.Duration(time.Hour.Nanoseconds() * int64(24) * int64(days))
+}
+
+func valueOfJsonField(jsonAsString string, field string) (string, error) {
+	jsonDecoder := json.NewDecoder(strings.NewReader(jsonAsString))
+
+	var decodedData map[string]interface{}
+	err := jsonDecoder.Decode(&decodedData)
+	if err != nil {
+		return "", err
+	}
+	value, containsField := decodedData[field]
+	if !containsField {
+		return "", nil
+	}
+	s, ok := value.(string)
+	if !ok {
+		return "", errors.New("value is not a string")
+	}
+	return s, nil
+}
+
+func valueOfJsonFieldInt(jsonAsString string, field string) (int, error) {
+	jsonDecoder := json.NewDecoder(strings.NewReader(jsonAsString))
+	jsonDecoder.UseNumber()
+
+	var decodedData map[string]interface{}
+	err := jsonDecoder.Decode(&decodedData)
+	if err != nil {
+		return 0, err
+	}
+	value, containsField := decodedData[field]
+	if !containsField {
+		return 0, nil
+	}
+
+	number, ok := value.(json.Number)
+	if !ok {
+		return 0, errors.New("value is not a json number")
+	}
+	valueInt64, err := number.Int64()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(valueInt64), nil
+}
+
+func containsJsonField(jsonAsString string, field string) bool {
+	jsonDecoder := json.NewDecoder(strings.NewReader(jsonAsString))
+	jsonDecoder.UseNumber()
+
+	var decodedData map[string]interface{}
+	err := jsonDecoder.Decode(&decodedData)
+	if err != nil {
+		return false
+	}
+
+	_, containsField := decodedData[field]
+	return containsField
 }
