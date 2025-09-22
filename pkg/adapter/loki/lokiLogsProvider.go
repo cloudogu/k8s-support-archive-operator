@@ -113,7 +113,7 @@ func (lp *LokiLogsProvider) findLogs(ctx context.Context, start, end time.Time, 
 			resultChan <- &ll
 		}
 
-		if reqEndTime == end && len(logLines) != lp.maxQueryResultCount {
+		if reqEndTime.Equal(end) && len(logLines) != lp.maxQueryResultCount {
 			return nil
 		}
 
@@ -124,8 +124,8 @@ func (lp *LokiLogsProvider) findLogs(ctx context.Context, start, end time.Time, 
 		reqEndTime = findLatestTimestamp(logLines)
 		// if we reach the limit and the last timestamp is this starting timestamp, possible other logs can't be queried
 		// we use a high limit to avoid that.
-		if reqEndTime == reqStartTime {
-			reqEndTime.Add(time.Nanosecond)
+		if reqEndTime.Equal(reqStartTime) {
+			reqEndTime = reqEndTime.Add(time.Nanosecond)
 		}
 	}
 }
