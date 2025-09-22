@@ -19,7 +19,7 @@ func TestCollect(t *testing.T) {
 		resultChannel := make(chan *domain.LogLine)
 
 		logPrvMock := NewMockLogsProvider(t)
-		logPrvMock.EXPECT().FindEvents(testCtx, startTime.UnixNano(), endTime.UnixNano(), testNamespace, mock.Anything).Return(nil)
+		logPrvMock.EXPECT().FindEvents(testCtx, startTime, endTime, testNamespace, mock.Anything).Return(nil)
 
 		group := sync.WaitGroup{}
 		group.Add(1)
@@ -61,7 +61,7 @@ func TestCollect(t *testing.T) {
 		resultChannel := make(chan<- *domain.LogLine)
 
 		logPrvMock := NewMockLogsProvider(t)
-		logPrvMock.EXPECT().FindEvents(testCtx, startTime.UnixNano(), endTime.UnixNano(), testNamespace, resultChannel).Return(assert.AnError)
+		logPrvMock.EXPECT().FindEvents(testCtx, startTime, endTime, testNamespace, resultChannel).Return(assert.AnError)
 
 		eventsCol := NewEventsCollector(logPrvMock)
 

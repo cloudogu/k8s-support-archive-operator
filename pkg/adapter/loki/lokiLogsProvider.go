@@ -25,13 +25,13 @@ const (
 )
 
 type LokiLogsProvider struct {
-	serviceURL                 string
-	httpClient                 *http.Client
-	username                   string
-	password                   string
-	maxQueryResultCount        int
-	maxQueryTimeWindowNanoSecs int64
-	logEventSourceName         string
+	serviceURL          string
+	httpClient          *http.Client
+	username            string
+	password            string
+	maxQueryResultCount int
+	maxQueryTimeWindow  time.Duration
+	logEventSourceName  string
 }
 
 type queryLogsResponse struct {
@@ -75,48 +75,29 @@ func (r ReturnType) GetQuery(namespace, logEventSourceName string) (string, erro
 
 func NewLokiLogsProvider(httpClient *http.Client, operatorConfig *config.OperatorConfig) *LokiLogsProvider {
 	return &LokiLogsProvider{
-		httpClient:                 httpClient,
-		serviceURL:                 operatorConfig.LogGatewayConfig.Url,
-		username:                   operatorConfig.LogGatewayConfig.Username,
-		password:                   operatorConfig.LogGatewayConfig.Password,
-		maxQueryResultCount:        operatorConfig.LogsMaxQueryResultCount,
-		maxQueryTimeWindowNanoSecs: operatorConfig.LogsMaxQueryTimeWindow.Nanoseconds(),
-		logEventSourceName:         operatorConfig.LogsEventSourceName,
+		httpClient:          httpClient,
+		serviceURL:          operatorConfig.LogGatewayConfig.Url,
+		username:            operatorConfig.LogGatewayConfig.Username,
+		password:            operatorConfig.LogGatewayConfig.Password,
+		maxQueryResultCount: operatorConfig.LogsMaxQueryResultCount,
+		maxQueryTimeWindow:  operatorConfig.LogsMaxQueryTimeWindow,
+		logEventSourceName:  operatorConfig.LogsEventSourceName,
 	}
 }
 
-func (lp *LokiLogsProvider) FindLogs(
-	ctx context.Context,
-	startTimeInNanoSec int64,
-	endTimeInNanoSec int64,
-	namespace string,
-	resultChan chan<- *domain.LogLine,
-) error {
+func (lp *LokiLogsProvider) FindLogs(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec time.Time, namespace string, resultChan chan<- *domain.LogLine) error {
 	return lp.findLogs(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan, onlyLogs)
 }
 
-func (lp *LokiLogsProvider) FindEvents(
-	ctx context.Context,
-	startTimeInNanoSec int64,
-	endTimeInNanoSec int64,
-	namespace string,
-	resultChan chan<- *domain.LogLine,
-) error {
-	return lp.findLogs(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan, onlyEvents)
+func (lp *LokiLogsProvider) FindEvents(ctx context.Context, start, end time.Time, namespace string, resultChan chan<- *domain.LogLine) error {
+	return lp.findLogs(ctx, start, end, namespace, resultChan, onlyEvents)
 }
 
-func (lp *LokiLogsProvider) findLogs(
-	ctx context.Context,
-	startTimeInNanoSec int64,
-	endTimeInNanoSec int64,
-	namespace string,
-	resultChan chan<- *domain.LogLine,
-	returnType ReturnType,
-) error {
-	var reqStartTime int64
-	reqEndTime := startTimeInNanoSec
+func (lp *LokiLogsProvider) findLogs(ctx context.Context, start, end time.Time, namespace string, resultChan chan<- *domain.LogLine, returnType ReturnType) error {
+	var reqStartTime time.Time
+	reqEndTime := start
 	for {
-		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, endTimeInNanoSec, lp.maxQueryTimeWindowNanoSecs)
+		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, end, lp.maxQueryTimeWindow)
 
 		httpResp, err := lp.httpFindLogs(ctx, reqStartTime, reqEndTime, namespace, returnType)
 		if err != nil {
@@ -132,7 +113,7 @@ func (lp *LokiLogsProvider) findLogs(
 			resultChan <- &ll
 		}
 
-		if reqEndTime == endTimeInNanoSec && len(logLines) != lp.maxQueryResultCount {
+		if reqEndTime == end && len(logLines) != lp.maxQueryResultCount {
 			return nil
 		}
 
@@ -144,12 +125,12 @@ func (lp *LokiLogsProvider) findLogs(
 		// if we reach the limit and the last timestamp is this starting timestamp, possible other logs can't be queried
 		// we use a high limit to avoid that.
 		if reqEndTime == reqStartTime {
-			reqEndTime += 1
+			reqEndTime.Add(time.Nanosecond)
 		}
 	}
 }
 
-func (lp *LokiLogsProvider) httpFindLogs(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, returnType ReturnType) (*queryLogsResponse, error) {
+func (lp *LokiLogsProvider) httpFindLogs(ctx context.Context, start, end time.Time, namespace string, returnType ReturnType) (*queryLogsResponse, error) {
 	logger := log.FromContext(ctx).WithName(loggerName)
 
 	query, err := returnType.GetQuery(namespace, lp.logEventSourceName)
@@ -157,7 +138,7 @@ func (lp *LokiLogsProvider) httpFindLogs(ctx context.Context, startTimeInNanoSec
 		return nil, err
 	}
 
-	query, err = buildFindLogsHttpQuery(lp.serviceURL, startTimeInNanoSec, endTimeInNanoSec, lp.maxQueryResultCount, query)
+	query, err = buildFindLogsHttpQuery(lp.serviceURL, query, start, end, lp.maxQueryResultCount)
 	if err != nil {
 		return nil, fmt.Errorf("building logs query: %w", err)
 	}
@@ -187,13 +168,7 @@ func (lp *LokiLogsProvider) httpFindLogs(ctx context.Context, startTimeInNanoSec
 	return parseQueryLogsResponse(resp.Body)
 }
 
-func buildFindLogsHttpQuery(
-	serviceURL string,
-	startTimeInNanoSec int64,
-	endTimeInNanoSec int64,
-	maxQueryResultCount int,
-	query string,
-) (string, error) {
+func buildFindLogsHttpQuery(serviceURL, query string, start, end time.Time, maxQueryResultCount int) (string, error) {
 	baseUrl, err := url.Parse(serviceURL)
 	if err != nil {
 		return "", fmt.Errorf("parse service URL: %w", err)
@@ -202,8 +177,8 @@ func buildFindLogsHttpQuery(
 
 	params := baseUrl.Query()
 	params.Set("query", query)
-	params.Set("start", fmt.Sprintf("%d", startTimeInNanoSec))
-	params.Set("end", fmt.Sprintf("%d", endTimeInNanoSec))
+	params.Set("start", fmt.Sprintf("%d", start.UnixNano()))
+	params.Set("end", fmt.Sprintf("%d", end.UnixNano()))
 	params.Set("limit", fmt.Sprintf("%d", maxQueryResultCount))
 	params.Set("direction", "forward")
 
@@ -230,9 +205,14 @@ func parseQueryLogsResponse(httpRespBody io.Reader) (*queryLogsResponse, error) 
 	return result, nil
 }
 
-func findLogsNextTimeWindow(startTimeInNanoSec int64, maxEndTimeInNanoSec int64, maxTimeWindowNanoSecs int64) (int64, int64) {
-	timeWindowEndInNanoSec := minInt64(startTimeInNanoSec+maxTimeWindowNanoSecs, maxEndTimeInNanoSec)
-	return startTimeInNanoSec, timeWindowEndInNanoSec
+func findLogsNextTimeWindow(startTime time.Time, maxEndTime time.Time, maxTimeWindow time.Duration) (time.Time, time.Time) {
+	timeWindowEnd := maxEndTime
+	window := startTime.Add(maxTimeWindow)
+	if window.Before(timeWindowEnd) {
+		timeWindowEnd = window
+	}
+
+	return startTime, timeWindowEnd
 }
 
 func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]domain.LogLine, error) {
@@ -267,21 +247,14 @@ func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]domain.L
 	return result, nil
 }
 
-func findLatestTimestamp(loglines []domain.LogLine) int64 {
-	var latest int64
+func findLatestTimestamp(loglines []domain.LogLine) time.Time {
+	var latest time.Time
 	for _, ll := range loglines {
-		if ll.Timestamp.UnixNano() > latest {
-			latest = ll.Timestamp.UnixNano()
+		if ll.Timestamp.After(latest) {
+			latest = ll.Timestamp
 		}
 	}
 	return latest
-}
-
-func minInt64(a, b int64) int64 {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (string, error) {

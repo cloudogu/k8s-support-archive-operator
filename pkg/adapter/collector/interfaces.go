@@ -45,8 +45,8 @@ type secretInterface interface {
 }
 
 type LogsProvider interface {
-	FindLogs(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, namespace string, resultChan chan<- *domain.LogLine) error
-	FindEvents(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec int64, namespace string, resultChan chan<- *domain.LogLine) error
+	FindLogs(ctx context.Context, start, end time.Time, namespace string, resultChan chan<- *domain.LogLine) error
+	FindEvents(ctx context.Context, start, end time.Time, namespace string, resultChan chan<- *domain.LogLine) error
 }
 
 type k8sClient interface {
