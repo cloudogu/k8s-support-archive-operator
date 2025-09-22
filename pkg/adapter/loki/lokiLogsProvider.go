@@ -308,7 +308,7 @@ func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (strin
 		return "", fmt.Errorf("encode json logline: %w", err)
 	}
 
-	return strings.Replace(result.String(), "\n", "", -1), nil
+	return strings.ReplaceAll(result.String(), "\n", ""), nil
 }
 
 func plainLogToJsonLog(plainLog string) (string, error) {
