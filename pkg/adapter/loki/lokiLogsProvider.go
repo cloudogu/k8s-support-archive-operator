@@ -167,7 +167,7 @@ func (lp *LokiLogsProvider) httpFindLogs(ctx context.Context, startTimeInNanoSec
 		return nil, fmt.Errorf("create http request for query %q: %w", query, err)
 	}
 	req.SetBasicAuth(lp.username, lp.password)
-
+	// nolint:bodyclose
 	resp, err := lp.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("call loki http api: %w", err)
