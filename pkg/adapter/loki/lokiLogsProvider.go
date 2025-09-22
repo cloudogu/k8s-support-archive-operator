@@ -113,7 +113,8 @@ func (lp *LokiLogsProvider) findLogs(
 	resultChan chan<- *domain.LogLine,
 	returnType ReturnType,
 ) error {
-	var reqStartTime, reqEndTime = int64(0), startTimeInNanoSec
+	var reqStartTime int64
+	reqEndTime := startTimeInNanoSec
 	for {
 		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, endTimeInNanoSec, lp.maxQueryTimeWindowNanoSecs)
 
