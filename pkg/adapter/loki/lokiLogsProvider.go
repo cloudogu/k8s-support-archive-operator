@@ -284,10 +284,6 @@ func minInt64(a, b int64) int64 {
 	return b
 }
 
-func daysToNanoSec(days int) int64 {
-	return time.Hour.Nanoseconds() * 24 * int64(days)
-}
-
 func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (string, error) {
 	var data map[string]interface{}
 	jsonDecoder := json.NewDecoder(strings.NewReader(jsonLogLine))

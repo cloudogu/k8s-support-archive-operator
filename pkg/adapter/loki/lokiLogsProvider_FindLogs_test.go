@@ -832,3 +832,7 @@ func newTestLokiLogsProviderWithLimits(httpClient *http.Client, serviceUrl strin
 
 	return NewLokiLogsProvider(httpClient, cfg)
 }
+
+func daysToNanoSec(days int) int64 {
+	return time.Hour.Nanoseconds() * 24 * int64(days)
+}
