@@ -109,11 +109,13 @@ func (lp *LokiLogsProvider) findLogs(ctx context.Context, start, end time.Time, 
 			return fmt.Errorf("error writing response: %w", err)
 		}
 
+		// if the actual time window is the last time window and the result size limit is not reached
 		if reqEndTime.Equal(end) && logLineCount != lp.maxQueryResultCount {
 			return nil
 		}
 
-		if logLineCount == 0 || logLineCount != lp.maxQueryResultCount {
+		// if result count is less than max result count than we have all logs in this time window
+		if logLineCount != lp.maxQueryResultCount {
 			continue
 		}
 
