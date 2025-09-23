@@ -21,18 +21,12 @@ func (l *LogCollector) Name() string {
 }
 
 func (l *LogCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *domain.LogLine) error {
-	println("Collector start find Logs")
-
-	err := l.logProvider.FindLogs(ctx, startTime.UnixNano(), endTime.UnixNano(), namespace, resultChan)
+	err := l.logProvider.FindLogs(ctx, startTime, endTime, namespace, resultChan)
 	if err != nil {
 		return fmt.Errorf("failed to find logs: %w", err)
 	}
 
-	println("Collector terminated")
-
 	close(resultChan)
-
-	println("Collector closed channel")
 
 	return nil
 }

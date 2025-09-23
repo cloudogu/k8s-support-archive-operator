@@ -1,15 +1,5 @@
 package file
 
-import (
-	"context"
-	"fmt"
-	"os"
-	"path/filepath"
-
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-)
-
 const (
 	archiveEventsDirName = "Events"
 )
