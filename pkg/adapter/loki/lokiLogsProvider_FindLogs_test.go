@@ -34,9 +34,6 @@ var (
 )
 
 func TestLokiLogsProviderFindLogs(t *testing.T) {
-	closeChannelAfterLastReadDuration := 5 * time.Millisecond
-	//closeChannelAfterLastReadDuration := 10 * time.Minute
-
 	t.Run("should call API once if result size < limit and queried time == max time window", func(t *testing.T) {
 		endTime := testStartTime.Add(time.Hour * 24 * 10)
 
@@ -67,7 +64,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := newTestLokiLogsProviderWithLimits(server.Client(), server.URL, 10, 3)
 
-		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
+		res := receiveLogLineResults(2)
 		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", res.channel)
 
 		res.wait()
@@ -122,7 +119,15 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := newTestLokiLogsProviderWithLimits(server.Client(), server.URL, 10, 3)
 
-		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
+		defer func() {
+			// recover panic if the channel is closed correctly from the test
+			if r := recover(); r != nil {
+				assert.Failf(t, "test failed", "implementation wrote to channel but expected no element: %v", r)
+				return
+			}
+		}()
+
+		res := receiveLogLineResults(4)
 		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", res.channel)
 
 		res.wait()
@@ -176,7 +181,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := newTestLokiLogsProviderWithLimits(server.Client(), server.URL, 10, 3)
 
-		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
+		res := receiveLogLineResults(2)
 		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", res.channel)
 
 		res.wait()
@@ -235,7 +240,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := newTestLokiLogsProviderWithLimits(server.Client(), server.URL, 10, 3)
 
-		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
+		res := receiveLogLineResults(2)
 		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", res.channel)
 
 		res.wait()
@@ -284,7 +289,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := newTestLokiLogsProviderWithLimits(server.Client(), server.URL, 10, 3)
 
-		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
+		res := receiveLogLineResults(2)
 		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", res.channel)
 
 		require.NoError(t, err)
@@ -335,7 +340,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := newTestLokiLogsProvider(server.Client(), server.URL)
 
-		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
+		res := receiveLogLineResults(6)
 		err := lokiLogsPrv.FindLogs(context.TODO(), startTime, endTime, "ecosystem", res.channel)
 
 		res.wait()
@@ -376,7 +381,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := newTestLokiLogsProvider(server.Client(), server.URL)
 
-		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
+		res := receiveLogLineResults(1)
 		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", res.channel)
 
 		res.wait()
@@ -414,7 +419,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := newTestLokiLogsProvider(server.Client(), server.URL)
 
-		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
+		res := receiveLogLineResults(1)
 		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "ecosystem", res.channel)
 
 		res.wait()
@@ -509,7 +514,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := newTestLokiLogsProviderWithCredentials(server.Client(), server.URL, "aUser", "aPassword")
 
-		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
+		res := receiveLogLineResults(6)
 		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", res.channel)
 
 		res.wait()
@@ -525,10 +530,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := newTestLokiLogsProvider(http.DefaultClient, httpAPIUrl)
 
-		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
-		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", res.channel)
-
-		res.wait()
+		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", make(chan *domain.LogLine))
 
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "finding logs:")
@@ -558,10 +560,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := newTestLokiLogsProvider(http.DefaultClient, server.URL)
 
-		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
-		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", res.channel)
-
-		res.wait()
+		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", make(chan *domain.LogLine))
 
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "convert http response to LogLines")
@@ -580,10 +579,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := newTestLokiLogsProvider(server.Client(), server.URL)
 
-		res := receiveLogLineResults(closeChannelAfterLastReadDuration)
-		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", res.channel)
-
-		res.wait()
+		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", make(chan *domain.LogLine))
 
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, responseMessage)
@@ -674,14 +670,19 @@ func asString(value int64) string {
 }
 
 type logLineResult struct {
-	channel   chan *domain.LogLine
-	logLines  []*domain.LogLine
-	waitGroup sync.WaitGroup
+	channel       chan *domain.LogLine
+	logLines      []*domain.LogLine
+	waitGroup     sync.WaitGroup
+	resultsToRead int
 }
 
-func (res *logLineResult) receive(closeChannelAfterLastRead time.Duration) {
+func (res *logLineResult) receive() {
+	if res.resultsToRead <= 0 {
+		close(res.channel)
+		return
+	}
 	res.waitGroup.Add(1)
-	timer := time.NewTimer(closeChannelAfterLastRead)
+	timer := time.NewTimer(5 * time.Minute)
 	go func(channel <-chan *domain.LogLine) {
 		defer res.waitGroup.Done()
 		for {
@@ -691,7 +692,11 @@ func (res *logLineResult) receive(closeChannelAfterLastRead time.Duration) {
 			case ll, isOpen := <-res.channel:
 				if isOpen {
 					res.logLines = append(res.logLines, ll)
-					timer.Reset(closeChannelAfterLastRead)
+					res.resultsToRead -= 1
+					if res.resultsToRead <= 0 {
+						close(res.channel)
+						return
+					}
 				} else {
 					return
 				}
@@ -704,13 +709,14 @@ func (res *logLineResult) wait() {
 	res.waitGroup.Wait()
 }
 
-func receiveLogLineResults(closeChannelAfterLastRead time.Duration) *logLineResult {
+func receiveLogLineResults(resultsToRead int) *logLineResult {
 	res := &logLineResult{
-		channel:   make(chan *domain.LogLine),
-		logLines:  []*domain.LogLine{},
-		waitGroup: sync.WaitGroup{},
+		channel:       make(chan *domain.LogLine),
+		logLines:      []*domain.LogLine{},
+		waitGroup:     sync.WaitGroup{},
+		resultsToRead: resultsToRead,
 	}
-	res.receive(closeChannelAfterLastRead)
+	res.receive()
 	return res
 }
 
