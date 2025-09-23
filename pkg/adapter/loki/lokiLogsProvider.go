@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
 
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 
@@ -24,13 +25,13 @@ const (
 )
 
 type LokiLogsProvider struct {
-	serviceURL                 string
-	httpClient                 *http.Client
-	username                   string
-	password                   string
-	maxQueryResultCount        int
-	maxQueryTimeWindowNanoSecs int64
-	logEventSourceName         string
+	serviceURL          string
+	httpClient          *http.Client
+	username            string
+	password            string
+	maxQueryResultCount int
+	maxQueryTimeWindow  time.Duration
+	logEventSourceName  string
 }
 
 type queryLogsResponse struct {
@@ -74,81 +75,108 @@ func (r ReturnType) GetQuery(namespace, logEventSourceName string) (string, erro
 
 func NewLokiLogsProvider(httpClient *http.Client, operatorConfig *config.OperatorConfig) *LokiLogsProvider {
 	return &LokiLogsProvider{
-		httpClient:                 httpClient,
-		serviceURL:                 operatorConfig.LogGatewayConfig.Url,
-		username:                   operatorConfig.LogGatewayConfig.Username,
-		password:                   operatorConfig.LogGatewayConfig.Password,
-		maxQueryResultCount:        operatorConfig.LogsMaxQueryResultCount,
-		maxQueryTimeWindowNanoSecs: operatorConfig.LogsMaxQueryTimeWindow.Nanoseconds(),
-		logEventSourceName:         operatorConfig.LogsEventSourceName,
+		httpClient:          httpClient,
+		serviceURL:          operatorConfig.LogGatewayConfig.Url,
+		username:            operatorConfig.LogGatewayConfig.Username,
+		password:            operatorConfig.LogGatewayConfig.Password,
+		maxQueryResultCount: operatorConfig.LogsMaxQueryResultCount,
+		maxQueryTimeWindow:  operatorConfig.LogsMaxQueryTimeWindow,
+		logEventSourceName:  operatorConfig.LogsEventSourceName,
 	}
 }
 
-func (lp *LokiLogsProvider) FindLogs(
-	ctx context.Context,
-	startTimeInNanoSec int64,
-	endTimeInNanoSec int64,
-	namespace string,
-	resultChan chan<- *domain.LogLine,
-) error {
+func (lp *LokiLogsProvider) FindLogs(ctx context.Context, startTimeInNanoSec, endTimeInNanoSec time.Time, namespace string, resultChan chan<- *domain.LogLine) error {
 	return lp.findLogs(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan, onlyLogs)
 }
 
-func (lp *LokiLogsProvider) FindEvents(
-	ctx context.Context,
-	startTimeInNanoSec int64,
-	endTimeInNanoSec int64,
-	namespace string,
-	resultChan chan<- *domain.LogLine,
-) error {
-	return lp.findLogs(ctx, startTimeInNanoSec, endTimeInNanoSec, namespace, resultChan, onlyEvents)
+func (lp *LokiLogsProvider) FindEvents(ctx context.Context, start, end time.Time, namespace string, resultChan chan<- *domain.LogLine) error {
+	return lp.findLogs(ctx, start, end, namespace, resultChan, onlyEvents)
 }
 
-func (lp *LokiLogsProvider) findLogs(
-	ctx context.Context,
-	startTimeInNanoSec int64,
-	endTimeInNanoSec int64,
-	namespace string,
-	resultChan chan<- *domain.LogLine,
-	returnType ReturnType,
-) error {
-	var reqStartTime, reqEndTime = int64(0), startTimeInNanoSec
+func (lp *LokiLogsProvider) findLogs(ctx context.Context, start, end time.Time, namespace string, resultChan chan<- *domain.LogLine, returnType ReturnType) error {
+	var reqStartTime time.Time
+	reqEndTime := start
 	for {
-		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, endTimeInNanoSec, lp.maxQueryTimeWindowNanoSecs)
+		reqStartTime, reqEndTime = findLogsNextTimeWindow(reqEndTime, end, lp.maxQueryTimeWindow)
 
 		httpResp, err := lp.httpFindLogs(ctx, reqStartTime, reqEndTime, namespace, returnType)
 		if err != nil {
 			return fmt.Errorf("finding logs: %w", err)
 		}
 
-		logLines, err := convertQueryLogsResponseToLogLines(httpResp)
+		latestTimestamp, logLineCount, err := writeResponse(ctx, resultChan, httpResp)
 		if err != nil {
-			return fmt.Errorf("convert http response to LogLines: %w", err)
+			return fmt.Errorf("error writing response: %w", err)
 		}
 
-		for _, ll := range logLines {
-			resultChan <- &ll
-		}
-
-		if reqEndTime == endTimeInNanoSec {
+		// if the actual time window is the last time window and the result size limit is not reached
+		if reqEndTime.Equal(end) && logLineCount != lp.maxQueryResultCount {
 			return nil
 		}
 
-		if len(logLines) == 0 || len(logLines) != lp.maxQueryResultCount {
-			reqEndTime += lp.maxQueryTimeWindowNanoSecs
+		// if result count is less than max result count than we have all logs in this time window
+		if logLineCount != lp.maxQueryResultCount {
 			continue
 		}
 
-		reqEndTime = findLatestTimestamp(logLines)
+		reqEndTime = latestTimestamp
 		// if we reach the limit and the last timestamp is this starting timestamp, possible other logs can't be queried
 		// we use a high limit to avoid that.
-		if reqEndTime == reqStartTime {
-			reqEndTime += 1
+		if reqEndTime.Equal(reqStartTime) {
+			reqEndTime = reqEndTime.Add(time.Nanosecond)
 		}
 	}
 }
 
-func (lp *LokiLogsProvider) httpFindLogs(ctx context.Context, startTimeInNanoSec int64, endTimeInNanoSec int64, namespace string, returnType ReturnType) (*queryLogsResponse, error) {
+// writeResponse iterates over all log lines in the http response, parses all lines and writes them to the result channel.
+// On success, it returns the timestamp from the latest logline and the number of all logs.
+func writeResponse(ctx context.Context, resultChan chan<- *domain.LogLine, httpResp *queryLogsResponse) (time.Time, int, error) {
+	var latestTimestamp time.Time
+	var count int
+	for _, respResult := range httpResp.Data.Result {
+		for _, respValue := range respResult.Values {
+			logLine, err := httpToDomainLogLine(respValue[0], respValue[1])
+			if err != nil {
+				return time.Time{}, 0, err
+			}
+
+			writeSaveToChannel(ctx, &logLine, resultChan)
+
+			if logLine.Timestamp.After(latestTimestamp) {
+				latestTimestamp = logLine.Timestamp
+			}
+
+			count++
+		}
+	}
+
+	return latestTimestamp, count, nil
+}
+
+func httpToDomainLogLine(timestamp, line string) (domain.LogLine, error) {
+	timestampAsInt, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return domain.LogLine{}, fmt.Errorf("parse results timestamp %q: %w", timestamp, err)
+	}
+	logTimestamp := time.Unix(0, timestampAsInt)
+
+	jsonLog, err := plainLogToJsonLog(line)
+	if err != nil {
+		return domain.LogLine{}, fmt.Errorf("convert plain text logline to json logline: %w", err)
+	}
+
+	jsonLogWithTimeFields, err := enrichLogLineWithTimeFields(logTimestamp, jsonLog)
+	if err != nil {
+		return domain.LogLine{}, fmt.Errorf("enrich logline with time fields: %w", err)
+	}
+
+	return domain.LogLine{
+		Timestamp: logTimestamp,
+		Value:     jsonLogWithTimeFields,
+	}, nil
+}
+
+func (lp *LokiLogsProvider) httpFindLogs(ctx context.Context, start, end time.Time, namespace string, returnType ReturnType) (*queryLogsResponse, error) {
 	logger := log.FromContext(ctx).WithName(loggerName)
 
 	query, err := returnType.GetQuery(namespace, lp.logEventSourceName)
@@ -156,7 +184,7 @@ func (lp *LokiLogsProvider) httpFindLogs(ctx context.Context, startTimeInNanoSec
 		return nil, err
 	}
 
-	query, err = buildFindLogsHttpQuery(lp.serviceURL, startTimeInNanoSec, endTimeInNanoSec, lp.maxQueryResultCount, query)
+	query, err = buildFindLogsHttpQuery(lp.serviceURL, query, start, end, lp.maxQueryResultCount)
 	if err != nil {
 		return nil, fmt.Errorf("building logs query: %w", err)
 	}
@@ -166,7 +194,7 @@ func (lp *LokiLogsProvider) httpFindLogs(ctx context.Context, startTimeInNanoSec
 		return nil, fmt.Errorf("create http request for query %q: %w", query, err)
 	}
 	req.SetBasicAuth(lp.username, lp.password)
-
+	// nolint:bodyclose
 	resp, err := lp.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("call loki http api: %w", err)
@@ -186,13 +214,7 @@ func (lp *LokiLogsProvider) httpFindLogs(ctx context.Context, startTimeInNanoSec
 	return parseQueryLogsResponse(resp.Body)
 }
 
-func buildFindLogsHttpQuery(
-	serviceURL string,
-	startTimeInNanoSec int64,
-	endTimeInNanoSec int64,
-	maxQueryResultCount int,
-	query string,
-) (string, error) {
+func buildFindLogsHttpQuery(serviceURL, query string, start, end time.Time, maxQueryResultCount int) (string, error) {
 	baseUrl, err := url.Parse(serviceURL)
 	if err != nil {
 		return "", fmt.Errorf("parse service URL: %w", err)
@@ -201,8 +223,8 @@ func buildFindLogsHttpQuery(
 
 	params := baseUrl.Query()
 	params.Set("query", query)
-	params.Set("start", fmt.Sprintf("%d", startTimeInNanoSec))
-	params.Set("end", fmt.Sprintf("%d", endTimeInNanoSec))
+	params.Set("start", fmt.Sprintf("%d", start.UnixNano()))
+	params.Set("end", fmt.Sprintf("%d", end.UnixNano()))
 	params.Set("limit", fmt.Sprintf("%d", maxQueryResultCount))
 	params.Set("direction", "forward")
 
@@ -229,62 +251,14 @@ func parseQueryLogsResponse(httpRespBody io.Reader) (*queryLogsResponse, error) 
 	return result, nil
 }
 
-func findLogsNextTimeWindow(startTimeInNanoSec int64, maxEndTimeInNanoSec int64, maxTimeWindowNanoSecs int64) (int64, int64) {
-	timeWindowEndInNanoSec := minInt64(startTimeInNanoSec+maxTimeWindowNanoSecs, maxEndTimeInNanoSec)
-	return startTimeInNanoSec, timeWindowEndInNanoSec
-}
-
-func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]domain.LogLine, error) {
-	var result []domain.LogLine
-	for _, respResult := range httpResp.Data.Result {
-		for _, respValue := range respResult.Values {
-			timestampAsInt, err := strconv.ParseInt(respValue[0], 10, 64)
-			if err != nil {
-				return []domain.LogLine{}, fmt.Errorf("parse results timestamp %q: %w", respValue[0], err)
-			}
-			logTimestamp := time.Unix(0, timestampAsInt)
-
-			jsonLog, err := plainLogToJsonLog(respValue[1])
-			if err != nil {
-				return []domain.LogLine{}, fmt.Errorf("convert plain text logline to json logline: %w", err)
-			}
-
-			jsonLogWithTimeFields, err := enrichLogLineWithTimeFields(logTimestamp, jsonLog)
-			if err != nil {
-				return []domain.LogLine{}, fmt.Errorf("enrich logline with time fields: %w", err)
-			}
-
-			newLogLine := domain.LogLine{
-				Timestamp: logTimestamp,
-				Value:     jsonLogWithTimeFields,
-			}
-
-			result = append(result, newLogLine)
-		}
+func findLogsNextTimeWindow(startTime time.Time, maxEndTime time.Time, maxTimeWindow time.Duration) (time.Time, time.Time) {
+	timeWindowEnd := maxEndTime
+	window := startTime.Add(maxTimeWindow)
+	if window.Before(timeWindowEnd) {
+		timeWindowEnd = window
 	}
 
-	return result, nil
-}
-
-func findLatestTimestamp(loglines []domain.LogLine) int64 {
-	var latest int64
-	for _, ll := range loglines {
-		if ll.Timestamp.UnixNano() > latest {
-			latest = ll.Timestamp.UnixNano()
-		}
-	}
-	return latest
-}
-
-func minInt64(a, b int64) int64 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func daysToNanoSec(days int) int64 {
-	return time.Hour.Nanoseconds() * 24 * int64(days)
+	return startTime, timeWindowEnd
 }
 
 func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (string, error) {
@@ -308,7 +282,7 @@ func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (strin
 		return "", fmt.Errorf("encode json logline: %w", err)
 	}
 
-	return strings.Replace(result.String(), "\n", "", -1), nil
+	return strings.ReplaceAll(result.String(), "\n", ""), nil
 }
 
 func plainLogToJsonLog(plainLog string) (string, error) {
@@ -326,4 +300,13 @@ func plainLogToJsonLog(plainLog string) (string, error) {
 		return "", fmt.Errorf("encode json with plain text as field: %w", err)
 	}
 	return result.String(), nil
+}
+
+func writeSaveToChannel[T any](ctx context.Context, data T, dataChannel chan<- T) {
+	select {
+	case <-ctx.Done():
+		return
+	case dataChannel <- data:
+		return
+	}
 }
