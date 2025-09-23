@@ -563,7 +563,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", make(chan *domain.LogLine))
 
 		assert.Error(t, err)
-		assert.ErrorContains(t, err, "convert http response to LogLines")
+		assert.ErrorContains(t, err, "error writing response: parse results timestamp \"not a timestamp\"")
 	})
 
 	t.Run("should issue an error if the result size exceeds the limit", func(t *testing.T) {

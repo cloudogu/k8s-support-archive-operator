@@ -104,30 +104,74 @@ func (lp *LokiLogsProvider) findLogs(ctx context.Context, start, end time.Time, 
 			return fmt.Errorf("finding logs: %w", err)
 		}
 
-		logLines, err := convertQueryLogsResponseToLogLines(httpResp)
+		latestTimestamp, logLineCount, err := writeResponse(ctx, resultChan, httpResp)
 		if err != nil {
-			return fmt.Errorf("convert http response to LogLines: %w", err)
+			return fmt.Errorf("error writing response: %w", err)
 		}
 
-		for _, ll := range logLines {
-			resultChan <- &ll
-		}
-
-		if reqEndTime.Equal(end) && len(logLines) != lp.maxQueryResultCount {
+		if reqEndTime.Equal(end) && logLineCount != lp.maxQueryResultCount {
 			return nil
 		}
 
-		if len(logLines) == 0 || len(logLines) != lp.maxQueryResultCount {
+		if logLineCount == 0 || logLineCount != lp.maxQueryResultCount {
 			continue
 		}
 
-		reqEndTime = findLatestTimestamp(logLines)
+		reqEndTime = latestTimestamp
 		// if we reach the limit and the last timestamp is this starting timestamp, possible other logs can't be queried
 		// we use a high limit to avoid that.
 		if reqEndTime.Equal(reqStartTime) {
 			reqEndTime = reqEndTime.Add(time.Nanosecond)
 		}
 	}
+}
+
+// writeResponse iterates over all log lines in the http response, parses all lines and writes them to the result channel.
+// On success, it returns the timestamp from the latest logline and the number of all logs.
+func writeResponse(ctx context.Context, resultChan chan<- *domain.LogLine, httpResp *queryLogsResponse) (time.Time, int, error) {
+	var latestTimestamp time.Time
+	var count int
+	for _, respResult := range httpResp.Data.Result {
+		for _, respValue := range respResult.Values {
+			logLine, err := httpToDomainLogLine(respValue[0], respValue[1])
+			if err != nil {
+				return time.Time{}, 0, err
+			}
+
+			writeSaveToChannel(ctx, &logLine, resultChan)
+
+			if logLine.Timestamp.After(latestTimestamp) {
+				latestTimestamp = logLine.Timestamp
+			}
+
+			count++
+		}
+	}
+
+	return latestTimestamp, count, nil
+}
+
+func httpToDomainLogLine(timestamp, line string) (domain.LogLine, error) {
+	timestampAsInt, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return domain.LogLine{}, fmt.Errorf("parse results timestamp %q: %w", timestamp, err)
+	}
+	logTimestamp := time.Unix(0, timestampAsInt)
+
+	jsonLog, err := plainLogToJsonLog(line)
+	if err != nil {
+		return domain.LogLine{}, fmt.Errorf("convert plain text logline to json logline: %w", err)
+	}
+
+	jsonLogWithTimeFields, err := enrichLogLineWithTimeFields(logTimestamp, jsonLog)
+	if err != nil {
+		return domain.LogLine{}, fmt.Errorf("enrich logline with time fields: %w", err)
+	}
+
+	return domain.LogLine{
+		Timestamp: logTimestamp,
+		Value:     jsonLogWithTimeFields,
+	}, nil
 }
 
 func (lp *LokiLogsProvider) httpFindLogs(ctx context.Context, start, end time.Time, namespace string, returnType ReturnType) (*queryLogsResponse, error) {
@@ -215,48 +259,6 @@ func findLogsNextTimeWindow(startTime time.Time, maxEndTime time.Time, maxTimeWi
 	return startTime, timeWindowEnd
 }
 
-func convertQueryLogsResponseToLogLines(httpResp *queryLogsResponse) ([]domain.LogLine, error) {
-	var result []domain.LogLine
-	for _, respResult := range httpResp.Data.Result {
-		for _, respValue := range respResult.Values {
-			timestampAsInt, err := strconv.ParseInt(respValue[0], 10, 64)
-			if err != nil {
-				return []domain.LogLine{}, fmt.Errorf("parse results timestamp %q: %w", respValue[0], err)
-			}
-			logTimestamp := time.Unix(0, timestampAsInt)
-
-			jsonLog, err := plainLogToJsonLog(respValue[1])
-			if err != nil {
-				return []domain.LogLine{}, fmt.Errorf("convert plain text logline to json logline: %w", err)
-			}
-
-			jsonLogWithTimeFields, err := enrichLogLineWithTimeFields(logTimestamp, jsonLog)
-			if err != nil {
-				return []domain.LogLine{}, fmt.Errorf("enrich logline with time fields: %w", err)
-			}
-
-			newLogLine := domain.LogLine{
-				Timestamp: logTimestamp,
-				Value:     jsonLogWithTimeFields,
-			}
-
-			result = append(result, newLogLine)
-		}
-	}
-
-	return result, nil
-}
-
-func findLatestTimestamp(loglines []domain.LogLine) time.Time {
-	var latest time.Time
-	for _, ll := range loglines {
-		if ll.Timestamp.After(latest) {
-			latest = ll.Timestamp
-		}
-	}
-	return latest
-}
-
 func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (string, error) {
 	var data map[string]interface{}
 	jsonDecoder := json.NewDecoder(strings.NewReader(jsonLogLine))
@@ -296,4 +298,13 @@ func plainLogToJsonLog(plainLog string) (string, error) {
 		return "", fmt.Errorf("encode json with plain text as field: %w", err)
 	}
 	return result.String(), nil
+}
+
+func writeSaveToChannel[T any](ctx context.Context, data T, dataChannel chan<- T) {
+	select {
+	case <-ctx.Done():
+		return
+	case dataChannel <- data:
+		return
+	}
 }
