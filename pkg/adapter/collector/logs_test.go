@@ -2,24 +2,23 @@ package collector
 
 import (
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestCollect(t *testing.T) {
-	t.Run("should call log provider to find events and close result channel", func(t *testing.T) {
+func TestLogCollector_Collect(t *testing.T) {
+	t.Run("should call log provider to find logs and close result channel", func(t *testing.T) {
 		// given
 		startTime := time.Now()
 		endTime := startTime.AddDate(0, 0, 10)
 		resultChannel := make(chan *domain.LogLine)
 
 		logPrvMock := NewMockLogsProvider(t)
-		logPrvMock.EXPECT().FindEvents(testCtx, startTime, endTime, testNamespace, mock.Anything).Return(nil)
+		logPrvMock.EXPECT().FindLogs(testCtx, startTime, endTime, testNamespace, mock.Anything).Return(nil)
 
 		group := sync.WaitGroup{}
 		group.Add(1)
@@ -41,7 +40,7 @@ func TestCollect(t *testing.T) {
 			}
 		}()
 
-		sut := NewEventsCollector(logPrvMock)
+		sut := NewLogCollector(logPrvMock)
 
 		// when
 		err := sut.Collect(testCtx, testNamespace, startTime, endTime, resultChannel)
@@ -61,24 +60,24 @@ func TestCollect(t *testing.T) {
 		resultChannel := make(chan<- *domain.LogLine)
 
 		logPrvMock := NewMockLogsProvider(t)
-		logPrvMock.EXPECT().FindEvents(testCtx, startTime, endTime, testNamespace, resultChannel).Return(assert.AnError)
+		logPrvMock.EXPECT().FindLogs(testCtx, startTime, endTime, testNamespace, resultChannel).Return(assert.AnError)
 
-		eventsCol := NewEventsCollector(logPrvMock)
+		logsCol := NewLogCollector(logPrvMock)
 
 		// when
-		err := eventsCol.Collect(testCtx, testNamespace, startTime, endTime, resultChannel)
+		err := logsCol.Collect(testCtx, testNamespace, startTime, endTime, resultChannel)
 
 		// then
 		assert.Error(t, err)
-		assert.ErrorContains(t, err, "error finding events")
+		assert.ErrorContains(t, err, "failed to find logs")
 		assert.ErrorIs(t, err, assert.AnError)
 	})
 }
 
-func TestEventsCollector_Name(t *testing.T) {
+func TestLogCollector_Name(t *testing.T) {
 	t.Run("should return correct name", func(t *testing.T) {
-		sut := &EventsCollector{}
+		sut := &LogCollector{}
 
-		assert.Equal(t, "Events", sut.Name())
+		assert.Equal(t, "Logs", sut.Name())
 	})
 }
