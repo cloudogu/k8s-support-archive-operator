@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	archiveSecretsInfoDirName = "core/secrets"
+	archiveSecretsInfoDirName = "Resources/core/secrets"
 )
 
 type SecretsFileRepository struct {
