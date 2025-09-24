@@ -19,12 +19,12 @@ func NewEventsCollector(logsProvider LogsProvider) *EventsCollector {
 }
 
 func (ec *EventsCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *domain.LogLine) error {
-	defer close(resultChan)
-
 	err := ec.logsProvider.FindEvents(ctx, startTime, endTime, namespace, resultChan)
 	if err != nil {
 		return fmt.Errorf("error finding events: %w", err)
 	}
+
+	close(resultChan)
 
 	return nil
 }
