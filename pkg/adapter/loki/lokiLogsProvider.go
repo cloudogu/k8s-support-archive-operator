@@ -45,8 +45,8 @@ type queryLogsData struct {
 }
 
 type queryLogsResult struct {
-	Stream queryLogsStream
-	Values [][]string `json:"values"`
+	Stream map[string]string `json:"stream"`
+	Values [][]string        `json:"values"`
 }
 
 type queryLogsStream struct {
@@ -135,7 +135,7 @@ func writeResponse(ctx context.Context, resultChan chan<- *domain.LogLine, httpR
 	var count int
 	for _, respResult := range httpResp.Data.Result {
 		for _, respValue := range respResult.Values {
-			logLine, err := httpToDomainLogLine(respValue[0], respValue[1])
+			logLine, err := httpToDomainLogLine(respValue[0], respValue[1], respResult.Stream)
 			if err != nil {
 				return time.Time{}, 0, err
 			}
@@ -153,7 +153,7 @@ func writeResponse(ctx context.Context, resultChan chan<- *domain.LogLine, httpR
 	return latestTimestamp, count, nil
 }
 
-func httpToDomainLogLine(timestamp, line string) (domain.LogLine, error) {
+func httpToDomainLogLine(timestamp, line string, stream map[string]string) (domain.LogLine, error) {
 	timestampAsInt, err := strconv.ParseInt(timestamp, 10, 64)
 	if err != nil {
 		return domain.LogLine{}, fmt.Errorf("parse results timestamp %q: %w", timestamp, err)
@@ -165,7 +165,7 @@ func httpToDomainLogLine(timestamp, line string) (domain.LogLine, error) {
 		return domain.LogLine{}, fmt.Errorf("convert plain text logline to json logline: %w", err)
 	}
 
-	jsonLogWithTimeFields, err := enrichLogLineWithTimeFields(logTimestamp, jsonLog)
+	jsonLogWithTimeFields, err := enrichLogLine(logTimestamp, jsonLog, stream)
 	if err != nil {
 		return domain.LogLine{}, fmt.Errorf("enrich logline with time fields: %w", err)
 	}
@@ -261,7 +261,7 @@ func findLogsNextTimeWindow(startTime time.Time, maxEndTime time.Time, maxTimeWi
 	return startTime, timeWindowEnd
 }
 
-func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (string, error) {
+func enrichLogLine(timestamp time.Time, jsonLogLine string, stream map[string]string) (string, error) {
 	var data map[string]interface{}
 	jsonDecoder := json.NewDecoder(strings.NewReader(jsonLogLine))
 	err := jsonDecoder.Decode(&data)
@@ -274,6 +274,11 @@ func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (strin
 	data["time_year"] = timestamp.Year()
 	data["time_month"] = timestamp.Month()
 	data["time_day"] = timestamp.Day()
+
+	for streamField, streamValue := range stream {
+		field := fmt.Sprintf("stream_%s", streamField)
+		data[field] = streamValue
+	}
 
 	result := bytes.NewBufferString("")
 	jsonEncoder := json.NewEncoder(result)

@@ -444,7 +444,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 	t.Run("should enrich json log time fields", func(t *testing.T) {
 		aTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
 
-		logLine, err := enrichLogLineWithTimeFields(aTime, "{\"msg\": \"dogu message 1\"}")
+		logLine, err := enrichLogLine(aTime, "{\"msg\": \"dogu message 1\"}", make(map[string]string))
 		require.NoError(t, err)
 
 		jsonMsg, err := valueOfJsonField(logLine, "msg")
@@ -473,10 +473,29 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 	})
 
+	t.Run("should enrich json with stream fields", func(t *testing.T) {
+		aTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
+
+		stream := make(map[string]string)
+		stream["detected_level"] = "Normal"
+		stream["job"] = "loki.source.kubernetes_events"
+
+		logLine, err := enrichLogLine(aTime, "{\"msg\": \"dogu message 1\"}", stream)
+		require.NoError(t, err)
+
+		jsonMsg, err := valueOfJsonField(logLine, "stream_detected_level")
+		require.NoError(t, err)
+		assert.Equal(t, "Normal", jsonMsg)
+
+		jsonMsg2, err := valueOfJsonField(logLine, "stream_job")
+		require.NoError(t, err)
+		assert.Equal(t, "loki.source.kubernetes_events", jsonMsg2)
+	})
+
 	t.Run("should encode LogLine.Value as one line", func(t *testing.T) {
 		aTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
 
-		logLine, err := enrichLogLineWithTimeFields(aTime, "{\"msg\": \"dogu message 1\"}")
+		logLine, err := enrichLogLine(aTime, "{\"msg\": \"dogu message 1\"}", make(map[string]string))
 		require.NoError(t, err)
 
 		assert.NotContains(t, logLine, "\n")
