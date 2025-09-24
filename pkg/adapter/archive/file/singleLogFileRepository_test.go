@@ -13,10 +13,12 @@ import (
 )
 
 const (
-	testWorkPath           = "/work"
-	testCollectorDirName   = "collectorDir"
-	testWorkDirArchivePath = testWorkPath + "/" + testNamespace + "/" + testName + "/" + testCollectorDirName
-	testWorkFile           = testWorkDirArchivePath + "/logs.log"
+	testWorkPath             = "/work"
+	testCollectorDirName     = "collectorDir"
+	testWorkDirNamespacePath = testWorkPath + "/" + testNamespace
+	testWorkDirArchivePath   = testWorkDirNamespacePath + "/" + testName
+	testWorkDirCollectorPath = testWorkDirArchivePath + "/" + testCollectorDirName
+	testWorkDirArchiveFile   = testWorkDirCollectorPath + "/logs.log"
 )
 
 func TestSingleLogFileRepository_createLog(t *testing.T) {
@@ -44,7 +46,7 @@ func TestSingleLogFileRepository_createLog(t *testing.T) {
 				workPath: testWorkPath,
 				filesystem: func(t *testing.T, _ closableRWFile) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, os.FileMode(0755)).Return(assert.AnError)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, os.FileMode(0755)).Return(assert.AnError)
 
 					return fsMock
 				},
@@ -74,8 +76,8 @@ func TestSingleLogFileRepository_createLog(t *testing.T) {
 				workPath: testWorkPath,
 				filesystem: func(t *testing.T, _ closableRWFile) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, os.FileMode(0755)).Return(nil)
-					fsMock.EXPECT().OpenFile(testWorkFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.FileMode(0666)).Return(nil, assert.AnError)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, os.FileMode(0755)).Return(nil)
+					fsMock.EXPECT().OpenFile(testWorkDirArchiveFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.FileMode(0666)).Return(nil, assert.AnError)
 
 					return fsMock
 				},
@@ -105,8 +107,8 @@ func TestSingleLogFileRepository_createLog(t *testing.T) {
 				workPath: testWorkPath,
 				filesystem: func(t *testing.T, fileMock closableRWFile) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, os.FileMode(0755)).Return(nil)
-					fsMock.EXPECT().OpenFile(testWorkFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.FileMode(0666)).Return(fileMock, nil)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, os.FileMode(0755)).Return(nil)
+					fsMock.EXPECT().OpenFile(testWorkDirArchiveFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.FileMode(0666)).Return(fileMock, nil)
 
 					return fsMock
 				},
@@ -138,8 +140,8 @@ func TestSingleLogFileRepository_createLog(t *testing.T) {
 				workPath: testWorkPath,
 				filesystem: func(t *testing.T, fileMock closableRWFile) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, os.FileMode(0755)).Return(nil)
-					fsMock.EXPECT().OpenFile(testWorkFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.FileMode(0666)).Return(fileMock, nil)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, os.FileMode(0755)).Return(nil)
+					fsMock.EXPECT().OpenFile(testWorkDirArchiveFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.FileMode(0666)).Return(fileMock, nil)
 
 					return fsMock
 				},
@@ -173,8 +175,8 @@ func TestSingleLogFileRepository_createLog(t *testing.T) {
 				workPath: testWorkPath,
 				filesystem: func(t *testing.T, fileMock closableRWFile) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, os.FileMode(0755)).Return(nil)
-					fsMock.EXPECT().OpenFile(testWorkFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.FileMode(0666)).Return(fileMock, nil)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, os.FileMode(0755)).Return(nil)
+					fsMock.EXPECT().OpenFile(testWorkDirArchiveFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.FileMode(0666)).Return(fileMock, nil)
 
 					return fsMock
 				},

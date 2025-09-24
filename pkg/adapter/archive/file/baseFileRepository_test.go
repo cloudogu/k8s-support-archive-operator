@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	testStateFilePath         = testWorkDirArchivePath + "/.done"
+	testStateFilePath         = testWorkDirCollectorPath + "/.done"
 	testLogCollectorDirName   = "Logs"
 	testLogWorkDirArchivePath = testWorkPath + "/" + testNamespace + "/" + testName + "/" + testLogCollectorDirName
 	testWorkLog               = testLogWorkDirArchivePath + "/logs.log"
@@ -51,7 +51,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 					fileMock.EXPECT().Write([]byte("done")).Return(0, nil)
 
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, fs.ModePerm).Return(nil)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, fs.ModePerm).Return(nil)
 					fsMock.EXPECT().Create(testStateFilePath).Return(fileMock, nil)
 
 					return fsMock
@@ -76,7 +76,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 					fileMock.EXPECT().Write([]byte("done")).Return(0, assert.AnError)
 
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, fs.ModePerm).Return(nil)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, fs.ModePerm).Return(nil)
 					fsMock.EXPECT().Create(testStateFilePath).Return(fileMock, nil)
 
 					return fsMock
@@ -98,7 +98,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 			fields: fields{
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, fs.ModePerm).Return(nil)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, fs.ModePerm).Return(nil)
 					fsMock.EXPECT().Create(testStateFilePath).Return(nil, assert.AnError)
 
 					return fsMock
@@ -120,7 +120,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 			fields: fields{
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, fs.ModePerm).Return(assert.AnError)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, fs.ModePerm).Return(assert.AnError)
 
 					return fsMock
 				},
@@ -254,13 +254,36 @@ func Test_baseFileRepository_Delete(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{
-			name: "success",
+			name: "success and should not delete if other collectors have files remaining",
 			fields: fields{
 				workPath:     testWorkPath,
 				collectorDir: testCollectorDirName,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().RemoveAll(testWorkDirArchivePath).Return(nil)
+					fsMock.EXPECT().RemoveAll(testWorkDirCollectorPath).Return(nil)
+					fsMock.EXPECT().ReadDir(testWorkDirArchivePath).Return([]fs.DirEntry{testEntry{"other collector"}}, nil)
+
+					return fsMock
+				},
+			},
+			args: args{
+				ctx: testCtx,
+				id:  testID,
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "success and should delete all empty folder until the work dir root",
+			fields: fields{
+				workPath:     testWorkPath,
+				collectorDir: testCollectorDirName,
+				filesystem: func(t *testing.T) volumeFs {
+					fsMock := newMockVolumeFs(t)
+					fsMock.EXPECT().RemoveAll(testWorkDirCollectorPath).Return(nil)
+					fsMock.EXPECT().ReadDir(testWorkDirArchivePath).Return([]fs.DirEntry{}, nil)
+					fsMock.EXPECT().Remove(testWorkDirArchivePath).Return(nil)
+					fsMock.EXPECT().ReadDir(testWorkDirNamespacePath).Return([]fs.DirEntry{}, nil)
+					fsMock.EXPECT().Remove(testWorkDirNamespacePath).Return(nil)
 
 					return fsMock
 				},
@@ -278,7 +301,7 @@ func Test_baseFileRepository_Delete(t *testing.T) {
 				collectorDir: testCollectorDirName,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().RemoveAll(testWorkDirArchivePath).Return(assert.AnError)
+					fsMock.EXPECT().RemoveAll(testWorkDirCollectorPath).Return(assert.AnError)
 
 					return fsMock
 				},
@@ -477,7 +500,7 @@ func Test_baseFileRepository_Stream(t *testing.T) {
 				directory: testCollectorDirName,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().WalkDir(testWorkDirArchivePath, mock.Anything).Return(assert.AnError)
+					fsMock.EXPECT().WalkDir(testWorkDirCollectorPath, mock.Anything).Return(assert.AnError)
 					return fsMock
 				},
 			},
