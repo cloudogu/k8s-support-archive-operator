@@ -269,10 +269,11 @@ func TestSingleLogFileRepository_close(t *testing.T) {
 		id  domain.SupportArchiveID
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
+		name            string
+		fields          fields
+		args            args
+		expectedMapSize int
+		wantErr         assert.ErrorAssertionFunc
 	}{
 		{
 			name:    "should return nil if map is nil",
@@ -305,6 +306,7 @@ func TestSingleLogFileRepository_close(t *testing.T) {
 			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorContains(t, err, "failed to close log file")
 			},
+			expectedMapSize: 0,
 		},
 		{
 			name: "should return nil on successful close",
@@ -320,6 +322,21 @@ func TestSingleLogFileRepository_close(t *testing.T) {
 			},
 			wantErr: assert.NoError,
 		},
+		{
+			name: "should remove closed file from map",
+			fields: fields{
+				eventFiles: func(t *testing.T) map[domain.SupportArchiveID]closableRWFile {
+					fileMock := newMockClosableRWFile(t)
+					fileMock.EXPECT().Close().Return(nil)
+					return map[domain.SupportArchiveID]closableRWFile{testID: fileMock}
+				},
+			},
+			args: args{
+				id: testID,
+			},
+			wantErr:         assert.NoError,
+			expectedMapSize: 0,
+		},
 	}
 	for _, tt := range tests {
 		var files map[domain.SupportArchiveID]closableRWFile
@@ -334,6 +351,7 @@ func TestSingleLogFileRepository_close(t *testing.T) {
 				files:        files,
 			}
 			tt.wantErr(t, l.close(tt.args.in0, tt.args.id), fmt.Sprintf("close(%v, %v)", tt.args.in0, tt.args.id))
+			assert.Equal(t, tt.expectedMapSize, len(l.files))
 		})
 	}
 }

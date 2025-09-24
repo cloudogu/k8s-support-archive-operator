@@ -4,18 +4,19 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -343,9 +344,30 @@ func Test_create(t *testing.T) {
 				finishFn: func(ctx context.Context, id domain.SupportArchiveID) error {
 					return nil
 				},
+				closeFn: func(ctx context.Context, id domain.SupportArchiveID) error { return nil },
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
+			},
+		},
+		{
+			name: "should return error on close error",
+			args: args[domain.LogLine]{
+				ctx:        testCtx,
+				id:         testID,
+				dataStream: getSuccessStream(),
+				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.LogLine) error {
+					return nil
+				},
+				finishFn: func(ctx context.Context, id domain.SupportArchiveID) error {
+					return nil
+				},
+				closeFn: func(ctx context.Context, id domain.SupportArchiveID) error { return assert.AnError },
+			},
+			wantErr: func(t *testing.T, err error) {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, assert.AnError)
+				assert.ErrorContains(t, err, "error closing file")
 			},
 		},
 		{

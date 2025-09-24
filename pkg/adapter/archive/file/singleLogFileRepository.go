@@ -61,7 +61,13 @@ func (l *SingleLogFileRepository) createLog(ctx context.Context, id domain.Suppo
 }
 
 func (l *SingleLogFileRepository) close(_ context.Context, id domain.SupportArchiveID) error {
-	if l.files == nil || l.files[id] == nil {
+	defer delete(l.files, id)
+
+	if l.files == nil {
+		return nil
+	}
+
+	if l.files[id] == nil {
 		return nil
 	}
 

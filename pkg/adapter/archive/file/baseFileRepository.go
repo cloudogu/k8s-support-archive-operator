@@ -105,6 +105,10 @@ func create[DATATYPE domain.CollectorUnionDataType](ctx context.Context, id doma
 				if err != nil {
 					return fmt.Errorf("error finishing collection: %w", err)
 				}
+				closeFnErr := closeFn(ctx, id)
+				if closeFnErr != nil {
+					return fmt.Errorf("error closing file: %w", closeFnErr)
+				}
 				return nil
 			}
 		}
