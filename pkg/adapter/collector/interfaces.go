@@ -44,6 +44,11 @@ type secretInterface interface {
 	corev1.SecretInterface
 }
 
+type LogsProvider interface {
+	FindLogs(ctx context.Context, start, end time.Time, namespace string, resultChan chan<- *domain.LogLine) error
+	FindEvents(ctx context.Context, start, end time.Time, namespace string, resultChan chan<- *domain.LogLine) error
+}
+
 type k8sClient interface {
 	client.Client
 }

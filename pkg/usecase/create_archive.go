@@ -44,7 +44,10 @@ func (cm CollectorMapping) getRequiredCollectorMapping(cr *libapi.SupportArchive
 		mapping[domain.CollectorTypeNodeInfo] = cm[domain.CollectorTypeNodeInfo]
 	}
 	if !cr.Spec.ExcludedContents.SensitiveData {
-		mapping[domain.CollectorTypSecret] = cm[domain.CollectorTypSecret]
+		mapping[domain.CollectorTypeSecret] = cm[domain.CollectorTypeSecret]
+	}
+	if !cr.Spec.ExcludedContents.Events {
+		mapping[domain.CollectorTypeEvents] = cm[domain.CollectorTypeEvents]
 	}
 	if !cr.Spec.ExcludedContents.SystemState {
 		mapping[domain.CollectorTypeSystemState] = cm[domain.CollectorTypeSystemState]
@@ -156,20 +159,21 @@ func (c *CreateArchiveUseCase) createArchive(ctx context.Context, id domain.Supp
 	streamMap := make(map[domain.CollectorType]*domain.Stream)
 
 	errGroup, errCtx := errgroup.WithContext(ctx)
-
 	for col := range requiredCollectors {
 		var stream *domain.Stream
 		var err error
 		logger.Info("collecting stream for collector", "collector", col)
 		switch col {
 		case domain.CollectorTypeLog:
-			stream, err = fetchRepoAndStreamWithErrorGroup[domain.PodLog](errCtx, errGroup, col, c.collectorMapping, id)
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.LogLine](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypeVolumeInfo:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.VolumeInfo](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypeNodeInfo:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.LabeledSample](errCtx, errGroup, col, c.collectorMapping, id)
-		case domain.CollectorTypSecret:
+		case domain.CollectorTypeSecret:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.SecretYaml](errCtx, errGroup, col, c.collectorMapping, id)
+		case domain.CollectorTypeEvents:
+			stream, err = fetchRepoAndStreamWithErrorGroup[domain.LogLine](errCtx, errGroup, col, c.collectorMapping, id)
 		case domain.CollectorTypeSystemState:
 			stream, err = fetchRepoAndStreamWithErrorGroup[domain.UnstructuredResource](errCtx, errGroup, col, c.collectorMapping, id)
 		default:
@@ -261,7 +265,7 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 	var err error
 	switch next {
 	case domain.CollectorTypeLog:
-		col, repo, typeErr := getCollectorAndRepositoryForType[domain.PodLog](next, c.collectorMapping)
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.LogLine](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}
@@ -274,7 +278,7 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 		}
 
 		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
-	case domain.CollectorTypSecret:
+	case domain.CollectorTypeSecret:
 		col, repo, typeErr := getCollectorAndRepositoryForType[domain.SecretYaml](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
@@ -283,6 +287,13 @@ func (c *CreateArchiveUseCase) executeNextCollector(ctx context.Context, id doma
 		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
 	case domain.CollectorTypeNodeInfo:
 		col, repo, typeErr := getCollectorAndRepositoryForType[domain.LabeledSample](next, c.collectorMapping)
+		if typeErr != nil {
+			return typeErr
+		}
+
+		err = startCollector(ctx, id, startTime.Time, endTime.Time, col, repo)
+	case domain.CollectorTypeEvents:
+		col, repo, typeErr := getCollectorAndRepositoryForType[domain.LogLine](next, c.collectorMapping)
 		if typeErr != nil {
 			return typeErr
 		}

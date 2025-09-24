@@ -26,6 +26,11 @@ func TestCollectorType_GetConditionType(t *testing.T) {
 			want: "NodeInfoFetched",
 		},
 		{
+			name: "type events",
+			c:    "Events",
+			want: "EventsFetched",
+		},
+		{
 			name: "anything else",
 			c:    "blablabla",
 			want: "",

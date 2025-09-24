@@ -32,10 +32,22 @@ const (
 	metricsMaxSamplesEnvVar                    = "METRICS_MAX_SAMPLES"
 	systemStateLabelSelectorsEnvVar            = "SYSTEM_STATE_LABEL_SELECTORS"
 	systemStateGvkExclusionsEnvVar             = "SYSTEM_STATE_GVK_EXCLUSIONS"
+	logsMaxQueryResultCountEnvVar              = "LOG_MAX_QUERY_RESULT_COUNT"
+	logsMaxQueryTimeWindowEnvVar               = "LOG_MAX_QUERY_TIME_WINDOW"
+	logsEventSourceNameEnvVar                  = "LOG_EVENT_SOURCE_NAME"
+	logGatewayUrlEnvironmentVariable           = "LOG_GATEWAY_URL"
+	logGatewayUsernameEnvironmentVariable      = "LOG_GATEWAY_USERNAME"
+	logGatewayPasswordEnvironmentVariable      = "LOG_GATEWAY_PASSWORD"
 )
 
 var log = ctrl.Log.WithName("config")
 var Stage = StageProduction
+
+type LogGatewayConfig struct {
+	Url      string
+	Username string
+	Password string
+}
 
 // OperatorConfig contains all configurable values for the dogu operator.
 type OperatorConfig struct {
@@ -71,6 +83,14 @@ type OperatorConfig struct {
 	SystemStateLabelSelectors string
 	// SystemStateGvkExclusions defines a slice of group version kind structs as string in YAML format.
 	SystemStateGvkExclusions string
+	// LogsMaxQueryResultCount defines the maximum number of results in a log response.
+	LogsMaxQueryResultCount int
+	// LogsMaxQueryTimeWindow defines the maximum time range for a log query.
+	LogsMaxQueryTimeWindow time.Duration
+	// LogsEventSourceName contains the source name of the events if they are queried from the log provider.
+	LogsEventSourceName string
+	// LogGatewayConfig contains connection configurations for the logging backend.
+	LogGatewayConfig LogGatewayConfig
 }
 
 func IsStageDevelopment() bool {
@@ -121,6 +141,11 @@ func NewOperatorConfig(version string) (*OperatorConfig, error) {
 		return nil, err
 	}
 
+	err = getLogConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
 	return config, nil
 }
 
@@ -152,7 +177,7 @@ func getArchiveConfig(config *OperatorConfig) error {
 	config.ArchiveVolumeDownloadServiceName = archiveVolumeDownloadServiceName
 	config.ArchiveVolumeDownloadServiceProtocol = archiveVolumeDownloadServiceProtocol
 	config.ArchiveVolumeDownloadServicePort = archiveVolumeDownloadServicePort
-	config.GarbageCollectionInterval = supportArchiveSyncInterval
+	config.SupportArchiveSyncInterval = supportArchiveSyncInterval
 
 	return nil
 }
@@ -341,4 +366,49 @@ func getEnvVar(name string) (string, error) {
 		return "", fmt.Errorf("environment variable %s must be set", name)
 	}
 	return env, nil
+}
+
+func getLogConfig(config *OperatorConfig) error {
+	url, err := getEnvVar(logGatewayUrlEnvironmentVariable)
+	if err != nil {
+		return err
+	}
+
+	username, err := getEnvVar(logGatewayUsernameEnvironmentVariable)
+	if err != nil {
+		return err
+	}
+
+	password, err := getEnvVar(logGatewayPasswordEnvironmentVariable)
+	if err != nil {
+		return err
+	}
+
+	logsMaxQueryResultCount, err := getIntEnvVar(logsMaxQueryResultCountEnvVar)
+	if err != nil {
+		return err
+	}
+	log.Info(fmt.Sprintf("Maximum log query result count: %d", logsMaxQueryResultCount))
+
+	logsMaxQueryTimeWindow, err := getDurationEnvVar(logsMaxQueryTimeWindowEnvVar)
+	if err != nil {
+		return err
+	}
+	log.Info(fmt.Sprintf("Maximum log query time window: %s", logsMaxQueryTimeWindow))
+
+	logsEventSourceName, err := getEnvVar(logsEventSourceNameEnvVar)
+	if err != nil {
+		return err
+	}
+	log.Info(fmt.Sprintf("Log event source name: %s", logsEventSourceName))
+
+	config.LogGatewayConfig.Url = url
+	config.LogGatewayConfig.Username = username
+	config.LogGatewayConfig.Password = password
+
+	config.LogsMaxQueryResultCount = logsMaxQueryResultCount
+	config.LogsMaxQueryTimeWindow = logsMaxQueryTimeWindow
+	config.LogsEventSourceName = logsEventSourceName
+
+	return nil
 }

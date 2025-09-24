@@ -1,0 +1,210 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "streams",
+    "result": [
+      {
+        "stream": {
+          "detected_level": "Warning",
+          "instance": "loki.source.kubernetes_events.default",
+          "job": "loki.source.kubernetes_events",
+          "kind": "Pod",
+          "level": "Warning",
+          "namespace": "ecosystem",
+          "service_name": "loki.source.kubernetes_events"
+        },
+        "values": [
+          [
+            "1757507346000000000",
+            "{\"count\":1280,\"eventRV\":\"818301\",\"kind\":\"Pod\",\"msg\":\"Back-off restarting failed container manager in pod k8s-support-archive-operator-controller-manager-79d7948c8djxh88_ecosystem(68972c62-247f-41a2-b223-ec23b357ab8a)\",\"name\":\"k8s-support-archive-operator-controller-manager-79d7948c8djxh88\",\"objectAPIversion\":\"v1\",\"objectRV\":\"767556\",\"reason\":\"BackOff\",\"reportingcontroller\":\"kubelet\",\"reportinginstance\":\"ces-worker-1\",\"sourcecomponent\":\"kubelet\",\"sourcehost\":\"ces-worker-1\",\"type\":\"Warning\"}"
+          ],
+          [
+            "1757507084000000000",
+            "{\"count\":1259,\"eventRV\":\"817788\",\"kind\":\"Pod\",\"msg\":\"Back-off restarting failed container manager in pod k8s-support-archive-operator-controller-manager-79d7948c8djxh88_ecosystem(68972c62-247f-41a2-b223-ec23b357ab8a)\",\"name\":\"k8s-support-archive-operator-controller-manager-79d7948c8djxh88\",\"objectAPIversion\":\"v1\",\"objectRV\":\"767556\",\"reason\":\"BackOff\",\"reportingcontroller\":\"kubelet\",\"reportinginstance\":\"ces-worker-1\",\"sourcecomponent\":\"kubelet\",\"sourcehost\":\"ces-worker-1\",\"type\":\"Warning\"}"
+          ],
+          [
+            "1757506748000000000",
+            "{\"count\":1243,\"eventRV\":\"817085\",\"kind\":\"Pod\",\"msg\":\"Back-off restarting failed container manager in pod k8s-support-archive-operator-controller-manager-79d7948c8djxh88_ecosystem(68972c62-247f-41a2-b223-ec23b357ab8a)\",\"name\":\"k8s-support-archive-operator-controller-manager-79d7948c8djxh88\",\"objectAPIversion\":\"v1\",\"objectRV\":\"767556\",\"reason\":\"BackOff\",\"reportingcontroller\":\"kubelet\",\"reportinginstance\":\"ces-worker-1\",\"sourcecomponent\":\"kubelet\",\"sourcehost\":\"ces-worker-1\",\"type\":\"Warning\"}"
+          ]
+        ]
+      },
+      {
+        "stream": {
+          "detected_level": "Normal",
+          "instance": "loki.source.kubernetes_events.default",
+          "job": "loki.source.kubernetes_events",
+          "kind": "Pod",
+          "level": "Normal",
+          "namespace": "ecosystem",
+          "service_name": "loki.source.kubernetes_events"
+        },
+        "values": [
+          [
+            "1757500152000000000",
+            "{\"count\":41,\"eventRV\":\"803206\",\"kind\":\"Pod\",\"msg\":\"Pulling image \\\"registry.cloudogu.com/testing/k8s-support-archive-operator/feature-13-collect-events-from-loki:0.3.0\\\"\",\"name\":\"k8s-support-archive-operator-controller-manager-79d7948c8djxh88\",\"objectAPIversion\":\"v1\",\"objectRV\":\"767556\",\"reason\":\"Pulling\",\"reportingcontroller\":\"kubelet\",\"reportinginstance\":\"ces-worker-1\",\"sourcecomponent\":\"kubelet\",\"sourcehost\":\"ces-worker-1\",\"type\":\"Normal\"}"
+          ],
+          [
+            "1757486049000000000",
+            "{\"count\":8,\"eventRV\":\"772280\",\"kind\":\"Pod\",\"msg\":\"Pulling image \\\"registry.cloudogu.com/testing/k8s-support-archive-operator/feature-13-collect-events-from-loki:0.3.0\\\"\",\"name\":\"k8s-support-archive-operator-controller-manager-79d7948c8djxh88\",\"objectAPIversion\":\"v1\",\"objectRV\":\"767556\",\"reason\":\"Pulling\",\"reportingcontroller\":\"kubelet\",\"reportinginstance\":\"ces-worker-1\",\"sourcecomponent\":\"kubelet\",\"sourcehost\":\"ces-worker-1\",\"type\":\"Normal\"}"
+          ],
+          [
+            "1757484951000000000",
+            "{\"count\":4,\"eventRV\":\"769723\",\"kind\":\"Pod\",\"msg\":\"Started container manager\",\"name\":\"k8s-support-archive-operator-controller-manager-79d7948c8djxh88\",\"objectAPIversion\":\"v1\",\"objectRV\":\"767556\",\"reason\":\"Started\",\"reportingcontroller\":\"kubelet\",\"reportinginstance\":\"ces-worker-1\",\"sourcecomponent\":\"kubelet\",\"sourcehost\":\"ces-worker-1\",\"type\":\"Normal\"}"
+          ]
+        ]
+      }
+    ],
+    "stats": {
+      "summary": {
+        "bytesProcessedPerSecond": 11498974,
+        "linesProcessedPerSecond": 26104,
+        "totalBytesProcessed": 617589,
+        "totalLinesProcessed": 1402,
+        "execTime": 0.053708,
+        "queueTime": 0.002447,
+        "subqueries": 0,
+        "totalEntriesReturned": 100,
+        "splits": 27,
+        "shards": 27,
+        "totalPostFilterLines": 1402,
+        "totalStructuredMetadataBytesProcessed": 41532
+      },
+      "querier": {
+        "store": {
+          "totalChunksRef": 24,
+          "totalChunksDownloaded": 24,
+          "chunksDownloadTime": 1676249,
+          "queryReferencedStructuredMetadata": false,
+          "chunk": {
+            "headChunkBytes": 0,
+            "headChunkLines": 0,
+            "decompressedBytes": 605548,
+            "decompressedLines": 1378,
+            "compressedBytes": 47285,
+            "totalDuplicates": 0,
+            "postFilterLines": 1378,
+            "headChunkStructuredMetadataBytes": 0,
+            "decompressedStructuredMetadataBytes": 41340
+          },
+          "chunkRefsFetchTime": 14625790,
+          "congestionControlLatency": 0,
+          "pipelineWrapperFilteredLines": 0
+        }
+      },
+      "ingester": {
+        "totalReached": 13,
+        "totalChunksMatched": 8,
+        "totalBatches": 21,
+        "totalLinesSent": 24,
+        "store": {
+          "totalChunksRef": 0,
+          "totalChunksDownloaded": 0,
+          "chunksDownloadTime": 0,
+          "queryReferencedStructuredMetadata": false,
+          "chunk": {
+            "headChunkBytes": 12041,
+            "headChunkLines": 24,
+            "decompressedBytes": 0,
+            "decompressedLines": 0,
+            "compressedBytes": 0,
+            "totalDuplicates": 0,
+            "postFilterLines": 24,
+            "headChunkStructuredMetadataBytes": 192,
+            "decompressedStructuredMetadataBytes": 0
+          },
+          "chunkRefsFetchTime": 0,
+          "congestionControlLatency": 0,
+          "pipelineWrapperFilteredLines": 0
+        }
+      },
+      "cache": {
+        "chunk": {
+          "entriesFound": 24,
+          "entriesRequested": 24,
+          "entriesStored": 0,
+          "bytesReceived": 57291,
+          "bytesSent": 0,
+          "requests": 40,
+          "downloadTime": 216566,
+          "queryLengthServed": 0
+        },
+        "index": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        },
+        "result": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        },
+        "statsResult": {
+          "entriesFound": 25,
+          "entriesRequested": 25,
+          "entriesStored": 0,
+          "bytesReceived": 5250,
+          "bytesSent": 0,
+          "requests": 25,
+          "downloadTime": 98046,
+          "queryLengthServed": 23250000000000
+        },
+        "volumeResult": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        },
+        "seriesResult": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        },
+        "labelResult": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        },
+        "instantMetricResult": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        }
+      },
+      "index": {
+        "totalChunks": 24,
+        "postFilterChunks": 24,
+        "shardsDuration": 0,
+        "usedBloomFilters": false
+      }
+    }
+  }
+}

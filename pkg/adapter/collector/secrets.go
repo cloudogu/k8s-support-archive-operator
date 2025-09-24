@@ -27,7 +27,7 @@ func NewSecretCollector(coreV1Interface coreV1Interface) *SecretCollector {
 }
 
 func (sc *SecretCollector) Name() string {
-	return string(domain.CollectorTypSecret)
+	return string(domain.CollectorTypeSecret)
 }
 
 func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ time.Time, resultChan chan<- *domain.SecretYaml) error {

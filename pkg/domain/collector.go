@@ -8,8 +8,9 @@ const (
 	CollectorTypeLog         CollectorType = "Logs"
 	CollectorTypeVolumeInfo  CollectorType = "VolumeInfo"
 	CollectorTypeNodeInfo    CollectorType = "NodeInfo"
-	CollectorTypSecret       CollectorType = "Resources/Secrets"
+	CollectorTypeSecret      CollectorType = "Resources/Secrets"
 	CollectorTypeSystemState CollectorType = "Resources/SystemState"
+	CollectorTypeEvents      CollectorType = "Events"
 )
 
 func (c CollectorType) GetConditionType() string {
@@ -20,8 +21,10 @@ func (c CollectorType) GetConditionType() string {
 		return libapi.ConditionVolumeInfoFetched
 	case CollectorTypeNodeInfo:
 		return libapi.ConditionNodeInfoFetched
-	case CollectorTypSecret:
+	case CollectorTypeSecret:
 		return libapi.ConditionSecretsFetched
+	case CollectorTypeEvents:
+		return libapi.ConditionEventsFetched
 	case CollectorTypeSystemState:
 		return libapi.ConditionSystemStateFetched
 	default:
@@ -30,5 +33,5 @@ func (c CollectorType) GetConditionType() string {
 }
 
 type CollectorUnionDataType interface {
-	PodLog | VolumeInfo | LabeledSample | SecretYaml | UnstructuredResource
+	LogLine | VolumeInfo | LabeledSample | SecretYaml | UnstructuredResource
 }

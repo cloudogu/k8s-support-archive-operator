@@ -80,10 +80,28 @@ spec:
           value: {{ .Values.controllerManager.env.systemStateLabelSelector | toYaml | quote }}
         - name: SYSTEM_STATE_GVK_EXCLUSIONS
           value: {{ .Values.controllerManager.env.systemStateGvkExclusions | toYaml | quote }}
+        - name: LOG_MAX_QUERY_RESULT_COUNT
+          value: {{ .Values.controllerManager.env.logsMaxQueryResultCount | quote }}
+        - name: LOG_MAX_QUERY_TIME_WINDOW
+          value: {{ .Values.controllerManager.env.logsMaxQueryTimeWindow | quote }}
+        - name: LOG_EVENT_SOURCE_NAME
+          value: {{ .Values.controllerManager.env.logsEventSourceName | quote }}
         - name: NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: LOG_GATEWAY_URL
+          value: {{ .Values.controllerManager.env.logGateway.url | quote }}
+        - name: LOG_GATEWAY_USERNAME
+          valueFrom:
+           secretKeyRef:
+             name: {{ .Values.controllerManager.env.logGateway.secretName | quote }}
+             key: {{ .Values.controllerManager.env.logGateway.usernameKey | quote }}
+        - name: LOG_GATEWAY_PASSWORD
+          valueFrom:
+           secretKeyRef:
+             name: {{ .Values.controllerManager.env.logGateway.secretName | quote }}
+             key: {{ .Values.controllerManager.env.logGateway.passwordKey | quote }}
         image: "{{ .Values.controllerManager.manager.image.registry }}/{{ .Values.controllerManager.manager.image.repository }}:{{ .Values.controllerManager.manager.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.controllerManager.imagePullPolicy }}
         livenessProbe:
