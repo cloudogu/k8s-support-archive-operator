@@ -266,7 +266,7 @@ func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (strin
 	jsonDecoder := json.NewDecoder(strings.NewReader(jsonLogLine))
 	err := jsonDecoder.Decode(&data)
 	if err != nil {
-		return "", fmt.Errorf("decode json logline: %w", err)
+		return "", fmt.Errorf("decode json logline '%s': %w", jsonLogLine, err)
 	}
 
 	data["time"] = timestamp.String()
@@ -286,7 +286,7 @@ func enrichLogLineWithTimeFields(timestamp time.Time, jsonLogLine string) (strin
 }
 
 func plainLogToJsonLog(plainLog string) (string, error) {
-	if json.Valid([]byte(plainLog)) {
+	if isValidJsonObject(plainLog) {
 		return plainLog, nil
 	}
 
@@ -309,4 +309,9 @@ func writeSaveToChannel[T any](ctx context.Context, data T, dataChannel chan<- T
 	case dataChannel <- data:
 		return
 	}
+}
+
+func isValidJsonObject(plain string) bool {
+	var data map[string]interface{}
+	return json.Unmarshal([]byte(plain), &data) == nil
 }

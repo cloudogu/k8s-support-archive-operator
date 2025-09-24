@@ -18,7 +18,7 @@ controllerManager:
     image:
       registry: docker.io
       repository: cloudogu/k8s-support-archive-operator
-      tag: 0.3.0
+      tag: 0.3.1
     resources:
       limits:
         memory: 105M
@@ -95,7 +95,7 @@ webserver:
     accessModes:
       - ReadWriteOnce
     requests:
-      storage: 1Gi
+      storage: 2Gi
     keepOnDelete: true
   service:
     type: ClusterIP

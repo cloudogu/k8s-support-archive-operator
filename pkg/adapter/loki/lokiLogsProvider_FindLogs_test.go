@@ -370,6 +370,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 			if callCount == 1 {
 				resp, err := newQueryRangeResponse([][]string{
 					{asString(testStartTime.Add(testMaxQueryTimeWindow).UnixNano()), "plain text with \"quotes\""},
+					{asString(testStartTime.Add(testMaxQueryTimeWindow).UnixNano()), "1"},
 				})
 				require.NoError(t, err)
 
@@ -381,7 +382,7 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 
 		lokiLogsPrv := newTestLokiLogsProvider(server.Client(), server.URL)
 
-		res := receiveLogLineResults(1)
+		res := receiveLogLineResults(2)
 		err := lokiLogsPrv.FindLogs(context.TODO(), testStartTime, endTime, "aNamespace", res.channel)
 
 		res.wait()
@@ -394,6 +395,11 @@ func TestLokiLogsProviderFindLogs(t *testing.T) {
 		msg, err := valueOfJsonField(res.logLines[0].Value, "message")
 		require.NoError(t, err)
 		assert.Equal(t, "plain text with \"quotes\"", msg)
+
+		msg2, err := valueOfJsonField(res.logLines[1].Value, "message")
+		require.NoError(t, err)
+		assert.Equal(t, "1", msg2)
+
 	})
 
 	t.Run("should append time fields to http response", func(t *testing.T) {
