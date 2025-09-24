@@ -47,7 +47,9 @@ func (s *SupportArchiveReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			Namespace: req.Namespace,
 			Name:      req.Name,
 		})
-		logger.Error(cleanupErr, fmt.Sprintf("Error deleting support archive %q", req.NamespacedName))
+		if cleanupErr != nil {
+			logger.Error(cleanupErr, fmt.Sprintf("Error deleting support archive %q", req.NamespacedName))
+		}
 
 		// returning the error would cause endless reconciliation, sync will clean up later anyway
 		return ctrl.Result{}, nil
