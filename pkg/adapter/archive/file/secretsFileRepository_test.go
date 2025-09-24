@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	testSecretCollectorDirName   = "Resources/core/secrets"
+	testSecretCollectorDirName   = "Resources/Secrets"
 	testSecretWorkDirArchivePath = testWorkPath + "/" + testNamespace + "/" + testName + "/" + testSecretCollectorDirName
 	testSecretWorkFile           = testSecretWorkDirArchivePath + "/secret.yaml"
 )
