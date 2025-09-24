@@ -52,7 +52,7 @@ node('docker') {
                 .mountJenkinsUser()
                 .inside("--volume ${WORKSPACE}:/go/src/${project} -w /go/src/${project}")
                         {
-                            /* stage('Build') {
+                            stage('Build') {
                                 make 'build-controller'
                             }
 
@@ -63,7 +63,7 @@ node('docker') {
 
                             stage("Review dog analysis") {
                                 stageStaticAnalysisReviewDog()
-                            } */
+                            }
 
                             stage('Generate k8s Resources') {
                                 make 'helm-generate'
@@ -75,10 +75,9 @@ node('docker') {
                             }
                         }
 
-       /*  stage('SonarQube') {
+       stage('SonarQube') {
             stageStaticAnalysisSonarQube()
-        } */
-
+        }
 
         K3d k3d = new K3d(this, "${WORKSPACE}", "${WORKSPACE}/k3d", env.PATH)
 
