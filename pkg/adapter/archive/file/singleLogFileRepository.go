@@ -52,7 +52,7 @@ func (l *SingleLogFileRepository) createLog(ctx context.Context, id domain.Suppo
 		logger.Info(fmt.Sprintf("Created log file %s", filePath))
 	}
 
-	_, err := l.files[id].Write([]byte(fmt.Sprintf("%s%s", data.Value, "\n")))
+	_, err := fmt.Fprintf(l.files[id], "%s\n", data.Value)
 	if err != nil {
 		return fmt.Errorf("failed to write data to log file %s: %w", id, err)
 	}
