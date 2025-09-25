@@ -76,11 +76,36 @@ func (l *baseFileRepository) IsCollected(_ context.Context, id domain.SupportArc
 	return true, nil
 }
 
-func (l *baseFileRepository) Delete(_ context.Context, id domain.SupportArchiveID) error {
+func (l *baseFileRepository) Delete(ctx context.Context, id domain.SupportArchiveID) error {
 	dirPath := filepath.Join(l.workPath, id.Namespace, id.Name, l.collectorDir)
+
 	err := l.filesystem.RemoveAll(dirPath)
 	if err != nil {
 		return fmt.Errorf("failed to remove %s directory %s: %w", l.collectorDir, dirPath, err)
+	}
+
+	logger := log.FromContext(ctx).WithName("baseFileRepository.Delete")
+
+	// Delete all empty parent dirs until root
+	parentDir := filepath.Dir(dirPath)
+	// Stop at the root
+	for parentDir != l.workPath {
+		dirEntries, readErr := l.filesystem.ReadDir(parentDir)
+		if readErr != nil {
+			logger.Error(readErr, "failed to read directory %s", parentDir)
+			break
+		}
+		if len(dirEntries) == 0 {
+			removeErr := l.filesystem.Remove(parentDir)
+
+			if removeErr != nil {
+				logger.Error(removeErr, "failed to remove directory %s", parentDir)
+				break
+			}
+			parentDir = filepath.Dir(parentDir)
+		} else {
+			break
+		}
 	}
 
 	return nil
@@ -105,10 +130,22 @@ func create[DATATYPE domain.CollectorUnionDataType](ctx context.Context, id doma
 				if err != nil {
 					return fmt.Errorf("error finishing collection: %w", err)
 				}
-				return nil
+
+				return doSafeClose(ctx, id, closeFn)
 			}
 		}
 	}
+}
+
+func doSafeClose(ctx context.Context, id domain.SupportArchiveID, closeFn closeFn) error {
+	if closeFn != nil {
+		closeFnErr := closeFn(ctx, id)
+		if closeFnErr != nil {
+			return fmt.Errorf("error closing file: %w", closeFnErr)
+		}
+	}
+
+	return nil
 }
 
 func handleCreateErr(ctx context.Context, id domain.SupportArchiveID, err error, closeFn closeFn, deleteFn deleteFn) error {

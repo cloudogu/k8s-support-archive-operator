@@ -2,41 +2,31 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 )
 
-type LogCollector struct{}
+type LogCollector struct {
+	logProvider LogsProvider
+}
 
-func NewLogCollector() *LogCollector {
-	return &LogCollector{}
+func NewLogCollector(logProvider LogsProvider) *LogCollector {
+	return &LogCollector{logProvider: logProvider}
 }
 
 func (l *LogCollector) Name() string {
 	return string(domain.CollectorTypeLog)
 }
 
-// Do not close resultChan on error. Closing the channel should only indicate that the collection finished successfully.
-func (l *LogCollector) Collect(ctx context.Context, _ string, startTime, endTime time.Time, resultChan chan<- *domain.PodLog) error {
-	doguLog := &domain.PodLog{
-		PodName:   "cas",
-		StartTime: startTime,
-		EndTime:   endTime,
-		Entries:   []string{"log entry"},
+func (l *LogCollector) Collect(ctx context.Context, namespace string, startTime, endTime time.Time, resultChan chan<- *domain.LogLine) error {
+	defer close(resultChan)
+
+	err := l.logProvider.FindLogs(ctx, startTime, endTime, namespace, resultChan)
+	if err != nil {
+		return fmt.Errorf("failed to find logs: %w", err)
 	}
-
-	writeSaveToChannel(ctx, doguLog, resultChan)
-
-	doguLog = &domain.PodLog{
-		PodName:   "ldap",
-		StartTime: startTime,
-		EndTime:   endTime,
-		Entries:   []string{"log entry"},
-	}
-
-	writeSaveToChannel(ctx, doguLog, resultChan)
-	close(resultChan)
 
 	return nil
 }

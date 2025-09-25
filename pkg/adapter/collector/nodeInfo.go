@@ -26,6 +26,8 @@ func (nic *NodeInfoCollector) Name() string {
 }
 
 func (nic *NodeInfoCollector) Collect(ctx context.Context, _ string, start, end time.Time, resultChan chan<- *domain.LabeledSample) error {
+	defer close(resultChan)
+
 	err := nic.getGeneralInfo(ctx, start, end, resultChan)
 	if err != nil {
 		return err
@@ -51,7 +53,6 @@ func (nic *NodeInfoCollector) Collect(ctx context.Context, _ string, start, end 
 		return err
 	}
 
-	close(resultChan)
 	return nil
 }
 

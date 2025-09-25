@@ -31,6 +31,8 @@ func (sc *SecretCollector) Name() string {
 }
 
 func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ time.Time, resultChan chan<- *domain.SecretYaml) error {
+	defer close(resultChan)
+
 	logger := log.FromContext(ctx).WithName("SecretCollector.Collect")
 	list, err := sc.coreV1Interface.Secrets(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
@@ -39,7 +41,6 @@ func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ t
 
 	if len(list.Items) == 0 {
 		logger.Info("Secret list is empty")
-		close(resultChan)
 		return nil
 	}
 
@@ -49,7 +50,6 @@ func (sc *SecretCollector) Collect(ctx context.Context, namespace string, _, _ t
 		writeSaveToChannel(ctx, censored, resultChan)
 	}
 
-	close(resultChan)
 	return nil
 }
 

@@ -4,16 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"slices"
+	"time"
+
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"slices"
-	"time"
 
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 )
@@ -67,6 +68,8 @@ func (rc *SystemStateCollector) Name() string {
 }
 
 func (rc *SystemStateCollector) Collect(ctx context.Context, namespace string, _, _ time.Time, resultChan chan<- *domain.UnstructuredResource) error {
+	defer close(resultChan)
+
 	resourceKindLists, err := rc.discoveryClient.ServerPreferredResources()
 	if err != nil {
 		return fmt.Errorf("failed to get resource kind lists from server: %w", err)
@@ -102,7 +105,6 @@ func (rc *SystemStateCollector) Collect(ctx context.Context, namespace string, _
 		}
 	}
 
-	close(resultChan)
 	return nil
 }
 

@@ -4,22 +4,26 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
-	testStateFilePath = testWorkDirArchivePath + "/.done"
+	testStateFilePath         = testWorkDirCollectorPath + "/.done"
+	testLogCollectorDirName   = "Logs"
+	testLogWorkDirArchivePath = testWorkPath + "/" + testNamespace + "/" + testName + "/" + testLogCollectorDirName
+	testWorkLog               = testLogWorkDirArchivePath + "/logs.log"
 )
 
 func Test_baseFileRepository_FinishCollection(t *testing.T) {
@@ -47,7 +51,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 					fileMock.EXPECT().Write([]byte("done")).Return(0, nil)
 
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, fs.ModePerm).Return(nil)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, fs.ModePerm).Return(nil)
 					fsMock.EXPECT().Create(testStateFilePath).Return(fileMock, nil)
 
 					return fsMock
@@ -72,7 +76,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 					fileMock.EXPECT().Write([]byte("done")).Return(0, assert.AnError)
 
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, fs.ModePerm).Return(nil)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, fs.ModePerm).Return(nil)
 					fsMock.EXPECT().Create(testStateFilePath).Return(fileMock, nil)
 
 					return fsMock
@@ -94,7 +98,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 			fields: fields{
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, fs.ModePerm).Return(nil)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, fs.ModePerm).Return(nil)
 					fsMock.EXPECT().Create(testStateFilePath).Return(nil, assert.AnError)
 
 					return fsMock
@@ -116,7 +120,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 			fields: fields{
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, fs.ModePerm).Return(assert.AnError)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, fs.ModePerm).Return(assert.AnError)
 
 					return fsMock
 				},
@@ -250,13 +254,36 @@ func Test_baseFileRepository_Delete(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{
-			name: "success",
+			name: "success and should not delete if other collectors have files remaining",
 			fields: fields{
 				workPath:     testWorkPath,
 				collectorDir: testCollectorDirName,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().RemoveAll(testWorkDirArchivePath).Return(nil)
+					fsMock.EXPECT().RemoveAll(testWorkDirCollectorPath).Return(nil)
+					fsMock.EXPECT().ReadDir(testWorkDirArchivePath).Return([]fs.DirEntry{testEntry{"other collector"}}, nil)
+
+					return fsMock
+				},
+			},
+			args: args{
+				ctx: testCtx,
+				id:  testID,
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "success and should delete all empty folder until the work dir root",
+			fields: fields{
+				workPath:     testWorkPath,
+				collectorDir: testCollectorDirName,
+				filesystem: func(t *testing.T) volumeFs {
+					fsMock := newMockVolumeFs(t)
+					fsMock.EXPECT().RemoveAll(testWorkDirCollectorPath).Return(nil)
+					fsMock.EXPECT().ReadDir(testWorkDirArchivePath).Return([]fs.DirEntry{}, nil)
+					fsMock.EXPECT().Remove(testWorkDirArchivePath).Return(nil)
+					fsMock.EXPECT().ReadDir(testWorkDirNamespacePath).Return([]fs.DirEntry{}, nil)
+					fsMock.EXPECT().Remove(testWorkDirNamespacePath).Return(nil)
 
 					return fsMock
 				},
@@ -274,7 +301,7 @@ func Test_baseFileRepository_Delete(t *testing.T) {
 				collectorDir: testCollectorDirName,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().RemoveAll(testWorkDirArchivePath).Return(assert.AnError)
+					fsMock.EXPECT().RemoveAll(testWorkDirCollectorPath).Return(assert.AnError)
 
 					return fsMock
 				},
@@ -340,9 +367,30 @@ func Test_create(t *testing.T) {
 				finishFn: func(ctx context.Context, id domain.SupportArchiveID) error {
 					return nil
 				},
+				closeFn: func(ctx context.Context, id domain.SupportArchiveID) error { return nil },
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
+			},
+		},
+		{
+			name: "should return error on close error",
+			args: args[domain.LogLine]{
+				ctx:        testCtx,
+				id:         testID,
+				dataStream: getSuccessStream(),
+				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.LogLine) error {
+					return nil
+				},
+				finishFn: func(ctx context.Context, id domain.SupportArchiveID) error {
+					return nil
+				},
+				closeFn: func(ctx context.Context, id domain.SupportArchiveID) error { return assert.AnError },
+			},
+			wantErr: func(t *testing.T, err error) {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, assert.AnError)
+				assert.ErrorContains(t, err, "error closing file")
 			},
 		},
 		{
@@ -452,7 +500,7 @@ func Test_baseFileRepository_Stream(t *testing.T) {
 				directory: testCollectorDirName,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().WalkDir(testWorkDirArchivePath, mock.Anything).Return(assert.AnError)
+					fsMock.EXPECT().WalkDir(testWorkDirCollectorPath, mock.Anything).Return(assert.AnError)
 					return fsMock
 				},
 			},
@@ -538,12 +586,12 @@ func Test_baseFileRepository_createStreamConstructor(t *testing.T) {
 				workPath: testWorkPath,
 				filesystem: func(t *testing.T) (volumeFs, io.Reader) {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().Open(testWorkCasLog).Return(nil, assert.AnError)
+					fsMock.EXPECT().Open(testWorkLog).Return(nil, assert.AnError)
 					return fsMock, nil
 				},
 			},
 			args: args{
-				path: testWorkCasLog,
+				path: testWorkLog,
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
@@ -558,12 +606,12 @@ func Test_baseFileRepository_createStreamConstructor(t *testing.T) {
 				filesystem: func(t *testing.T) (volumeFs, io.Reader) {
 					fsMock := newMockVolumeFs(t)
 					fileMock := newMockClosableRWFile(t)
-					fsMock.EXPECT().Open(testWorkCasLog).Return(fileMock, nil)
+					fsMock.EXPECT().Open(testWorkLog).Return(fileMock, nil)
 					return fsMock, bufio.NewReader(fileMock)
 				},
 			},
 			args: args{
-				path: testWorkCasLog,
+				path: testWorkLog,
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
@@ -572,10 +620,10 @@ func Test_baseFileRepository_createStreamConstructor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			filesystem, expectedWant := tt.fields.filesystem(t)
+			testFilesystem, expectedWant := tt.fields.filesystem(t)
 			l := &baseFileRepository{
 				workPath:   tt.fields.workPath,
-				filesystem: filesystem,
+				filesystem: testFilesystem,
 			}
 			reader, closeReader, err := l.createStreamConstructor(tt.args.path)()
 			tt.wantErr(t, err)

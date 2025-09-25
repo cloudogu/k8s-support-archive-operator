@@ -26,13 +26,14 @@ func (vc *VolumesCollector) Name() string {
 }
 
 func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, _, end time.Time, resultChan chan<- *domain.VolumeInfo) error {
+	defer close(resultChan)
+
 	list, err := vc.coreV1Interface.PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing pvcs: %w", err)
 	}
 
 	if len(list.Items) == 0 {
-		close(resultChan)
 		return nil
 	}
 
@@ -47,7 +48,6 @@ func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, _, en
 	}
 
 	writeSaveToChannel(ctx, result, resultChan)
-	close(resultChan)
 	return nil
 }
 

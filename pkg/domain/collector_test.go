@@ -13,7 +13,7 @@ func TestCollectorType_GetConditionType(t *testing.T) {
 		{
 			name: "type log",
 			c:    "Logs",
-			want: "TODO",
+			want: "LogsFetched",
 		},
 		{
 			name: "type volume info",

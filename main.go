@@ -117,9 +117,6 @@ func startOperator(
 
 	fs := filesystem.FileSystem{}
 
-	logCollector := collector.NewLogCollector()
-	logRepository := file.NewLogFileRepository(workPath, fs)
-
 	address := fmt.Sprintf(
 		"%s://%s.%s.svc.cluster.local:%s",
 		operatorConfig.MetricsServiceProtocol,
@@ -156,6 +153,9 @@ func startOperator(
 	logProvider := loki.NewLokiLogsProvider(http.DefaultClient, operatorConfig)
 	eventsCollector := collector.NewEventsCollector(logProvider)
 	eventsRepository := file.NewEventFileRepository(workPath, fs)
+
+	logCollector := collector.NewLogCollector(logProvider)
+	logRepository := file.NewLogFileRepository(workPath, fs)
 
 	mapping := make(map[domain.CollectorType]usecase.CollectorAndRepository)
 	mapping[domain.CollectorTypeLog] = usecase.CollectorAndRepository{Collector: logCollector, Repository: logRepository}

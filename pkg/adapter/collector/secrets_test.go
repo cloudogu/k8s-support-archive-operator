@@ -80,12 +80,11 @@ func TestSecretsCollector_Collect(t *testing.T) {
 		coreV1Interface func(t *testing.T) coreV1Interface
 	}
 	type args struct {
-		ctx          context.Context
-		namespace    string
-		start        time.Time
-		end          time.Time
-		resultChan   chan *domain.SecretYaml
-		waitForClose bool
+		ctx        context.Context
+		namespace  string
+		start      time.Time
+		end        time.Time
+		resultChan chan *domain.SecretYaml
 	}
 	tests := []struct {
 		name     string
@@ -140,12 +139,11 @@ func TestSecretsCollector_Collect(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:          testCtx,
-				namespace:    testNamespace,
-				start:        time.Time{},
-				end:          now,
-				resultChan:   make(chan *domain.SecretYaml),
-				waitForClose: true,
+				ctx:        testCtx,
+				namespace:  testNamespace,
+				start:      time.Time{},
+				end:        now,
+				resultChan: make(chan *domain.SecretYaml),
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
@@ -172,12 +170,11 @@ func TestSecretsCollector_Collect(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:          testCtx,
-				namespace:    testNamespace,
-				start:        time.Time{},
-				end:          now,
-				resultChan:   make(chan *domain.SecretYaml),
-				waitForClose: true,
+				ctx:        testCtx,
+				namespace:  testNamespace,
+				start:      time.Time{},
+				end:        now,
+				resultChan: make(chan *domain.SecretYaml),
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
@@ -204,12 +201,11 @@ func TestSecretsCollector_Collect(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:          testCtx,
-				namespace:    testNamespace,
-				start:        time.Time{},
-				end:          now,
-				resultChan:   make(chan *domain.SecretYaml),
-				waitForClose: true,
+				ctx:        testCtx,
+				namespace:  testNamespace,
+				start:      time.Time{},
+				end:        now,
+				resultChan: make(chan *domain.SecretYaml),
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
@@ -241,29 +237,27 @@ func TestSecretsCollector_Collect(t *testing.T) {
 				return err
 			})
 
-			if tt.args.waitForClose {
-				timer := time.NewTimer(time.Second * 2)
-				group.Go(func() error {
-					<-timer.C
-					defer func() {
-						// recover panic if the channel is closed correctly from the test
-						if r := recover(); r != nil {
-							tt.args.resultChan <- nil
-							return
-						}
-					}()
+			timer := time.NewTimer(time.Second * 2)
+			group.Go(func() error {
+				<-timer.C
+				defer func() {
+					// recover panic if the channel is closed correctly from the test
+					if r := recover(); r != nil {
+						tt.args.resultChan <- nil
+						return
+					}
+				}()
 
-					return nil
-				})
+				return nil
+			})
 
-				v, open := <-tt.args.resultChan
-				if v == nil && open {
-					t.Fatal("test timed out")
-				}
+			v, open := <-tt.args.resultChan
+			if v == nil && open {
+				t.Fatal("test timed out")
+			}
 
-				if v != nil && open {
-					assert.Equal(t, tt.wantData, v)
-				}
+			if v != nil && open {
+				assert.Equal(t, tt.wantData, v)
 			}
 
 			err := group.Wait()
