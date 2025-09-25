@@ -88,12 +88,8 @@ func (l *baseFileRepository) Delete(ctx context.Context, id domain.SupportArchiv
 
 	// Delete all empty parent dirs until root
 	parentDir := filepath.Dir(dirPath)
-	for {
-		// Stop at the root
-		if parentDir == l.workPath {
-			break
-		}
-
+	// Stop at the root
+	for parentDir != l.workPath {
 		dirEntries, readErr := l.filesystem.ReadDir(parentDir)
 		if readErr != nil {
 			logger.Error(readErr, "failed to read directory %s", parentDir)
