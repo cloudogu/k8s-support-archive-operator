@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.0.0] - 2025-09-25
+
 ### Added
 - [#15] Garbage-collect old support archives
 - [#14] Collect secrets information and add it to support archive
