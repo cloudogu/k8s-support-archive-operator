@@ -15,5 +15,5 @@ spec:
       {{- include "helm.selectorLabels" . | nindent 6 }}
   policyTypes:
     - Ingress
-{{- end}}
-{{- end}}
+{{- end }}
+{{- end }}

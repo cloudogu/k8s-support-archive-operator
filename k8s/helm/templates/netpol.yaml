@@ -16,3 +16,22 @@ spec:
       k8s.cloudogu.com/component.name: k8s-prometheus
   policyTypes:
     - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: support-archive-operator-k8s-loki
+spec:
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+          podSelector:
+            matchLabels:
+              k8s.cloudogu.com/component.name: {{ .Release.Name }}
+  podSelector:
+    matchLabels:
+      k8s.cloudogu.com/component.name: k8s-loki
+  policyTypes:
+    - Ingress

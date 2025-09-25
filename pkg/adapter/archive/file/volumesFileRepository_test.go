@@ -64,7 +64,7 @@ func TestVolumesFileRepository_createVolumeInfo(t *testing.T) {
 			wantErr: func(t *testing.T, err error) {
 				assert.Error(t, err)
 				assert.ErrorIs(t, err, assert.AnError)
-				assert.ErrorContains(t, err, "error creating directory for volume metrics file")
+				assert.ErrorContains(t, err, "error creating directory for file")
 			},
 		},
 		{
@@ -87,7 +87,7 @@ func TestVolumesFileRepository_createVolumeInfo(t *testing.T) {
 			wantErr: func(t *testing.T, err error) {
 				assert.Error(t, err)
 				assert.ErrorIs(t, err, assert.AnError)
-				assert.ErrorContains(t, err, "error creating volume metrics file")
+				assert.ErrorContains(t, err, "error creating file")
 			},
 		},
 		{

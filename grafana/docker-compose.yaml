@@ -1,0 +1,37 @@
+services:
+  grafana:
+    image: grafana/grafana:10.4.5
+    container_name: grafana-infinity
+    ports:
+      - "3000:3000"
+    environment:
+      # Install Infinity plugin
+      - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource
+      # Optional: basic auth defaults (anonymous can be enabled separately if desired)
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      # Persist Grafana data (users, etc.)
+      - grafana_data:/var/lib/grafana
+      # Mount archives containing CSV exports (generator scans this)
+      - ./archives:/var/lib/grafana/archives:ro
+      # Provisioning for datasources and dashboards + generator script
+      - ./provisioning:/etc/grafana/provisioning
+    entrypoint: /bin/bash
+    command: -c "bash /etc/grafana/provisioning/generate-csv-dashboards.sh && /run.sh"
+    depends_on:
+      - archives
+    restart: unless-stopped
+
+  archives:
+    image: nginx:alpine
+    container_name: archives-server
+    ports:
+      - "8090:80"
+    volumes:
+      - ./archives:/usr/share/nginx/html:ro
+    restart: unless-stopped
+
+volumes:
+  grafana_data:
+    driver: local

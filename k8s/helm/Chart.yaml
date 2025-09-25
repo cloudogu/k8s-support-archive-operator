@@ -20,8 +20,8 @@ version: 0.0.0-replaceme
 # It is recommended to use it with quotes.
 appVersion: "0.0.0-replaceme"
 
-# TODO: Should we add prometheus as required dependency? Support archive could be created without it.
 annotations:
   # Dependency for the SupportArchive-CRD.
   # Allow all versions up to next major version to avoid breaking changes
   "k8s.cloudogu.com/ces-dependency/k8s-support-archive-operator-crd": "0.x.x-0"
+  "k8s.cloudogu.com/ces-dependency/k8s-loki": "^2.9.1-0 || ^3.0.0-0"

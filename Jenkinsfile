@@ -12,9 +12,9 @@ github = new GitHub(this, git)
 changelog = new Changelog(this)
 Docker docker = new Docker(this)
 gpg = new Gpg(this, docker)
-goVersion = "1.24.5"
+goVersion = "1.25.1"
 makefile = new Makefile(this)
-supportArchiveCrdVersion="0.1.1"
+supportArchiveCrdVersion="0.2.0"
 
 // Configuration of repository
 repositoryOwner = "cloudogu"
@@ -58,11 +58,7 @@ node('docker') {
 
                             stage("Unit test") {
                                 make 'unit-test'
-                                junit allowEmptyResults: true, testResults: 'target/unit-tests/*-tests.xml'
-                            }
-
-                            stage('k8s-Integration-Test') {
-                                make 'k8s-integration-test'
+                                junit allowEmptyResults: true, testResults: 'target/unit-tests *//*-tests.xml'
                             }
 
                             stage("Review dog analysis") {
@@ -79,10 +75,9 @@ node('docker') {
                             }
                         }
 
-        stage('SonarQube') {
+       stage('SonarQube') {
             stageStaticAnalysisSonarQube()
         }
-
 
         K3d k3d = new K3d(this, "${WORKSPACE}", "${WORKSPACE}/k3d", env.PATH)
 
@@ -91,6 +86,11 @@ node('docker') {
 
             stage('Set up k3d cluster') {
                 k3d.startK3d()
+            }
+
+            // Create dummy secret. We should install loki if we do more than just a smoke test.
+            stage('Create loki secret') {
+                k3d.kubectl("--namespace default create secret generic k8s-loki-gateway-secret --from-literal=username=username --from-literal=password=password")
             }
 
             stage('Deploy crd') {

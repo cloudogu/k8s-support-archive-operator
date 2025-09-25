@@ -2,9 +2,12 @@ package kubernetes
 
 import (
 	"context"
+	"time"
+
 	"github.com/cloudogu/k8s-support-archive-lib/api/v1"
 	libclient "github.com/cloudogu/k8s-support-archive-lib/client/v1"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -25,7 +28,7 @@ type supportArchiveV1Interface interface {
 }
 
 type createArchiveHandler interface {
-	HandleArchiveRequest(ctx context.Context, cr *v1.SupportArchive) (requeue bool, err error)
+	HandleArchiveRequest(ctx context.Context, cr *v1.SupportArchive) (requeueAfter time.Duration, err error)
 }
 
 type deleteArchiveHandler interface {

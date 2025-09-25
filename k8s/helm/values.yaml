@@ -18,7 +18,7 @@ controllerManager:
     image:
       registry: docker.io
       repository: cloudogu/k8s-support-archive-operator
-      tag: 0.3.0
+      tag: 1.0.0
     resources:
       limits:
         memory: 105M
@@ -31,6 +31,25 @@ controllerManager:
     logLevel: debug
     stage: development
     supportArchiveSyncInterval: 1m
+    garbageCollectionInterval: 5m
+    garbageCollectionNumberToKeep: 5
+    nodeInfoUsageMetricStep: 30s
+    nodeInfoHardwareMetricStep: 30m
+    metricsMaxSamples: 11000
+    logsMaxQueryResultCount: 1500 # max is 5000
+    logsMaxQueryTimeWindow: 24h # max is 720h
+    logsEventSourceName: loki.source.kubernetes_events
+    logGateway:
+      url: "http://k8s-loki-gateway.ecosystem.svc.cluster.local"
+      secretName: "k8s-loki-gateway-secret"
+      usernameKey: "username"
+      passwordKey: "password"
+    systemStateLabelSelector: # empty selects all resources
+      app: ces
+    systemStateGvkExclusions:
+      - group: ""
+        version: v1
+        kind: Secret
   imagePullPolicy: IfNotPresent
   podSecurityContext:
     fsGroup: 65532
@@ -76,7 +95,7 @@ webserver:
     accessModes:
       - ReadWriteOnce
     requests:
-      storage: 1Gi
+      storage: 5Gi
     keepOnDelete: true
   service:
     type: ClusterIP

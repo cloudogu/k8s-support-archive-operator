@@ -3,10 +3,11 @@ package collector
 import (
 	"context"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
 	"time"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const pvcVolumeMetricName = "persistentVolumeClaims"
@@ -21,17 +22,18 @@ func NewVolumesCollector(coreV1Interface coreV1Interface, provider metricsProvid
 }
 
 func (vc *VolumesCollector) Name() string {
-	return string(domain.CollectorTypVolumeInfo)
+	return string(domain.CollectorTypeVolumeInfo)
 }
 
 func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, _, end time.Time, resultChan chan<- *domain.VolumeInfo) error {
+	defer close(resultChan)
+
 	list, err := vc.coreV1Interface.PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing pvcs: %w", err)
 	}
 
 	if len(list.Items) == 0 {
-		close(resultChan)
 		return nil
 	}
 
@@ -46,7 +48,6 @@ func (vc *VolumesCollector) Collect(ctx context.Context, namespace string, _, en
 	}
 
 	writeSaveToChannel(ctx, result, resultChan)
-	close(resultChan)
 	return nil
 }
 

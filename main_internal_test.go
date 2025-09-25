@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	v1 "github.com/cloudogu/k8s-support-archive-lib/api/v1"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -85,7 +85,7 @@ func Test_configureManager(t *testing.T) {
 		// given
 
 		// when
-		err := configureManager(nil, nil, nil, nil)
+		err := configureManager(nil, nil, nil, nil, nil)
 
 		// then
 		require.Error(t, err)
@@ -98,7 +98,7 @@ func Test_configureManager(t *testing.T) {
 		managerMock.EXPECT().GetScheme().Return(&runtime.Scheme{})
 
 		// when
-		err := configureManager(managerMock, nil, nil, nil)
+		err := configureManager(managerMock, nil, nil, nil, nil)
 
 		// then
 		require.Error(t, err)
@@ -120,6 +120,7 @@ func Test_configureManager(t *testing.T) {
 		ctrlManMock := newMockControllerManager(t)
 		ctrlManMock.EXPECT().GetControllerOptions().Return(config2.Controller{})
 		ctrlManMock.EXPECT().GetScheme().Return(runtime.NewScheme())
+		ctrlManMock.EXPECT().GetClient().Return(nil)
 
 		ctrl.NewManager = func(config *rest.Config, options manager.Options) (manager.Manager, error) {
 			return ctrlManMock, nil
@@ -162,6 +163,7 @@ func Test_configureManager(t *testing.T) {
 		ctrlManMock.EXPECT().Add(mock.Anything).Return(nil)
 		ctrlManMock.EXPECT().GetCache().Return(nil)
 		ctrlManMock.EXPECT().AddHealthzCheck("healthz", mock.Anything).Return(assert.AnError)
+		ctrlManMock.EXPECT().GetClient().Return(nil)
 
 		ctrl.NewManager = func(config *rest.Config, options manager.Options) (manager.Manager, error) {
 			return ctrlManMock, nil
@@ -206,6 +208,7 @@ func Test_configureManager(t *testing.T) {
 		ctrlManMock.EXPECT().GetCache().Return(nil)
 		ctrlManMock.EXPECT().AddHealthzCheck("healthz", mock.Anything).Return(nil)
 		ctrlManMock.EXPECT().AddReadyzCheck("readyz", mock.Anything).Return(assert.AnError)
+		ctrlManMock.EXPECT().GetClient().Return(nil)
 
 		ctrl.NewManager = func(config *rest.Config, options manager.Options) (manager.Manager, error) {
 			return ctrlManMock, nil
@@ -253,6 +256,7 @@ func Test_configureManager(t *testing.T) {
 		ctrlManMock.EXPECT().AddHealthzCheck("healthz", mock.Anything).Return(nil)
 		ctrlManMock.EXPECT().AddReadyzCheck("readyz", mock.Anything).Return(nil)
 		ctrlManMock.EXPECT().Start(mock.Anything).Return(assert.AnError)
+		ctrlManMock.EXPECT().GetClient().Return(nil)
 
 		ctrl.NewManager = func(config *rest.Config, options manager.Options) (manager.Manager, error) {
 			return ctrlManMock, nil
@@ -303,6 +307,7 @@ func Test_configureManager(t *testing.T) {
 		ctrlManMock.EXPECT().AddHealthzCheck("healthz", mock.Anything).Return(nil)
 		ctrlManMock.EXPECT().AddReadyzCheck("readyz", mock.Anything).Return(nil)
 		ctrlManMock.EXPECT().Start(mock.Anything).Return(nil)
+		ctrlManMock.EXPECT().GetClient().Return(nil)
 
 		ctrl.NewManager = func(config *rest.Config, options manager.Options) (manager.Manager, error) {
 			return ctrlManMock, nil

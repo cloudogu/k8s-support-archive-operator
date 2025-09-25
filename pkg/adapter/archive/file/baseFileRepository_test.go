@@ -4,22 +4,26 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
-	testStateFilePath = testWorkDirArchivePath + "/.done"
+	testStateFilePath         = testWorkDirCollectorPath + "/.done"
+	testLogCollectorDirName   = "Logs"
+	testLogWorkDirArchivePath = testWorkPath + "/" + testNamespace + "/" + testName + "/" + testLogCollectorDirName
+	testWorkLog               = testLogWorkDirArchivePath + "/logs.log"
 )
 
 func Test_baseFileRepository_FinishCollection(t *testing.T) {
@@ -47,7 +51,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 					fileMock.EXPECT().Write([]byte("done")).Return(0, nil)
 
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, fs.ModePerm).Return(nil)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, fs.ModePerm).Return(nil)
 					fsMock.EXPECT().Create(testStateFilePath).Return(fileMock, nil)
 
 					return fsMock
@@ -72,7 +76,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 					fileMock.EXPECT().Write([]byte("done")).Return(0, assert.AnError)
 
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, fs.ModePerm).Return(nil)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, fs.ModePerm).Return(nil)
 					fsMock.EXPECT().Create(testStateFilePath).Return(fileMock, nil)
 
 					return fsMock
@@ -94,7 +98,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 			fields: fields{
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, fs.ModePerm).Return(nil)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, fs.ModePerm).Return(nil)
 					fsMock.EXPECT().Create(testStateFilePath).Return(nil, assert.AnError)
 
 					return fsMock
@@ -116,7 +120,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 			fields: fields{
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().MkdirAll(testWorkDirArchivePath, fs.ModePerm).Return(assert.AnError)
+					fsMock.EXPECT().MkdirAll(testWorkDirCollectorPath, fs.ModePerm).Return(assert.AnError)
 
 					return fsMock
 				},
@@ -140,7 +144,7 @@ func Test_baseFileRepository_FinishCollection(t *testing.T) {
 				collectorDir: tt.fields.collectorDir,
 				filesystem:   tt.fields.filesystem(t),
 			}
-			tt.wantErr(t, l.FinishCollection(tt.args.ctx, tt.args.id))
+			tt.wantErr(t, l.finishCollection(tt.args.ctx, tt.args.id))
 		})
 	}
 }
@@ -250,13 +254,36 @@ func Test_baseFileRepository_Delete(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{
-			name: "success",
+			name: "success and should not delete if other collectors have files remaining",
 			fields: fields{
 				workPath:     testWorkPath,
 				collectorDir: testCollectorDirName,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().RemoveAll(testWorkDirArchivePath).Return(nil)
+					fsMock.EXPECT().RemoveAll(testWorkDirCollectorPath).Return(nil)
+					fsMock.EXPECT().ReadDir(testWorkDirArchivePath).Return([]fs.DirEntry{testEntry{"other collector"}}, nil)
+
+					return fsMock
+				},
+			},
+			args: args{
+				ctx: testCtx,
+				id:  testID,
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "success and should delete all empty folder until the work dir root",
+			fields: fields{
+				workPath:     testWorkPath,
+				collectorDir: testCollectorDirName,
+				filesystem: func(t *testing.T) volumeFs {
+					fsMock := newMockVolumeFs(t)
+					fsMock.EXPECT().RemoveAll(testWorkDirCollectorPath).Return(nil)
+					fsMock.EXPECT().ReadDir(testWorkDirArchivePath).Return([]fs.DirEntry{}, nil)
+					fsMock.EXPECT().Remove(testWorkDirArchivePath).Return(nil)
+					fsMock.EXPECT().ReadDir(testWorkDirNamespacePath).Return([]fs.DirEntry{}, nil)
+					fsMock.EXPECT().Remove(testWorkDirNamespacePath).Return(nil)
 
 					return fsMock
 				},
@@ -274,7 +301,7 @@ func Test_baseFileRepository_Delete(t *testing.T) {
 				collectorDir: testCollectorDirName,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().RemoveAll(testWorkDirArchivePath).Return(assert.AnError)
+					fsMock.EXPECT().RemoveAll(testWorkDirCollectorPath).Return(assert.AnError)
 
 					return fsMock
 				},
@@ -317,40 +344,62 @@ func Test_create(t *testing.T) {
 		ctx        context.Context
 		id         domain.SupportArchiveID
 		dataStream <-chan *DATATYPE
-		createFn   createFn[domain.PodLog]
+		createFn   createFn[domain.LogLine]
 		deleteFn   deleteFn
 		finishFn   finishFn
+		closeFn    closeFn
 	}
 	type testCase[DATATYPE domain.CollectorUnionDataType] struct {
 		name    string
 		args    args[DATATYPE]
 		wantErr func(t *testing.T, err error)
 	}
-	tests := []testCase[domain.PodLog]{
+	tests := []testCase[domain.LogLine]{
 		{
 			name: "should call create and finish if channel is closed",
-			args: args[domain.PodLog]{
+			args: args[domain.LogLine]{
 				ctx:        testCtx,
 				id:         testID,
 				dataStream: getSuccessStream(),
-				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.PodLog) error {
+				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.LogLine) error {
 					return nil
 				},
 				finishFn: func(ctx context.Context, id domain.SupportArchiveID) error {
 					return nil
 				},
+				closeFn: func(ctx context.Context, id domain.SupportArchiveID) error { return nil },
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
 		},
 		{
-			name: "should return error on error finish collection",
-			args: args[domain.PodLog]{
+			name: "should return error on close error",
+			args: args[domain.LogLine]{
 				ctx:        testCtx,
 				id:         testID,
 				dataStream: getSuccessStream(),
-				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.PodLog) error {
+				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.LogLine) error {
+					return nil
+				},
+				finishFn: func(ctx context.Context, id domain.SupportArchiveID) error {
+					return nil
+				},
+				closeFn: func(ctx context.Context, id domain.SupportArchiveID) error { return assert.AnError },
+			},
+			wantErr: func(t *testing.T, err error) {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, assert.AnError)
+				assert.ErrorContains(t, err, "error closing file")
+			},
+		},
+		{
+			name: "should return error on error finish collection",
+			args: args[domain.LogLine]{
+				ctx:        testCtx,
+				id:         testID,
+				dataStream: getSuccessStream(),
+				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.LogLine) error {
 					return nil
 				},
 				finishFn: func(ctx context.Context, id domain.SupportArchiveID) error {
@@ -365,11 +414,11 @@ func Test_create(t *testing.T) {
 		},
 		{
 			name: "should return error on error create data",
-			args: args[domain.PodLog]{
+			args: args[domain.LogLine]{
 				ctx:        testCtx,
 				id:         testID,
 				dataStream: getSuccessStream(),
-				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.PodLog) error {
+				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.LogLine) error {
 					return assert.AnError
 				},
 				deleteFn: func(ctx context.Context, id domain.SupportArchiveID) error {
@@ -384,11 +433,11 @@ func Test_create(t *testing.T) {
 		},
 		{
 			name: "should return join error on cleanup error",
-			args: args[domain.PodLog]{
+			args: args[domain.LogLine]{
 				ctx:        testCtx,
 				id:         testID,
 				dataStream: getSuccessStream(),
-				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.PodLog) error {
+				createFn: func(ctx context.Context, id domain.SupportArchiveID, d *domain.LogLine) error {
 					return assert.AnError
 				},
 				deleteFn: func(ctx context.Context, id domain.SupportArchiveID) error {
@@ -405,20 +454,18 @@ func Test_create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.wantErr(t, create(tt.args.ctx, tt.args.id, tt.args.dataStream, tt.args.createFn, tt.args.deleteFn, tt.args.finishFn))
+			tt.wantErr(t, create(tt.args.ctx, tt.args.id, tt.args.dataStream, tt.args.createFn, tt.args.deleteFn, tt.args.finishFn, tt.args.closeFn))
 		})
 	}
 }
 
-func getSuccessStream() chan *domain.PodLog {
-	channel := make(chan *domain.PodLog)
+func getSuccessStream() chan *domain.LogLine {
+	channel := make(chan *domain.LogLine)
 
 	go func() {
-		channel <- &domain.PodLog{
-			PodName:   "cas",
-			StartTime: time.Now(),
-			EndTime:   time.Now(),
-			Entries:   []string{"logline1", "logline2"},
+		channel <- &domain.LogLine{
+			Timestamp: time.Now(),
+			Value:     "value",
 		}
 
 		close(channel)
@@ -453,7 +500,7 @@ func Test_baseFileRepository_Stream(t *testing.T) {
 				directory: testCollectorDirName,
 				filesystem: func(t *testing.T) volumeFs {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().WalkDir(testWorkDirArchivePath, mock.Anything).Return(assert.AnError)
+					fsMock.EXPECT().WalkDir(testWorkDirCollectorPath, mock.Anything).Return(assert.AnError)
 					return fsMock
 				},
 			},
@@ -488,10 +535,8 @@ func Test_baseFileRepository_Stream(t *testing.T) {
 				go func() {
 					<-timer.C
 					defer func() {
-						println("defer")
 						// recover panic if the channel is closed correctly from the test
 						if r := recover(); r != nil {
-							println("recovered from panic")
 							tt.args.stream.Data <- domain.StreamData{ID: "timeout"}
 							return
 						}
@@ -541,12 +586,12 @@ func Test_baseFileRepository_createStreamConstructor(t *testing.T) {
 				workPath: testWorkPath,
 				filesystem: func(t *testing.T) (volumeFs, io.Reader) {
 					fsMock := newMockVolumeFs(t)
-					fsMock.EXPECT().Open(testWorkCasLog).Return(nil, assert.AnError)
+					fsMock.EXPECT().Open(testWorkLog).Return(nil, assert.AnError)
 					return fsMock, nil
 				},
 			},
 			args: args{
-				path: testWorkCasLog,
+				path: testWorkLog,
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
@@ -561,12 +606,12 @@ func Test_baseFileRepository_createStreamConstructor(t *testing.T) {
 				filesystem: func(t *testing.T) (volumeFs, io.Reader) {
 					fsMock := newMockVolumeFs(t)
 					fileMock := newMockClosableRWFile(t)
-					fsMock.EXPECT().Open(testWorkCasLog).Return(fileMock, nil)
+					fsMock.EXPECT().Open(testWorkLog).Return(fileMock, nil)
 					return fsMock, bufio.NewReader(fileMock)
 				},
 			},
 			args: args{
-				path: testWorkCasLog,
+				path: testWorkLog,
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
@@ -575,10 +620,10 @@ func Test_baseFileRepository_createStreamConstructor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			filesystem, expectedWant := tt.fields.filesystem(t)
+			testFilesystem, expectedWant := tt.fields.filesystem(t)
 			l := &baseFileRepository{
 				workPath:   tt.fields.workPath,
-				filesystem: filesystem,
+				filesystem: testFilesystem,
 			}
 			reader, closeReader, err := l.createStreamConstructor(tt.args.path)()
 			tt.wantErr(t, err)

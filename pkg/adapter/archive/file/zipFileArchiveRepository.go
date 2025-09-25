@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/filesystem"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/config"
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -45,7 +45,7 @@ func NewZipFileArchiveRepository(archivesPath string, zipCreator zipCreator, con
 }
 
 func (z *ZipFileArchiveRepository) Create(ctx context.Context, id domain.SupportArchiveID, streams map[domain.CollectorType]*domain.Stream) (string, error) {
-	logger := log.FromContext(ctx).WithName("ZipFileArchiveRepository.FinishCollection")
+	logger := log.FromContext(ctx).WithName("ZipFileArchiveRepository.finishCollection")
 	destinationPath := z.getArchivePath(id)
 
 	err := z.filesystem.MkdirAll(filepath.Dir(destinationPath), 0755)

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
+	"time"
 )
 
 const (
@@ -33,7 +34,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    bool
+		want    time.Duration
 		wantErr func(t *testing.T, err error)
 	}{
 		{
@@ -41,7 +42,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			fields: fields{
 				collectorMapping: func(t *testing.T) CollectorMapping {
 					collectorMapping := CollectorMapping{}
-					logRepository := newMockCollectorRepository[domain.PodLog](t)
+					logRepository := newMockCollectorRepository[domain.LogLine](t)
 					logRepository.EXPECT().IsCollected(testCtx, testID).Return(true, nil)
 
 					collectorMapping[domain.CollectorTypeLog] = CollectorAndRepository{Repository: logRepository}
@@ -55,9 +56,9 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 			},
-			want: false,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
@@ -67,7 +68,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			fields: fields{
 				collectorMapping: func(t *testing.T) CollectorMapping {
 					collectorMapping := CollectorMapping{}
-					logRepository := newMockCollectorRepository[domain.PodLog](t)
+					logRepository := newMockCollectorRepository[domain.LogLine](t)
 					logRepository.EXPECT().IsCollected(testCtx, testID).Return(false, assert.AnError)
 
 					collectorMapping[domain.CollectorTypeLog] = CollectorAndRepository{Repository: logRepository}
@@ -76,9 +77,9 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 			},
-			want: true,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
 				assert.ErrorIs(t, err, assert.AnError)
@@ -90,7 +91,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			fields: fields{
 				collectorMapping: func(t *testing.T) CollectorMapping {
 					collectorMapping := CollectorMapping{}
-					logRepository := newMockCollectorRepository[domain.PodLog](t)
+					logRepository := newMockCollectorRepository[domain.LogLine](t)
 					logRepository.EXPECT().IsCollected(testCtx, testID).Return(true, nil)
 
 					collectorMapping[domain.CollectorTypeLog] = CollectorAndRepository{Repository: logRepository}
@@ -104,9 +105,9 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 			},
-			want: true,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
 				assert.ErrorIs(t, err, assert.AnError)
@@ -118,11 +119,11 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			fields: fields{
 				collectorMapping: func(t *testing.T) CollectorMapping {
 					collectorMapping := CollectorMapping{}
-					logRepository := newMockCollectorRepository[domain.PodLog](t)
+					logRepository := newMockCollectorRepository[domain.LogLine](t)
 					logRepository.EXPECT().IsCollected(testCtx, testID).Return(false, nil)
-					logRepository.EXPECT().Create(mock.AnythingOfType("*context.cancelCtx"), testID, mock.AnythingOfType("<-chan *domain.PodLog")).Return(nil)
-					logCollector := newMockCollector[domain.PodLog](t)
-					logCollector.EXPECT().Collect(mock.AnythingOfType("*context.cancelCtx"), testArchiveNamespace, mock.Anything, mock.Anything, mock.AnythingOfType("chan<- *domain.PodLog")).Return(nil)
+					logRepository.EXPECT().Create(mock.AnythingOfType("*context.cancelCtx"), testID, mock.AnythingOfType("<-chan *domain.LogLine")).Return(nil)
+					logCollector := newMockCollector[domain.LogLine](t)
+					logCollector.EXPECT().Collect(mock.AnythingOfType("*context.cancelCtx"), testArchiveNamespace, mock.Anything, mock.Anything, mock.AnythingOfType("chan<- *domain.LogLine")).Return(nil)
 
 					collectorMapping[domain.CollectorTypeLog] = CollectorAndRepository{Repository: logRepository, Collector: logCollector}
 					return collectorMapping
@@ -136,10 +137,10 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					interfaceMock := newMockSupportArchiveV1Interface(t)
 					clientMock := newMockSupportArchiveInterface(t)
 					interfaceMock.EXPECT().SupportArchives(testArchiveNamespace).Return(clientMock)
-					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
+					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testLogCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
 						updatedCRStatus := modifyStatusFn(cr.Status)
 						for _, cond := range updatedCRStatus.Conditions {
-							if cond.Type == "TODO" && cond.Status == ("True") {
+							if cond.Type == "LogsFetched" && cond.Status == ("True") {
 								return
 							}
 						}
@@ -150,9 +151,9 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 			},
-			want: true,
+			want: time.Nanosecond,
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
@@ -162,12 +163,12 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			fields: fields{
 				collectorMapping: func(t *testing.T) CollectorMapping {
 					collectorMapping := CollectorMapping{}
-					logRepository := newMockCollectorRepository[domain.PodLog](t)
+					logRepository := newMockCollectorRepository[domain.LogLine](t)
 					logRepository.EXPECT().IsCollected(testCtx, testID).Return(false, nil)
-					logRepository.EXPECT().Create(mock.AnythingOfType("*context.cancelCtx"), testID, mock.AnythingOfType("<-chan *domain.PodLog")).Return(nil)
-					logCollector := newMockCollector[domain.PodLog](t)
+					logRepository.EXPECT().Create(mock.AnythingOfType("*context.cancelCtx"), testID, mock.AnythingOfType("<-chan *domain.LogLine")).Return(nil)
+					logCollector := newMockCollector[domain.LogLine](t)
 					logCollector.EXPECT().Name().Return("Logs")
-					logCollector.EXPECT().Collect(mock.AnythingOfType("*context.cancelCtx"), testArchiveNamespace, mock.Anything, mock.Anything, mock.AnythingOfType("chan<- *domain.PodLog")).Return(assert.AnError)
+					logCollector.EXPECT().Collect(mock.AnythingOfType("*context.cancelCtx"), testArchiveNamespace, mock.Anything, mock.Anything, mock.AnythingOfType("chan<- *domain.LogLine")).Return(assert.AnError)
 
 					collectorMapping[domain.CollectorTypeLog] = CollectorAndRepository{Repository: logRepository, Collector: logCollector}
 					return collectorMapping
@@ -181,10 +182,10 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					interfaceMock := newMockSupportArchiveV1Interface(t)
 					clientMock := newMockSupportArchiveInterface(t)
 					interfaceMock.EXPECT().SupportArchives(testArchiveNamespace).Return(clientMock)
-					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
+					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testLogCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
 						updatedCRStatus := modifyStatusFn(cr.Status)
 						for _, cond := range updatedCRStatus.Conditions {
-							if cond.Type == "TODO" && cond.Status == ("False") {
+							if cond.Type == "LogsFetched" && cond.Status == ("False") {
 								return
 							}
 						}
@@ -195,9 +196,9 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 			},
-			want: true,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "could not execute next collector: failed to execute collector Logs: error from error group Logs")
@@ -208,8 +209,8 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			fields: fields{
 				collectorMapping: func(t *testing.T) CollectorMapping {
 					collectorMapping := CollectorMapping{}
-					logCollector := newMockCollector[domain.PodLog](t)
-					logRepository := newMockCollectorRepository[domain.PodLog](t)
+					logCollector := newMockCollector[domain.LogLine](t)
+					logRepository := newMockCollectorRepository[domain.LogLine](t)
 					logRepository.EXPECT().IsCollected(testCtx, testID).Return(true, nil)
 					logRepository.EXPECT().IsCollected(mock.AnythingOfType("*context.cancelCtx"), testID).Return(true, nil)
 					logRepository.EXPECT().Stream(mock.AnythingOfType("*context.cancelCtx"), testID, mock.AnythingOfType("*domain.Stream")).Return(nil)
@@ -231,7 +232,7 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 					interfaceMock := newMockSupportArchiveV1Interface(t)
 					clientMock := newMockSupportArchiveInterface(t)
 					interfaceMock.EXPECT().SupportArchives(testArchiveNamespace).Return(clientMock)
-					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
+					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testLogCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, nil).Run(func(ctx context.Context, cr *libapi.SupportArchive, modifyStatusFn func(libapi.SupportArchiveStatus) libapi.SupportArchiveStatus, opts metav1.UpdateOptions) {
 						updatedCRStatus := modifyStatusFn(cr.Status)
 						assert.Equal(t, testURL, updatedCRStatus.DownloadPath)
 						foundCondition := false
@@ -247,9 +248,9 @@ func TestCreateArchiveUseCase_HandleArchiveRequest(t *testing.T) {
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 			},
-			want: false,
+			want: 0,
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
@@ -323,13 +324,13 @@ func TestCreateArchiveUseCase_updateFinalStatus(t *testing.T) {
 					clientMock := newMockSupportArchiveInterface(t)
 					interfaceMock.EXPECT().SupportArchives(testArchiveNamespace).Return(clientMock)
 
-					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, assert.AnError)
+					clientMock.EXPECT().UpdateStatusWithRetry(testCtx, testLogCR, mock.Anything, metav1.UpdateOptions{}).Return(nil, assert.AnError)
 					return interfaceMock
 				},
 			},
 			args: args{
 				ctx: testCtx,
-				cr:  testCR,
+				cr:  testLogCR,
 				url: testURL,
 			},
 			wantErr: func(t *testing.T, err error) {
@@ -352,7 +353,7 @@ func TestCreateArchiveUseCase_updateFinalStatus(t *testing.T) {
 func Test_streamFromRepository(t *testing.T) {
 	type args[DATATYPE any] struct {
 		ctx        context.Context
-		repository func(t *testing.T) collectorRepository[domain.PodLog]
+		repository func(t *testing.T) collectorRepository[domain.LogLine]
 		id         domain.SupportArchiveID
 		stream     *domain.Stream
 	}
@@ -361,13 +362,13 @@ func Test_streamFromRepository(t *testing.T) {
 		args    args[DATATYPE]
 		wantErr func(t *testing.T, err error)
 	}
-	tests := []testCase[domain.PodLog]{
+	tests := []testCase[domain.LogLine]{
 		{
 			name: "should return error on error query isCollected",
-			args: args[domain.PodLog]{
+			args: args[domain.LogLine]{
 				ctx: testCtx,
-				repository: func(t *testing.T) collectorRepository[domain.PodLog] {
-					repoMock := newMockCollectorRepository[domain.PodLog](t)
+				repository: func(t *testing.T) collectorRepository[domain.LogLine] {
+					repoMock := newMockCollectorRepository[domain.LogLine](t)
 					repoMock.EXPECT().IsCollected(testCtx, testID).Return(false, assert.AnError)
 
 					return repoMock
@@ -383,10 +384,10 @@ func Test_streamFromRepository(t *testing.T) {
 		},
 		{
 			name: "should return if repo is not complete",
-			args: args[domain.PodLog]{
+			args: args[domain.LogLine]{
 				ctx: testCtx,
-				repository: func(t *testing.T) collectorRepository[domain.PodLog] {
-					repoMock := newMockCollectorRepository[domain.PodLog](t)
+				repository: func(t *testing.T) collectorRepository[domain.LogLine] {
+					repoMock := newMockCollectorRepository[domain.LogLine](t)
 					repoMock.EXPECT().IsCollected(testCtx, testID).Return(false, nil)
 
 					return repoMock
@@ -402,8 +403,77 @@ func Test_streamFromRepository(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := streamFromRepository[domain.PodLog](tt.args.ctx, tt.args.repository(t), tt.args.id, tt.args.stream)
+			err := streamFromRepository[domain.LogLine](tt.args.ctx, tt.args.repository(t), tt.args.id, tt.args.stream)
 			tt.wantErr(t, err)
 		})
 	}
+}
+
+func TestCollectorMapping_getRequiredCollectorMapping(t *testing.T) {
+	t.Run("should return mapping for cr", func(t *testing.T) {
+		// given
+		cr := &libapi.SupportArchive{}
+
+		logColRepo := CollectorAndRepository{Collector: "logs"}
+		volumeColRepo := CollectorAndRepository{Collector: "volume"}
+		nodeColRepo := CollectorAndRepository{Collector: "node"}
+		secretColRepo := CollectorAndRepository{Collector: "logs"}
+		systemStateColRepo := CollectorAndRepository{Collector: "logs"}
+
+		sut := &CollectorMapping{
+			domain.CollectorTypeLog:         logColRepo,
+			domain.CollectorTypeVolumeInfo:  volumeColRepo,
+			domain.CollectorTypeNodeInfo:    nodeColRepo,
+			domain.CollectorTypeSecret:      secretColRepo,
+			domain.CollectorTypeSystemState: systemStateColRepo,
+		}
+
+		// when
+		mapping := sut.getRequiredCollectorMapping(cr)
+
+		// then
+		require.NotNil(t, mapping)
+		assert.Equal(t, logColRepo, mapping[domain.CollectorTypeLog])
+		assert.Equal(t, volumeColRepo, mapping[domain.CollectorTypeVolumeInfo])
+		assert.Equal(t, nodeColRepo, mapping[domain.CollectorTypeNodeInfo])
+		assert.Equal(t, secretColRepo, mapping[domain.CollectorTypeSecret])
+		assert.Equal(t, systemStateColRepo, mapping[domain.CollectorTypeSystemState])
+	})
+
+	t.Run("should not add collector to mapping if excluded", func(t *testing.T) {
+		// given
+		cr := &libapi.SupportArchive{
+			Spec: libapi.SupportArchiveSpec{
+				ExcludedContents: libapi.ExcludedContents{
+					SystemState:   true,
+					SensitiveData: true,
+					Events:        true,
+					Logs:          true,
+					VolumeInfo:    true,
+					SystemInfo:    true,
+				},
+			},
+		}
+
+		logColRepo := CollectorAndRepository{Collector: "logs"}
+		volumeColRepo := CollectorAndRepository{Collector: "volume"}
+		nodeColRepo := CollectorAndRepository{Collector: "node"}
+		secretColRepo := CollectorAndRepository{Collector: "logs"}
+		systemStateColRepo := CollectorAndRepository{Collector: "logs"}
+
+		sut := &CollectorMapping{
+			domain.CollectorTypeLog:         logColRepo,
+			domain.CollectorTypeVolumeInfo:  volumeColRepo,
+			domain.CollectorTypeNodeInfo:    nodeColRepo,
+			domain.CollectorTypeSecret:      secretColRepo,
+			domain.CollectorTypeSystemState: systemStateColRepo,
+		}
+
+		// when
+		mapping := sut.getRequiredCollectorMapping(cr)
+
+		// then
+		require.NotNil(t, mapping)
+		assert.Len(t, mapping, 0)
+	})
 }

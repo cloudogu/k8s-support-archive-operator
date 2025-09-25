@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM docker.io/golang:1.24.5 AS builder
+FROM docker.io/golang:1.25.1 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -28,7 +28,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o ma
 FROM gcr.io/distroless/static:nonroot
 LABEL maintainer="hello@cloudogu.com" \
       NAME="k8s-support-archive-operator" \
-      VERSION="0.3.0"
+      VERSION="1.0.0"
 
 WORKDIR /
 COPY --from=builder /workspace/manager .
