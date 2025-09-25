@@ -95,7 +95,7 @@ webserver:
     accessModes:
       - ReadWriteOnce
     requests:
-      storage: 2Gi
+      storage: 5Gi
     keepOnDelete: true
   service:
     type: ClusterIP

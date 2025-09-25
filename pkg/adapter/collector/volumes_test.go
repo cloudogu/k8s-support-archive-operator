@@ -2,14 +2,15 @@ package collector
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
-	"time"
 )
 
 const (
@@ -39,12 +40,11 @@ func TestVolumesCollector_Collect(t *testing.T) {
 		metricsProvider func(t *testing.T) metricsProvider
 	}
 	type args struct {
-		ctx          context.Context
-		namespace    string
-		start        time.Time
-		end          time.Time
-		resultChan   chan *domain.VolumeInfo
-		waitForClose bool
+		ctx        context.Context
+		namespace  string
+		start      time.Time
+		end        time.Time
+		resultChan chan *domain.VolumeInfo
 	}
 	tests := []struct {
 		name     string
@@ -101,12 +101,11 @@ func TestVolumesCollector_Collect(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:          testCtx,
-				namespace:    testNamespace,
-				start:        time.Time{},
-				end:          time.Time{},
-				resultChan:   make(chan *domain.VolumeInfo),
-				waitForClose: true,
+				ctx:        testCtx,
+				namespace:  testNamespace,
+				start:      time.Time{},
+				end:        time.Time{},
+				resultChan: make(chan *domain.VolumeInfo),
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
@@ -131,12 +130,11 @@ func TestVolumesCollector_Collect(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:          testCtx,
-				namespace:    testNamespace,
-				start:        time.Time{},
-				end:          now,
-				resultChan:   make(chan *domain.VolumeInfo),
-				waitForClose: false,
+				ctx:        testCtx,
+				namespace:  testNamespace,
+				start:      time.Time{},
+				end:        now,
+				resultChan: make(chan *domain.VolumeInfo),
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
@@ -164,12 +162,11 @@ func TestVolumesCollector_Collect(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:          testCtx,
-				namespace:    testNamespace,
-				start:        time.Time{},
-				end:          now,
-				resultChan:   make(chan *domain.VolumeInfo),
-				waitForClose: false,
+				ctx:        testCtx,
+				namespace:  testNamespace,
+				start:      time.Time{},
+				end:        now,
+				resultChan: make(chan *domain.VolumeInfo),
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.Error(t, err)
@@ -197,12 +194,11 @@ func TestVolumesCollector_Collect(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:          testCtx,
-				namespace:    testNamespace,
-				start:        time.Time{},
-				end:          now,
-				resultChan:   make(chan *domain.VolumeInfo),
-				waitForClose: true,
+				ctx:        testCtx,
+				namespace:  testNamespace,
+				start:      time.Time{},
+				end:        now,
+				resultChan: make(chan *domain.VolumeInfo),
 			},
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
@@ -235,29 +231,27 @@ func TestVolumesCollector_Collect(t *testing.T) {
 				return err
 			})
 
-			if tt.args.waitForClose {
-				timer := time.NewTimer(time.Second * 2)
-				group.Go(func() error {
-					<-timer.C
-					defer func() {
-						// recover panic if the channel is closed correctly from the test
-						if r := recover(); r != nil {
-							tt.args.resultChan <- nil
-							return
-						}
-					}()
+			timer := time.NewTimer(time.Second * 2)
+			group.Go(func() error {
+				<-timer.C
+				defer func() {
+					// recover panic if the channel is closed correctly from the test
+					if r := recover(); r != nil {
+						tt.args.resultChan <- nil
+						return
+					}
+				}()
 
-					return nil
-				})
+				return nil
+			})
 
-				v, open := <-tt.args.resultChan
-				if v == nil && open {
-					t.Fatal("test timed out")
-				}
+			v, open := <-tt.args.resultChan
+			if v == nil && open {
+				t.Fatal("test timed out")
+			}
 
-				if v != nil && open {
-					assert.Equal(t, tt.wantData, v)
-				}
+			if v != nil && open {
+				assert.Equal(t, tt.wantData, v)
 			}
 
 			err := group.Wait()

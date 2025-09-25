@@ -2,6 +2,9 @@ package collector
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -11,8 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"testing"
-	"time"
 )
 
 func TestNewSystemStateCollector(t *testing.T) {
@@ -111,12 +112,11 @@ func Test_resourceCollector_Collect(t *testing.T) {
 		resultChan chan *domain.UnstructuredResource
 	}
 	tests := []struct {
-		name            string
-		fields          fields
-		args            args
-		wantErrFn       assert.ErrorAssertionFunc
-		shouldCloseChan bool
-		wantChan        func(t *testing.T, resultChan chan *domain.UnstructuredResource)
+		name      string
+		fields    fields
+		args      args
+		wantErrFn assert.ErrorAssertionFunc
+		wantChan  func(t *testing.T, resultChan chan *domain.UnstructuredResource)
 	}{
 		{
 			name: "should fail to get resource kind lists from server",
@@ -136,8 +136,9 @@ func Test_resourceCollector_Collect(t *testing.T) {
 				}},
 			},
 			args: args{
-				ctx:       context.Background(),
-				namespace: testNamespace,
+				ctx:        context.Background(),
+				namespace:  testNamespace,
+				resultChan: make(chan *domain.UnstructuredResource),
 			},
 			wantErrFn: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorIs(t, err, assert.AnError, i) &&
@@ -162,8 +163,9 @@ func Test_resourceCollector_Collect(t *testing.T) {
 				}},
 			},
 			args: args{
-				ctx:       context.Background(),
-				namespace: testNamespace,
+				ctx:        context.Background(),
+				namespace:  testNamespace,
+				resultChan: make(chan *domain.UnstructuredResource),
 			},
 			wantErrFn: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorContains(t, err, "failed to create selector from given label selector", i)
@@ -191,8 +193,7 @@ func Test_resourceCollector_Collect(t *testing.T) {
 				namespace:  testNamespace,
 				resultChan: make(chan *domain.UnstructuredResource),
 			},
-			wantErrFn:       assert.NoError,
-			shouldCloseChan: true,
+			wantErrFn: assert.NoError,
 		},
 		{
 			name: "should fail to parse group version",
@@ -216,8 +217,9 @@ func Test_resourceCollector_Collect(t *testing.T) {
 				}},
 			},
 			args: args{
-				ctx:       context.Background(),
-				namespace: testNamespace,
+				ctx:        context.Background(),
+				namespace:  testNamespace,
+				resultChan: make(chan *domain.UnstructuredResource),
 			},
 			wantErrFn: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorContains(t, err, "failed to list api resources with group version \"invalid/invalid/invalid\"", i)
@@ -250,8 +252,7 @@ func Test_resourceCollector_Collect(t *testing.T) {
 				namespace:  testNamespace,
 				resultChan: make(chan *domain.UnstructuredResource),
 			},
-			wantErrFn:       assert.NoError,
-			shouldCloseChan: true,
+			wantErrFn: assert.NoError,
 		},
 		{
 			name: "should skip resource if gvk matcher matches",
@@ -281,8 +282,7 @@ func Test_resourceCollector_Collect(t *testing.T) {
 				namespace:  testNamespace,
 				resultChan: make(chan *domain.UnstructuredResource),
 			},
-			wantErrFn:       assert.NoError,
-			shouldCloseChan: true,
+			wantErrFn: assert.NoError,
 		},
 		{
 			name: "should fail to list resource",
@@ -315,8 +315,9 @@ func Test_resourceCollector_Collect(t *testing.T) {
 				}},
 			},
 			args: args{
-				ctx:       context.Background(),
-				namespace: testNamespace,
+				ctx:        context.Background(),
+				namespace:  testNamespace,
+				resultChan: make(chan *domain.UnstructuredResource),
 			},
 			wantErrFn: func(t assert.TestingT, err error, i ...interface{}) bool {
 				return assert.ErrorIs(t, err, assert.AnError, i) &&
@@ -364,8 +365,7 @@ func Test_resourceCollector_Collect(t *testing.T) {
 				namespace:  testNamespace,
 				resultChan: make(chan *domain.UnstructuredResource),
 			},
-			wantErrFn:       assert.NoError,
-			shouldCloseChan: true,
+			wantErrFn: assert.NoError,
 			wantChan: func(t *testing.T, resultChan chan *domain.UnstructuredResource) {
 				obj := <-resultChan
 				assert.Equal(t, "test", obj.Name)
@@ -385,24 +385,22 @@ func Test_resourceCollector_Collect(t *testing.T) {
 
 			group, _ := errgroup.WithContext(tt.args.ctx)
 
-			if tt.shouldCloseChan {
-				timer := time.NewTimer(time.Second * 2)
-				group.Go(func() error {
-					<-timer.C
-					if tt.wantChan != nil {
-						tt.wantChan(t, tt.args.resultChan)
+			timer := time.NewTimer(time.Second * 2)
+			group.Go(func() error {
+				<-timer.C
+				if tt.wantChan != nil {
+					tt.wantChan(t, tt.args.resultChan)
+				}
+				defer func() {
+					// recover panic if the channel is closed correctly from the test
+					if r := recover(); r != nil {
+						tt.args.resultChan <- nil
+						return
 					}
-					defer func() {
-						// recover panic if the channel is closed correctly from the test
-						if r := recover(); r != nil {
-							tt.args.resultChan <- nil
-							return
-						}
-					}()
+				}()
 
-					return nil
-				})
-			}
+				return nil
+			})
 
 			tt.wantErrFn(t, sut.Collect(tt.args.ctx, tt.args.namespace, time.Now(), time.Now(), tt.args.resultChan))
 
