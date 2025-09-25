@@ -18,9 +18,9 @@ update_versions_modify_files() {
   local nginxRepo
   local nginxTag
   nginxRegistry=$(yq '.webserver.image.registry' < "${valuesYAML}")
-  nginxRepo=$(yq 'webserver.image.repository' < "${valuesYAML}")
-  nginxTag=$(yq 'webserver.image.tag' < "${valuesYAML}")
-  setAttributeInComponentPatchTemplate ".values.images.kubectl" "${nginxRegistry}/${nginxRepo}:${nginxTag}"
+  nginxRepo=$(yq '.webserver.image.repository' < "${valuesYAML}")
+  nginxTag=$(yq '.webserver.image.tag' < "${valuesYAML}")
+  setAttributeInComponentPatchTemplate ".values.images.nginxWebserver" "${nginxRegistry}/${nginxRepo}:${nginxTag}"
 
 }
 
