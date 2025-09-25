@@ -130,16 +130,22 @@ func create[DATATYPE domain.CollectorUnionDataType](ctx context.Context, id doma
 				if err != nil {
 					return fmt.Errorf("error finishing collection: %w", err)
 				}
-				if closeFn != nil {
-					closeFnErr := closeFn(ctx, id)
-					if closeFnErr != nil {
-						return fmt.Errorf("error closing file: %w", closeFnErr)
-					}
-				}
-				return nil
+
+				return doSafeClose(ctx, id, closeFn)
 			}
 		}
 	}
+}
+
+func doSafeClose(ctx context.Context, id domain.SupportArchiveID, closeFn closeFn) error {
+	if closeFn != nil {
+		closeFnErr := closeFn(ctx, id)
+		if closeFnErr != nil {
+			return fmt.Errorf("error closing file: %w", closeFnErr)
+		}
+	}
+
+	return nil
 }
 
 func handleCreateErr(ctx context.Context, id domain.SupportArchiveID, err error, closeFn closeFn, deleteFn deleteFn) error {
