@@ -36,8 +36,8 @@ controllerManager:
     nodeInfoUsageMetricStep: 30s
     nodeInfoHardwareMetricStep: 30m
     metricsMaxSamples: 11000
-    logsMaxQueryResultCount: 2500 # max is 5000
-    logsMaxQueryTimeWindow: 720h # max is 720h
+    logsMaxQueryResultCount: 1500 # max is 5000
+    logsMaxQueryTimeWindow: 24h # max is 720h
     logsEventSourceName: loki.source.kubernetes_events
     logGateway:
       url: "http://k8s-loki-gateway.ecosystem.svc.cluster.local"
