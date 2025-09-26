@@ -1,7 +1,7 @@
 apiVersion: v1
 values:
   images:
-    supportArchiveOperator: cloudogu/k8s-support-archive-operator:1.0.0
+    supportArchiveOperator: cloudogu/k8s-support-archive-operator:1.0.1
     nginxWebserver: docker.io/nginxinc/nginx-unprivileged:1.28.0-alpine
 patches:
   values.yaml:
