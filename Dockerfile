@@ -28,7 +28,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o ma
 FROM gcr.io/distroless/static:nonroot
 LABEL maintainer="hello@cloudogu.com" \
       NAME="k8s-support-archive-operator" \
-      VERSION="1.0.0"
+      VERSION="1.0.1"
 
 WORKDIR /
 COPY --from=builder /workspace/manager .
