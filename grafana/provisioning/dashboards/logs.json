@@ -18,7 +18,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 3,
   "links": [],
   "panels": [
     {
@@ -59,19 +58,19 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "msg"
+              "options": "message"
             },
             "properties": [
               {
                 "id": "custom.width",
-                "value": 517
+                "value": 1248
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "level"
+              "options": "stream_detected_level"
             },
             "properties": [
               {
@@ -101,6 +100,66 @@
               {
                 "id": "custom.width",
                 "value": 256
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "time_year"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 89
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "time_month"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 48
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "time_day"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 76
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "stream_pod"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 386
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ns"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 98
               }
             ]
           }
@@ -167,15 +226,15 @@
           "options": {
             "include": {
               "names": [
-                "kind",
-                "level",
-                "msg",
-                "name",
-                "reason",
+                "message",
+                "stream_container",
+                "stream_detected_level",
+                "stream_pod",
                 "time",
-                "time_year",
+                "time_day",
                 "time_month",
-                "time_day"
+                "time_year",
+                "stream_namespace"
               ]
             }
           }
@@ -186,17 +245,26 @@
             "excludeByName": {},
             "includeByName": {},
             "indexByName": {
-              "kind": 5,
-              "level": 4,
-              "msg": 8,
-              "name": 6,
-              "reason": 7,
+              "message": 8,
+              "stream_container": 7,
+              "stream_detected_level": 5,
+              "stream_namespace": 1,
+              "stream_pod": 6,
               "time": 0,
-              "time_day": 3,
-              "time_month": 2,
-              "time_year": 1
+              "time_day": 4,
+              "time_month": 3,
+              "time_year": 2
             },
-            "renameByName": {}
+            "renameByName": {
+              "message": "",
+              "stream_container": "container",
+              "stream_detected_level": "level",
+              "stream_namespace": "ns",
+              "stream_pod": "pod",
+              "time_day": "day",
+              "time_month": "month",
+              "time_year": "year"
+            }
           }
         }
       ],
@@ -217,6 +285,6 @@
   "timezone": "browser",
   "title": "Logs",
   "uid": "beud9ostiyqsss",
-  "version": 1,
+  "version": 4,
   "weekStart": ""
 }
