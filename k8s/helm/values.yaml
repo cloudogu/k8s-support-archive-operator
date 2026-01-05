@@ -97,6 +97,7 @@ webserver:
     requests:
       storage: 5Gi
     keepOnDelete: true
+    storageClassName: null
   service:
     type: ClusterIP
     ports:
