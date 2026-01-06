@@ -9,6 +9,9 @@ metadata:
   {{- end }}
 spec:
   accessModes: {{ toYaml .Values.webserver.pvc.accessModes | nindent 4 }}
+  {{- if .Values.webserver.pvc.storageClassName }}
+  storageClassName: {{ .Values.webserver.pvc.storageClassName }}
+  {{- end }}
   resources:
     requests:
       storage: {{ .Values.webserver.pvc.requests.storage }}
