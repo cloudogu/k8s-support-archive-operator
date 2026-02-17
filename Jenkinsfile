@@ -12,7 +12,7 @@ github = new GitHub(this, git)
 changelog = new Changelog(this)
 Docker docker = new Docker(this)
 gpg = new Gpg(this, docker)
-goVersion = "1.25.1"
+goVersion = "1.26.0"
 makefile = new Makefile(this)
 supportArchiveCrdVersion="0.2.0"
 
@@ -33,6 +33,12 @@ helmChartDir = "${k8sTargetDir}/helm"
 
 node('docker') {
     timestamps {
+        properties([
+                parameters([
+                        choice(name: 'TrivySeverityLevels', choices: [TrivySeverityLevel.CRITICAL, TrivySeverityLevel.HIGH_AND_ABOVE, TrivySeverityLevel.MEDIUM_AND_ABOVE, TrivySeverityLevel.ALL], description: 'The levels to scan with trivy'),
+                        choice(name: 'TrivyStrategy', choices: [TrivyScanStrategy.UNSTABLE, TrivyScanStrategy.FAIL, TrivyScanStrategy.IGNORE], description: 'Define whether the build should be unstable, fail or whether the error should be ignored if any vulnerability was found.'),
+                ])
+        ])
         stage('Checkout') {
             checkout scm
             make 'clean'
@@ -120,6 +126,15 @@ node('docker') {
 
             stage('Wait for Ready Rollout') {
                 k3d.kubectl("--namespace default wait --for=condition=Ready pods --all")
+            }
+
+            stage('Trivy scan') {
+                Trivy trivy = new Trivy(this)
+                // We do not build the dogu in the single node ecosystem, therefore we just use scanImage here with the build from the k3s step.
+                trivy.scanImage("cloudogu/${repositoryName}:${controllerVersion}", params.TrivySeverityLevels, params.TrivyStrategy)
+                trivy.saveFormattedTrivyReport(TrivyScanFormat.TABLE)
+                trivy.saveFormattedTrivyReport(TrivyScanFormat.JSON)
+                trivy.saveFormattedTrivyReport(TrivyScanFormat.HTML)
             }
 
             stageAutomaticRelease()
