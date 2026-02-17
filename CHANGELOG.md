@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Security
-- [#281] Fix Golang stdlib CVE-2025-68121
+- [#29] Fix Golang stdlib CVE-2025-68121
 
 ## [v1.1.0] - 2026-01-06
 ### Changed
