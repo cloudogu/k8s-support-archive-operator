@@ -33,6 +33,12 @@ helmChartDir = "${k8sTargetDir}/helm"
 
 node('docker') {
     timestamps {
+        properties([
+                parameters([
+                        choice(name: 'TrivySeverityLevels', choices: [TrivySeverityLevel.CRITICAL, TrivySeverityLevel.HIGH_AND_ABOVE, TrivySeverityLevel.MEDIUM_AND_ABOVE, TrivySeverityLevel.ALL], description: 'The levels to scan with trivy'),
+                        choice(name: 'TrivyStrategy', choices: [TrivyScanStrategy.UNSTABLE, TrivyScanStrategy.FAIL, TrivyScanStrategy.IGNORE], description: 'Define whether the build should be unstable, fail or whether the error should be ignored if any vulnerability was found.'),
+                ])
+        ])
         stage('Checkout') {
             checkout scm
             make 'clean'
