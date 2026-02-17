@@ -122,6 +122,15 @@ node('docker') {
                 k3d.kubectl("--namespace default wait --for=condition=Ready pods --all")
             }
 
+            stage('Trivy scan') {
+                Trivy trivy = new Trivy(this)
+                // We do not build the dogu in the single node ecosystem, therefore we just use scanImage here with the build from the k3s step.
+                trivy.scanImage("cloudogu/${repositoryName}:${controllerVersion}", params.TrivySeverityLevels, params.TrivyStrategy)
+                trivy.saveFormattedTrivyReport(TrivyScanFormat.TABLE)
+                trivy.saveFormattedTrivyReport(TrivyScanFormat.JSON)
+                trivy.saveFormattedTrivyReport(TrivyScanFormat.HTML)
+            }
+
             stageAutomaticRelease()
         } catch(Exception e) {
             k3d.collectAndArchiveLogs()
