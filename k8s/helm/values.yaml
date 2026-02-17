@@ -18,7 +18,7 @@ controllerManager:
     image:
       registry: docker.io
       repository: cloudogu/k8s-support-archive-operator
-      tag: 1.1.0
+      tag: 1.1.1
     resources:
       limits:
         memory: 105M
@@ -89,7 +89,7 @@ webserver:
   image:
     registry: docker.io
     repository: nginxinc/nginx-unprivileged
-    tag: 1.28.0-alpine
+    tag: 1.29.5-alpine
   imagePullPolicy: IfNotPresent
   pvc:
     accessModes:
