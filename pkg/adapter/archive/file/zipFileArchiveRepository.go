@@ -89,7 +89,7 @@ func (z *ZipFileArchiveRepository) Create(ctx context.Context, id domain.Support
 }
 
 func (z *ZipFileArchiveRepository) getArchiveURL(id domain.SupportArchiveID) string {
-	return fmt.Sprintf("%s://%s.%s.svc.cluster.local:%s/%s/%s.zip", z.archiveVolumeDownloadServiceProtocol, z.archiveVolumeDownloadServiceName, id.Namespace, z.archiveVolumeDownloadServicePort, id.Namespace, id.Name)
+	return fmt.Sprintf("%s://%s.%s.svc:%s/%s/%s.zip", z.archiveVolumeDownloadServiceProtocol, z.archiveVolumeDownloadServiceName, id.Namespace, z.archiveVolumeDownloadServicePort, id.Namespace, id.Name)
 }
 
 func (z *ZipFileArchiveRepository) rangeOverStream(ctx context.Context, collector domain.CollectorType, stream *domain.Stream, zipWriter Zipper) error {

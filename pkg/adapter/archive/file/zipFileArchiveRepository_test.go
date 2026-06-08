@@ -3,15 +3,16 @@ package file
 import (
 	"context"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"io/fs"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/config"
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/domain"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -20,7 +21,7 @@ const (
 	testName          = "archive-123"
 	testArchivePath   = testArchivesPath + "/" + testNamespace + "/" + testName + ".zip"
 	testNamespacePath = testArchivesPath + "/" + testNamespace
-	testArchiveURL    = "https://servicename.ecosystem.svc.cluster.local:8080/ecosystem/archive-123.zip"
+	testArchiveURL    = "https://servicename.ecosystem.svc:8080/ecosystem/archive-123.zip"
 	testServiceName   = "servicename"
 	testProtocol      = "https"
 	testPort          = "8080"

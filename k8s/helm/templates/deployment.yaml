@@ -1,3 +1,4 @@
+{{- $logServiceNamespace := .Values.controllerManager.env.logGateway.serviceRef.namespace | default .Release.Namespace -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -52,8 +53,6 @@ spec:
           value: "{{ .Values.metrics.service.port }}"
         - name: METRICS_SERVICE_PROTOCOL
           value: {{ .Values.metrics.service.protocol }}
-        - name: KUBERNETES_CLUSTER_DOMAIN
-          value: {{ quote .Values.kubernetesClusterDomain }}
         - name: STAGE
           value: {{ quote .Values.controllerManager.env.stage | default "production" }}
         - name: LOG_LEVEL
@@ -91,7 +90,7 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: LOG_GATEWAY_URL
-          value: {{ .Values.controllerManager.env.logGateway.url | quote }}
+          value: "{{ .Values.controllerManager.env.logGateway.scheme }}://{{ .Values.controllerManager.env.logGateway.serviceRef.name }}.{{ $logServiceNamespace }}"
         - name: LOG_GATEWAY_USERNAME
           valueFrom:
            secretKeyRef:
