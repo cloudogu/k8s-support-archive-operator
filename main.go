@@ -4,9 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/loki"
 	"net/http"
 	"os"
+
+	"github.com/cloudogu/k8s-support-archive-operator/pkg/adapter/loki"
 
 	// Import all Kubernetes client auth plugins (e.g., Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -118,7 +119,7 @@ func startOperator(
 	fs := filesystem.FileSystem{}
 
 	address := fmt.Sprintf(
-		"%s://%s.%s.svc.cluster.local:%s",
+		"%s://%s.%s.svc:%s",
 		operatorConfig.MetricsServiceProtocol,
 		operatorConfig.MetricsServiceName,
 		operatorConfig.Namespace,

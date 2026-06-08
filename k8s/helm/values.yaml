@@ -40,7 +40,10 @@ controllerManager:
     logsMaxQueryTimeWindow: 24h # max is 720h
     logsEventSourceName: loki.source.kubernetes_events
     logGateway:
-      url: "http://k8s-loki-gateway.ecosystem.svc.cluster.local"
+      scheme: "http"
+      serviceRef:
+        name: "k8s-loki-gateway"
+        #namespace: "ecosystem"
       secretName: "k8s-loki-gateway-secret"
       usernameKey: "username"
       passwordKey: "password"
@@ -59,7 +62,6 @@ controllerManager:
   replicas: 1
   serviceAccount:
     annotations: {}
-kubernetesClusterDomain: cluster.local
 metricsService:
   ports:
     - name: https
